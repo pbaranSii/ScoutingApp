@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
-import { offlineDb, OfflineObservation } from "../db/offlineDb";
+import { offlineDb } from "../db/offlineDb";
+import type { OfflineObservation } from "../db/offlineDb";
 
 const MAX_RETRY_ATTEMPTS = 3;
 

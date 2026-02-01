@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   DndContext,
-  DragEndEvent,
-  DragOverEvent,
   PointerSensor,
   useSensor,
   useSensors,
   closestCenter,
 } from "@dnd-kit/core";
+import type { DragEndEvent, DragOverEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import type { Player } from "@/features/players/types";
-import { PIPELINE_COLUMNS, PipelineStatus } from "../types";
+import { PIPELINE_COLUMNS } from "../types";
+import type { PipelineStatus } from "../types";
 import { PipelineColumn } from "./PipelineColumn";
 import { usePlayers, useUpdatePlayerStatus } from "@/features/players/hooks/usePlayers";
 

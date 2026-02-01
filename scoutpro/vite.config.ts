@@ -45,8 +45,11 @@ export default defineConfig({
     }),
   ],
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    alias: [
+      { find: "@/components/ui", replacement: path.resolve(__dirname, "./@/components/ui") },
+      { find: "@/hooks/use-toast", replacement: path.resolve(__dirname, "./@/hooks/use-toast") },
+      { find: "@/hooks", replacement: path.resolve(__dirname, "./src/hooks") },
+      { find: "@", replacement: path.resolve(__dirname, "./src") },
+    ],
   },
 });

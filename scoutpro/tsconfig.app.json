@@ -17,6 +17,9 @@
     "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
+      "@/components/ui/*": ["./@/components/ui/*"],
+      "@/hooks/use-toast": ["./@/hooks/use-toast"],
+      "@/hooks/*": ["./src/hooks/*"],
       "@/*": ["./src/*"]
     },
 
