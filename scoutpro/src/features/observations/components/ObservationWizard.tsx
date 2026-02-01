@@ -33,13 +33,6 @@ const wizardSchema = z.object({
 
 type WizardFormValues = z.infer<typeof wizardSchema>;
 
-const steps = [
-  { id: 1, title: "Zawodnik" },
-  { id: 2, title: "Pozycja" },
-  { id: 3, title: "Ocena" },
-  { id: 4, title: "Zdjecie" },
-];
-
 type PrefillPlayer = {
   id: string;
   first_name: string;
@@ -56,7 +49,6 @@ type ObservationWizardProps = {
 };
 
 export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: ObservationWizardProps) {
-  const [step, setStep] = useState(1);
   const { user } = useAuthStore();
   const isOnline = useOnlineStatus();
   const { addOfflineObservation } = useSync();
@@ -103,13 +95,6 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
     form.setValue("dominant_foot", prefillPlayer.dominant_foot ?? "");
   }, [prefillPlayer, form]);
 
-  const stepFields: Record<number, (keyof WizardFormValues)[]> = {
-    1: lockPlayerFields ? [] : ["first_name", "last_name", "birth_year", "club_name"],
-    2: lockPlayerFields ? [] : ["primary_position", "dominant_foot"],
-    3: ["rank", "potential_now", "potential_future", "source", "notes"],
-    4: [],
-  };
-
   const resolveClubId = async (clubName?: string) => {
     if (!clubName) return null;
     const { data: existing } = await supabase
@@ -124,18 +109,6 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
     throw new Error(
       "Brak uprawnien do dodania klubu. Wybierz istniejacy klub lub zostaw pole puste."
     );
-  };
-
-  const handleNext = async () => {
-    const fields = stepFields[step];
-    const valid = await form.trigger(fields);
-    if (valid) {
-      setStep((prev) => Math.min(prev + 1, steps.length));
-    }
-  };
-
-  const handleBack = () => {
-    setStep((prev) => Math.max(prev - 1, 1));
   };
 
   const onSubmit = async (values: WizardFormValues) => {
@@ -196,7 +169,6 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
       }
 
       form.reset();
-      setStep(1);
       localStorage.removeItem("scoutpro-observation-draft");
     } catch {
       setSubmitError("Nie udalo sie zapisac obserwacji");
@@ -210,15 +182,10 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between text-sm text-slate-500">
-        <span>Krok {step}/4</span>
-        <span>{steps[step - 1].title}</span>
-      </div>
-
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {step === 1 && (
-            <div className="space-y-4">
+          <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-slate-700">Zawodnik</h2>
               <FormField
                 control={form.control}
                 name="last_name"
@@ -275,11 +242,10 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
                   </FormItem>
                 )}
               />
-            </div>
-          )}
+          </section>
 
-          {step === 2 && (
-            <div className="space-y-4">
+          <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-slate-700">Pozycja</h2>
               <FormField
                 control={form.control}
                 name="primary_position"
@@ -340,11 +306,10 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
                   </FormItem>
                 )}
               />
-            </div>
-          )}
+          </section>
 
-          {step === 3 && (
-            <div className="space-y-4">
+          <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-slate-700">Ocena</h2>
               <FormField
                 control={form.control}
                 name="rank"
@@ -430,33 +395,21 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
                   </FormItem>
                 )}
               />
-            </div>
-          )}
+          </section>
 
-          {step === 4 && (
-            <div className="rounded-lg border border-dashed p-6 text-center text-sm text-slate-500">
-              Dodawanie zdjec zostanie wlaczone w kolejnym kroku.
-            </div>
-          )}
+          <section className="rounded-lg border border-dashed p-4 text-center text-sm text-slate-500">
+            Dodawanie zdjec zostanie wlaczone w kolejnym kroku.
+          </section>
 
           {submitError && <p className="text-sm text-red-600">{submitError}</p>}
 
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Button type="button" variant="ghost" onClick={handleBack} disabled={step === 1}>
-              Wstecz
-            </Button>
             <Button type="button" variant="secondary" onClick={handleSaveDraft}>
               Zapisz szkic
             </Button>
-            {step < 4 ? (
-              <Button type="button" onClick={handleNext}>
-                Dalej
-              </Button>
-            ) : (
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? "Zapisywanie..." : "Zapisz obserwacje"}
-              </Button>
-            )}
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? "Zapisywanie..." : "Zapisz obserwacje"}
+            </Button>
           </div>
         </form>
       </Form>
