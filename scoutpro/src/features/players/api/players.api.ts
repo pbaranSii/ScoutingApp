@@ -46,21 +46,46 @@ export async function createPlayer(input: PlayerInput) {
       ...input,
       pipeline_status: input.pipeline_status ?? "observed",
     })
-    .select()
+    .select("id")
     .single();
 
   if (error) throw error;
-  return data as Player;
+  return data as Pick<Player, "id">;
+}
+
+export async function updatePlayer(id: string, input: PlayerInput) {
+  const { error } = await supabase
+    .from("players")
+    .update({
+      ...input,
+    })
+    .eq("id", id);
+
+  if (error) throw error;
+  return null;
+}
+
+export async function fetchClubs() {
+  const { data, error } = await supabase
+    .from("clubs")
+    .select("id, name")
+    .order("name", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function deletePlayer(id: string) {
+  const { error } = await supabase.from("players").delete().eq("id", id);
+  if (error) throw error;
 }
 
 export async function updatePlayerStatus(id: string, status: string) {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("players")
     .update({ pipeline_status: status })
-    .eq("id", id)
-    .select()
-    .single();
+    .eq("id", id);
 
   if (error) throw error;
-  return data as Player;
+  return null;
 }

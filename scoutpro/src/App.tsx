@@ -9,9 +9,13 @@ import { SetNewPasswordPage } from "@/pages/SetNewPasswordPage";
 import { AcceptInvitePage } from "@/pages/AcceptInvitePage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { PlayersPage } from "@/pages/PlayersPage";
+import { NewPlayerPage } from "@/pages/NewPlayerPage";
 import { PlayerDetailPage } from "@/pages/PlayerDetailPage";
+import { EditPlayerPage } from "@/pages/EditPlayerPage";
 import { ObservationsPage } from "@/pages/ObservationsPage";
 import { NewObservationPage } from "@/pages/NewObservationPage";
+import { ObservationDetailPage } from "@/pages/ObservationDetailPage";
+import { EditObservationPage } from "@/pages/EditObservationPage";
 import { PipelinePage } from "@/pages/PipelinePage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
@@ -32,9 +36,13 @@ export default function App() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/players" element={<PlayersPage />} />
+          <Route path="/players/new" element={<NewPlayerPage />} />
           <Route path="/players/:id" element={<PlayerDetailPage />} />
+          <Route path="/players/:id/edit" element={<EditPlayerPage />} />
           <Route path="/observations" element={<ObservationsPage />} />
           <Route path="/observations/new" element={<NewObservationPage />} />
+          <Route path="/observations/:id" element={<ObservationDetailPage />} />
+          <Route path="/observations/:id/edit" element={<EditObservationPage />} />
           <Route path="/pipeline" element={<PipelinePage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>

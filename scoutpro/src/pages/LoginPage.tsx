@@ -1,8 +1,15 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { LoginForm } from "@/features/auth/LoginForm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuthStore } from "@/stores/authStore";
 
 export function LoginPage() {
+  const { session, isLoading } = useAuthStore();
+
+  if (!isLoading && session) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-10">
       <div className="mx-auto flex w-full max-w-sm flex-col gap-6">

@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCreatePlayer } from "../hooks/usePlayers";
+import { useCreatePlayer, useUpdatePlayer } from "../hooks/usePlayers";
+import { ClubSelect } from "./ClubSelect";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { PIPELINE_COLUMNS } from "@/features/pipeline/types";
 
 const playerSchema = z.object({
   first_name: z.string().min(2, "Podaj imie"),
@@ -16,29 +18,53 @@ const playerSchema = z.object({
   club_name: z.string().optional(),
   primary_position: z.string().optional(),
   dominant_foot: z.string().optional(),
+  pipeline_status: z.string().optional(),
 });
 
 type PlayerFormValues = z.infer<typeof playerSchema>;
 
 type PlayerFormProps = {
+  mode?: "create" | "edit";
+  playerId?: string;
+  initialValues?: Partial<PlayerFormValues>;
   onCreated?: () => void;
+  onUpdated?: () => void;
 };
 
-export function PlayerForm({ onCreated }: PlayerFormProps) {
-  const { mutateAsync, isPending } = useCreatePlayer();
+export function PlayerForm({
+  mode = "create",
+  playerId,
+  initialValues,
+  onCreated,
+  onUpdated,
+}: PlayerFormProps) {
+  const isEdit = mode === "edit";
+  const { mutateAsync: createPlayer, isPending: isCreating } = useCreatePlayer();
+  const { mutateAsync: updatePlayer, isPending: isUpdating } = useUpdatePlayer();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const form = useForm<PlayerFormValues>({
-    resolver: zodResolver(playerSchema),
-    defaultValues: {
+  const defaultValues = useMemo(
+    () => ({
       first_name: "",
       last_name: "",
       birth_year: new Date().getFullYear() - 14,
       club_name: "",
       primary_position: "",
       dominant_foot: "",
-    },
+      pipeline_status: "observed",
+      ...initialValues,
+    }),
+    [initialValues]
+  );
+
+  const form = useForm<PlayerFormValues>({
+    resolver: zodResolver(playerSchema),
+    defaultValues,
   });
+
+  useEffect(() => {
+    form.reset(defaultValues);
+  }, [defaultValues, form]);
 
   const resolveClubId = async (clubName?: string) => {
     if (!clubName) return null;
@@ -51,37 +77,43 @@ export function PlayerForm({ onCreated }: PlayerFormProps) {
     if (existing?.id) {
       return existing.id as string;
     }
-
-    const { data: created, error } = await supabase
-      .from("clubs")
-      .insert({ name: clubName })
-      .select("id")
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
-    return created.id as string;
+    throw new Error(
+      "Brak uprawnien do dodania klubu. Wybierz istniejacy klub lub zostaw pole puste."
+    );
   };
 
   const onSubmit = async (values: PlayerFormValues) => {
     setSubmitError(null);
     try {
       const clubId = await resolveClubId(values.club_name?.trim());
-      await mutateAsync({
+      const input = {
         first_name: values.first_name,
         last_name: values.last_name,
         birth_year: values.birth_year,
-        club_id: clubId,
+        club_id: clubId ?? null,
         primary_position: values.primary_position || undefined,
         dominant_foot: values.dominant_foot || undefined,
-        pipeline_status: "observed",
-      });
-      form.reset();
-      onCreated?.();
-    } catch {
-      setSubmitError("Nie udalo sie zapisac zawodnika");
+        pipeline_status: values.pipeline_status || undefined,
+      };
+
+      if (isEdit) {
+        if (!playerId) {
+          throw new Error("Brak identyfikatora zawodnika do aktualizacji.");
+        }
+        await updatePlayer({ id: playerId, input });
+        onUpdated?.();
+      } else {
+        await createPlayer({
+          ...input,
+          pipeline_status: "observed",
+        });
+        form.reset();
+        onCreated?.();
+      }
+    } catch (error) {
+      const message = extractErrorMessage(error, "Nie udalo sie zapisac zawodnika");
+      console.error("Save player failed:", error);
+      setSubmitError(message);
     }
   };
 
@@ -138,7 +170,11 @@ export function PlayerForm({ onCreated }: PlayerFormProps) {
             <FormItem>
               <FormLabel>Klub</FormLabel>
               <FormControl>
-                <Input placeholder="Chemik Bydgoszcz" {...field} />
+                <ClubSelect
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  placeholder="Wybierz klub"
+                />
               </FormControl>
             </FormItem>
           )}
@@ -195,14 +231,56 @@ export function PlayerForm({ onCreated }: PlayerFormProps) {
               </FormItem>
             )}
           />
+          {isEdit && (
+            <FormField
+              control={form.control}
+              name="pipeline_status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status w pipeline</FormLabel>
+                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Wybierz status" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {PIPELINE_COLUMNS.map((column) => (
+                        <SelectItem key={column.id} value={column.id}>
+                          {column.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+          )}
         </div>
 
         {submitError && <p className="text-sm text-red-600">{submitError}</p>}
 
-        <Button type="submit" className="w-full" disabled={isPending}>
-          {isPending ? "Zapisywanie..." : "Dodaj zawodnika"}
+        <Button type="submit" className="w-full" disabled={isCreating || isUpdating}>
+          {isCreating || isUpdating
+            ? "Zapisywanie..."
+            : isEdit
+              ? "Zapisz zmiany"
+              : "Dodaj zawodnika"}
         </Button>
       </form>
     </Form>
   );
+}
+
+function extractErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  if (typeof error === "object" && error !== null && "message" in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim().length > 0) {
+      return message;
+    }
+  }
+  return fallback;
 }

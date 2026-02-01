@@ -1,8 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   createPlayer,
+  deletePlayer,
+  fetchClubs,
   fetchPlayerById,
   fetchPlayers,
+  updatePlayer,
   updatePlayerStatus,
 } from "../api/players.api";
 import type { Player, PlayerInput } from "../types";
@@ -37,6 +40,13 @@ export function usePlayers(filters?: {
   });
 }
 
+export function useClubs() {
+  return useQuery({
+    queryKey: ["clubs"],
+    queryFn: fetchClubs,
+  });
+}
+
 export function usePlayer(id: string) {
   return useQuery({
     queryKey: ["player", id],
@@ -52,6 +62,31 @@ export function useCreatePlayer() {
     mutationFn: (input: PlayerInput) => createPlayer(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["players"] });
+    },
+  });
+}
+
+export function useUpdatePlayer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: PlayerInput }) =>
+      updatePlayer(id, input),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["players"] });
+      queryClient.invalidateQueries({ queryKey: ["player", variables.id] });
+    },
+  });
+}
+
+export function useDeletePlayer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => deletePlayer(id),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: ["players"] });
+      queryClient.removeQueries({ queryKey: ["player", id] });
     },
   });
 }

@@ -1,16 +1,17 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 
 export function ProtectedRoute() {
-  const { user, isLoading } = useAuthStore();
+  const location = useLocation();
+  const { isLoading, session } = useAuthStore();
 
   if (isLoading) {
     return <LoadingSpinner />;
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
+  if (!session) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   return <Outlet />;

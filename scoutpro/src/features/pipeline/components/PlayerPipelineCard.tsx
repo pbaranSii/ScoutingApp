@@ -1,6 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Player } from "@/features/players/types";
+import { Link } from "react-router-dom";
 
 type PlayerPipelineCardProps = {
   player: Player;
@@ -16,13 +17,14 @@ export function PlayerPipelineCard({ player }: PlayerPipelineCardProps) {
   };
 
   return (
-    <div
+    <Link
+      to={`/players/${player.id}`}
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
       className={[
-        "rounded-lg border bg-white p-3 shadow-sm",
+        "block rounded-lg border bg-white p-3 shadow-sm hover:border-blue-200 hover:bg-blue-50",
         isDragging ? "opacity-60" : "opacity-100",
       ].join(" ")}
     >
@@ -32,6 +34,6 @@ export function PlayerPipelineCard({ player }: PlayerPipelineCardProps) {
       <div className="text-xs text-slate-500">
         {player.birth_year} • {player.primary_position ?? "-"}
       </div>
-    </div>
+    </Link>
   );
 }

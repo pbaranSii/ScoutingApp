@@ -4,11 +4,33 @@ import type { Observation, ObservationInput } from "../types";
 export async function fetchObservations() {
   const { data, error } = await supabase
     .from("observations")
-    .select("*, player:players(first_name,last_name,birth_year), scout:users(full_name)")
+    .select("*, player:players(first_name,last_name,birth_year)")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
   return (data ?? []) as Observation[];
+}
+
+export async function fetchObservationsByPlayer(playerId: string) {
+  const { data, error } = await supabase
+    .from("observations")
+    .select("*, player:players(first_name,last_name,birth_year)")
+    .eq("player_id", playerId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as Observation[];
+}
+
+export async function fetchObservationById(id: string) {
+  const { data, error } = await supabase
+    .from("observations")
+    .select("*, player:players(first_name,last_name,birth_year)")
+    .eq("id", id)
+    .single();
+
+  if (error) throw error;
+  return data as Observation;
 }
 
 export async function createObservation(input: ObservationInput) {
@@ -20,4 +42,14 @@ export async function createObservation(input: ObservationInput) {
 
   if (error) throw error;
   return data as Observation;
+}
+
+export async function updateObservation(id: string, input: Partial<ObservationInput>) {
+  const { error } = await supabase.from("observations").update(input).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteObservation(id: string) {
+  const { error } = await supabase.from("observations").delete().eq("id", id);
+  if (error) throw error;
 }

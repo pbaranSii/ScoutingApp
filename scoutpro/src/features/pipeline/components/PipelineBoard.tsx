@@ -16,6 +16,8 @@ import { usePlayers, useUpdatePlayerStatus } from "@/features/players/hooks/useP
 
 type ColumnState = Record<PipelineStatus, Player[]>;
 
+const EMPTY_PLAYERS: Player[] = [];
+
 function groupByStatus(players: Player[]): ColumnState {
   return PIPELINE_COLUMNS.reduce((acc, column) => {
     acc[column.id] = players.filter(
@@ -25,23 +27,38 @@ function groupByStatus(players: Player[]): ColumnState {
   }, {} as ColumnState);
 }
 
-export function PipelineBoard() {
+function findColumnByPlayerId(playerId: string, columns: ColumnState) {
+  return PIPELINE_COLUMNS.find((column) =>
+    columns[column.id].some((player) => player.id === playerId)
+  )?.id;
+}
+
+type PipelineBoardProps = {
+  search?: string;
+};
+
+export function PipelineBoard({ search = "" }: PipelineBoardProps) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
-  const { data: players = [], isLoading } = usePlayers();
+  const { data, isLoading } = usePlayers();
+  const players = data ?? EMPTY_PLAYERS;
   const { mutateAsync: updateStatus } = useUpdatePlayerStatus();
   const [columns, setColumns] = useState<ColumnState>(() => groupByStatus([]));
 
-  const initialColumns = useMemo(() => groupByStatus(players), [players]);
+  const filteredPlayers = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return players;
+    return players.filter((player) => {
+      const fullName = `${player.first_name} ${player.last_name}`.toLowerCase();
+      const clubName = player.club?.name?.toLowerCase() ?? "";
+      return fullName.includes(query) || clubName.includes(query);
+    });
+  }, [players, search]);
+
+  const initialColumns = useMemo(() => groupByStatus(filteredPlayers), [filteredPlayers]);
 
   useEffect(() => {
     setColumns(initialColumns);
   }, [initialColumns]);
-
-  const findColumnByPlayerId = (playerId: string) => {
-    return PIPELINE_COLUMNS.find((column) =>
-      columns[column.id].some((player) => player.id === playerId)
-    )?.id;
-  };
 
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
@@ -50,10 +67,10 @@ export function PipelineBoard() {
     const activeId = String(active.id);
     const overId = String(over.id);
 
-    const sourceColumn = findColumnByPlayerId(activeId);
+    const sourceColumn = findColumnByPlayerId(activeId, columns);
     const targetColumn = PIPELINE_COLUMNS.find((c) => c.id === overId)
       ? (overId as PipelineStatus)
-      : findColumnByPlayerId(overId);
+      : findColumnByPlayerId(overId, columns);
 
     if (!sourceColumn || !targetColumn || sourceColumn === targetColumn) {
       return;
@@ -75,10 +92,10 @@ export function PipelineBoard() {
 
     const activeId = String(active.id);
     const overId = String(over.id);
-    const sourceColumn = findColumnByPlayerId(activeId);
+    const sourceColumn = findColumnByPlayerId(activeId, initialColumns);
     const targetColumn = PIPELINE_COLUMNS.find((c) => c.id === overId)
       ? (overId as PipelineStatus)
-      : findColumnByPlayerId(overId);
+      : findColumnByPlayerId(overId, columns);
 
     if (!sourceColumn || !targetColumn) return;
 

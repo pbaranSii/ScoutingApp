@@ -1,14 +1,12 @@
 import { useState } from "react";
 import { usePlayers } from "@/features/players/hooks/usePlayers";
 import { PlayerList } from "@/features/players/components/PlayerList";
-import { PlayerForm } from "@/features/players/components/PlayerForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Link } from "react-router-dom";
 
 export function PlayersPage() {
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
   const { data = [], isLoading } = usePlayers({ search });
 
   return (
@@ -20,17 +18,9 @@ export function PlayersPage() {
             Lista zawodnikow z bazy scoutingowej.
           </p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>Dodaj zawodnika</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Nowy zawodnik</DialogTitle>
-            </DialogHeader>
-            <PlayerForm onCreated={() => setOpen(false)} />
-          </DialogContent>
-        </Dialog>
+        <Button asChild>
+          <Link to="/players/new">Dodaj zawodnika</Link>
+        </Button>
       </div>
 
       <Input

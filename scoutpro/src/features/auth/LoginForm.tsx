@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export function LoginForm() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login, isLoading, error } = useAuthStore();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -34,7 +35,10 @@ export function LoginForm() {
     setSubmitError(null);
     try {
       await login(values.email, values.password, values.remember);
-      navigate("/dashboard");
+      const from =
+        (location.state as { from?: { pathname?: string } } | null)?.from?.pathname ??
+        "/dashboard";
+      navigate(from, { replace: true });
     } catch {
       setSubmitError("Nieprawidlowy email lub haslo");
     }

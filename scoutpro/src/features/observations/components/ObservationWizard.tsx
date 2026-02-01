@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { useCreateObservation } from "../hooks/useObservations";
 import { useCreatePlayer } from "@/features/players/hooks/usePlayers";
+import { ClubSelect } from "@/features/players/components/ClubSelect";
 import { useAuthStore } from "@/stores/authStore";
 import { supabase } from "@/lib/supabase";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -39,7 +40,22 @@ const steps = [
   { id: 4, title: "Zdjecie" },
 ];
 
-export function ObservationWizard() {
+type PrefillPlayer = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  birth_year: number;
+  club_name?: string;
+  primary_position?: string;
+  dominant_foot?: string;
+};
+
+type ObservationWizardProps = {
+  prefillPlayer?: PrefillPlayer;
+  lockPlayerFields?: boolean;
+};
+
+export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: ObservationWizardProps) {
   const [step, setStep] = useState(1);
   const { user } = useAuthStore();
   const isOnline = useOnlineStatus();
@@ -77,9 +93,19 @@ export function ObservationWizard() {
     }
   }, [form]);
 
+  useEffect(() => {
+    if (!prefillPlayer) return;
+    form.setValue("first_name", prefillPlayer.first_name);
+    form.setValue("last_name", prefillPlayer.last_name);
+    form.setValue("birth_year", prefillPlayer.birth_year);
+    form.setValue("club_name", prefillPlayer.club_name ?? "");
+    form.setValue("primary_position", prefillPlayer.primary_position ?? "");
+    form.setValue("dominant_foot", prefillPlayer.dominant_foot ?? "");
+  }, [prefillPlayer, form]);
+
   const stepFields: Record<number, (keyof WizardFormValues)[]> = {
-    1: ["first_name", "last_name", "birth_year", "club_name"],
-    2: ["primary_position", "dominant_foot"],
+    1: lockPlayerFields ? [] : ["first_name", "last_name", "birth_year", "club_name"],
+    2: lockPlayerFields ? [] : ["primary_position", "dominant_foot"],
     3: ["rank", "potential_now", "potential_future", "source", "notes"],
     4: [],
   };
@@ -95,15 +121,9 @@ export function ObservationWizard() {
     if (existing?.id) {
       return existing.id as string;
     }
-
-    const { data: created, error } = await supabase
-      .from("clubs")
-      .insert({ name: clubName })
-      .select("id")
-      .single();
-
-    if (error) throw error;
-    return created.id as string;
+    throw new Error(
+      "Brak uprawnien do dodania klubu. Wybierz istniejacy klub lub zostaw pole puste."
+    );
   };
 
   const handleNext = async () => {
@@ -129,6 +149,7 @@ export function ObservationWizard() {
         await addOfflineObservation({
           localId: uuidv4(),
           data: {
+            player_id: prefillPlayer?.id,
             first_name: values.first_name,
             last_name: values.last_name,
             birth_year: values.birth_year,
@@ -147,19 +168,23 @@ export function ObservationWizard() {
           syncAttempts: 0,
         });
       } else {
-        const clubId = await resolveClubId(values.club_name?.trim());
-        const player = await createPlayer({
-          first_name: values.first_name,
-          last_name: values.last_name,
-          birth_year: values.birth_year,
-          club_id: clubId,
-          primary_position: values.primary_position,
-          dominant_foot: values.dominant_foot,
-          pipeline_status: "observed",
-        });
+        let playerId = prefillPlayer?.id;
+        if (!playerId) {
+          const clubId = await resolveClubId(values.club_name?.trim());
+          const player = await createPlayer({
+            first_name: values.first_name,
+            last_name: values.last_name,
+            birth_year: values.birth_year,
+            club_id: clubId,
+            primary_position: values.primary_position,
+            dominant_foot: values.dominant_foot,
+            pipeline_status: "observed",
+          });
+          playerId = player.id;
+        }
 
         await createObservation({
-          player_id: player.id,
+          player_id: playerId,
           scout_id: user.id,
           source: values.source,
           rank: values.rank,
@@ -201,7 +226,7 @@ export function ObservationWizard() {
                   <FormItem>
                     <FormLabel>Nazwisko *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Kowalski" {...field} />
+                      <Input placeholder="Kowalski" disabled={lockPlayerFields} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -214,7 +239,7 @@ export function ObservationWizard() {
                   <FormItem>
                     <FormLabel>Imie *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Jan" {...field} />
+                      <Input placeholder="Jan" disabled={lockPlayerFields} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -227,7 +252,7 @@ export function ObservationWizard() {
                   <FormItem>
                     <FormLabel>Rocznik *</FormLabel>
                     <FormControl>
-                      <Input type="number" inputMode="numeric" {...field} />
+                      <Input type="number" inputMode="numeric" disabled={lockPlayerFields} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -240,7 +265,12 @@ export function ObservationWizard() {
                   <FormItem>
                     <FormLabel>Klub</FormLabel>
                     <FormControl>
-                      <Input placeholder="Chemik Bydgoszcz" {...field} />
+                      <ClubSelect
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        placeholder="Wybierz klub"
+                        disabled={lockPlayerFields}
+                      />
                     </FormControl>
                   </FormItem>
                 )}
@@ -256,7 +286,11 @@ export function ObservationWizard() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Pozycja glowna *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={lockPlayerFields}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Wybierz pozycje" />
@@ -286,7 +320,11 @@ export function ObservationWizard() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Noga dominujaca *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={lockPlayerFields}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Wybierz noge" />
