@@ -3,6 +3,7 @@ import { useSearchParams, Link } from "react-router-dom";
 import { usePlayer } from "@/features/players/hooks/usePlayers";
 import { Button } from "@/components/ui/button";
 import { Mic } from "lucide-react";
+import { PageHeader } from "@/components/common/PageHeader";
 
 export function NewObservationPage() {
   const [searchParams] = useSearchParams();
@@ -19,23 +20,23 @@ export function NewObservationPage() {
 
   return (
     <div className="mx-auto w-full max-w-[960px] space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Nowa obserwacja</h1>
-          <p className="text-sm text-slate-600">Wypelnij wszystkie sekcje formularza</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="destructive" className="gap-2">
-            <Mic className="h-4 w-4" />
-            Nagraj obserwacje
-          </Button>
-          {player && (
-            <Button asChild variant="outline">
-              <Link to={`/players/${player.id}`}>Wroc do zawodnika</Link>
+      <PageHeader
+        title="Nowa obserwacja"
+        subtitle="Wypelnij wszystkie sekcje formularza"
+        actions={
+          <>
+            <Button type="button" variant="destructive" className="gap-2">
+              <Mic className="h-4 w-4" />
+              Nagraj obserwacje
             </Button>
-          )}
-        </div>
-      </div>
+            {player && (
+              <Button asChild variant="outline">
+                <Link to={`/players/${player.id}`}>Wroc do zawodnika</Link>
+              </Button>
+            )}
+          </>
+        }
+      />
       <div className="h-px bg-slate-200" />
       <ObservationWizard
         prefillPlayer={

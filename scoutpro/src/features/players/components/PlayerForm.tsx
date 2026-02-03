@@ -5,6 +5,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCreatePlayer, useUpdatePlayer } from "../hooks/usePlayers";
 import { ClubSelect } from "./ClubSelect";
+import { PositionPickerDialog } from "@/features/players/components/PositionPickerDialog";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -236,20 +237,23 @@ export function PlayerForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Pozycja</FormLabel>
-                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Wybierz pozycje" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {POSITION_OPTIONS.map((option) => (
-                          <SelectItem key={option.code} value={option.code}>
-                            {option.label} ({option.code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="flex items-center gap-2">
+                      <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Wybierz pozycje" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {POSITION_OPTIONS.map((option) => (
+                            <SelectItem key={option.code} value={option.code}>
+                              {option.label} ({option.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <PositionPickerDialog value={field.value} onSelect={field.onChange} />
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -1,18 +1,17 @@
 import { useState } from "react";
 import { PipelineBoard } from "@/features/pipeline/components/PipelineBoard";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/common/PageHeader";
 
 export function PipelinePage() {
   const [search, setSearch] = useState("");
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Pipeline</h1>
-        <p className="text-sm text-slate-600">
-          Przeciagnij karte zawodnika, aby zmienic status.
-        </p>
-      </div>
+      <PageHeader
+        title="Pipeline"
+        subtitle="Przeciagnij karte zawodnika, aby zmienic status."
+      />
       <Input
         placeholder="Szukaj po nazwisku, imieniu lub klubie"
         value={search}

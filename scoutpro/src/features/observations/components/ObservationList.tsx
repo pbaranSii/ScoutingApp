@@ -20,7 +20,7 @@ export function ObservationList({ observations, isLoading }: ObservationListProp
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="space-y-4">
       {observations.map((observation) => (
         <ObservationCard key={observation.id} observation={observation} />
       ))}
