@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { useCreateObservation } from "../hooks/useObservations";
 import { useCreatePlayer } from "@/features/players/hooks/usePlayers";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
+import { PositionPickerDialog } from "@/features/players/components/PositionPickerDialog";
 import { useAuthStore } from "@/stores/authStore";
 import { supabase } from "@/lib/supabase";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
@@ -29,7 +30,7 @@ const wizardSchema = z.object({
   competition: z.string().optional(),
   match_date: z.string().min(1, "Wybierz date meczu"),
   primary_position: z.string().min(1, "Wybierz pozycje"),
-  overall_rating: z.coerce.number().int().min(1).max(10),
+  overall_rating: z.coerce.number().min(1).max(10).multipleOf(0.5),
   strengths: z.string().optional(),
   weaknesses: z.string().optional(),
   notes: z.string().optional(),
@@ -115,9 +116,13 @@ export function ObservationWizard({
   useEffect(() => {
     if (!prefillPlayer) return;
     form.setValue("full_name", `${prefillPlayer.first_name} ${prefillPlayer.last_name}`.trim());
-    form.setValue("age", currentYear - prefillPlayer.birth_year);
+    if (Number.isFinite(prefillPlayer.birth_year)) {
+      form.setValue("age", currentYear - prefillPlayer.birth_year);
+    }
     form.setValue("club_name", prefillPlayer.club_name ?? "");
-    form.setValue("primary_position", mapLegacyPosition(prefillPlayer.primary_position ?? ""));
+    if (prefillPlayer.primary_position) {
+      form.setValue("primary_position", mapLegacyPosition(prefillPlayer.primary_position));
+    }
   }, [prefillPlayer, form, currentYear]);
 
   const resolveClubId = async (clubName?: string) => {
@@ -229,7 +234,11 @@ export function ObservationWizard({
                   <FormItem>
                     <FormLabel>Imie i nazwisko *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Jan Kowalski" disabled={lockPlayerFields} {...field} />
+                      <Input
+                        placeholder="Jan Kowalski"
+                        disabled={lockPlayerFields && Boolean(field.value?.trim())}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -242,7 +251,14 @@ export function ObservationWizard({
                   <FormItem>
                     <FormLabel>Wiek *</FormLabel>
                     <FormControl>
-                      <Input type="number" inputMode="numeric" min={8} max={50} disabled={lockPlayerFields} {...field} />
+                      <Input
+                        type="number"
+                        inputMode="numeric"
+                        min={8}
+                        max={50}
+                        disabled={lockPlayerFields && typeof field.value === "number" && !Number.isNaN(field.value)}
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -259,7 +275,7 @@ export function ObservationWizard({
                         value={field.value ?? ""}
                         onChange={field.onChange}
                         placeholder="Wybierz klub"
-                        disabled={lockPlayerFields}
+                        disabled={lockPlayerFields && Boolean(field.value?.trim())}
                       />
                     </FormControl>
                   </FormItem>
@@ -301,20 +317,31 @@ export function ObservationWizard({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Pozycja na boisku *</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange} disabled={lockPlayerFields}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Wybierz pozycje" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {POSITION_OPTIONS.map((option) => (
-                        <SelectItem key={option.code} value={option.code}>
-                          {option.label} ({option.code})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={lockPlayerFields && Boolean(field.value)}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Wybierz pozycje" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {POSITION_OPTIONS.map((option) => (
+                          <SelectItem key={option.code} value={option.code}>
+                            {option.label} ({option.code})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <PositionPickerDialog
+                      value={field.value}
+                      onSelect={field.onChange}
+                      disabled={lockPlayerFields && Boolean(field.value)}
+                    />
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
@@ -327,25 +354,38 @@ export function ObservationWizard({
               control={form.control}
               name="overall_rating"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Ogolna ocena: {field.value}/10</FormLabel>
-                  <FormControl>
-                    <input
-                      type="range"
-                      min={1}
-                      max={10}
-                      step={1}
-                      value={field.value}
-                      onChange={(event) => field.onChange(Number(event.target.value))}
-                      className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-red-600"
-                    />
-                  </FormControl>
-                  <div className="flex justify-between text-[11px] text-slate-500">
-                    <span>Slaby (1)</span>
-                    <span>Przecietny (5)</span>
-                    <span>Doskonały (10)</span>
-                  </div>
-                </FormItem>
+              <FormItem>
+                {(() => {
+                  const ratingValue = Number.isFinite(field.value) ? field.value : 1;
+                  const ratingPercent = ((ratingValue - 1) / 9) * 100;
+                  const ratingLabel = Number.isInteger(ratingValue) ? ratingValue.toString() : ratingValue.toFixed(1);
+
+                  return (
+                    <>
+                      <FormLabel>Ogolna ocena: {ratingLabel}/10</FormLabel>
+                      <FormControl>
+                        <input
+                          type="range"
+                          min={1}
+                          max={10}
+                          step={0.5}
+                          value={ratingValue}
+                          onChange={(event) => field.onChange(Number(event.target.value))}
+                          className="overall-rating-slider h-4 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-red-600"
+                          style={{
+                            background: `linear-gradient(to right, #dc2626 0%, #dc2626 ${ratingPercent}%, #e2e8f0 ${ratingPercent}%, #e2e8f0 100%)`,
+                          }}
+                        />
+                      </FormControl>
+                      <div className="flex justify-between text-[11px] text-slate-500">
+                        <span>Slaby (1)</span>
+                        <span>Przecietny (5)</span>
+                        <span>Doskonały (10)</span>
+                      </div>
+                    </>
+                  );
+                })()}
+              </FormItem>
               )}
             />
             <FormField

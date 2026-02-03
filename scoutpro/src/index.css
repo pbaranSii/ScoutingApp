@@ -35,3 +35,37 @@ body {
   @apply bg-background text-foreground;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
+
+.overall-rating-slider {
+  --slider-height: 16px;
+  height: var(--slider-height);
+}
+
+.overall-rating-slider::-webkit-slider-runnable-track {
+  height: var(--slider-height);
+  border-radius: 9999px;
+}
+
+.overall-rating-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid #dc2626;
+  margin-top: calc((var(--slider-height) - 20px) / 2);
+}
+
+.overall-rating-slider::-moz-range-track {
+  height: var(--slider-height);
+  border-radius: 9999px;
+  background: transparent;
+}
+
+.overall-rating-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 2px solid #dc2626;
+}

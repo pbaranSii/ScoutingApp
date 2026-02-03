@@ -6,14 +6,16 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useObservation, useUpdateObservation } from "@/features/observations/hooks/useObservations";
 import { useUpdatePlayer } from "@/features/players/hooks/usePlayers";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
+import { PositionPickerDialog } from "@/features/players/components/PositionPickerDialog";
 import { supabase } from "@/lib/supabase";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
+import { PageHeader } from "@/components/common/PageHeader";
 
 const schema = z.object({
   full_name: z
@@ -25,7 +27,7 @@ const schema = z.object({
   competition: z.string().optional(),
   match_date: z.string().min(1, "Wybierz date meczu"),
   primary_position: z.string().min(1, "Wybierz pozycje"),
-  overall_rating: z.coerce.number().int().min(1).max(10),
+  overall_rating: z.coerce.number().min(1).max(10).multipleOf(0.5),
   source: z.string().min(1, "Wybierz zrodlo"),
   rank: z.string().optional(),
   potential_now: z.coerce.number().int().min(1).max(5).optional(),
@@ -168,24 +170,18 @@ export function EditObservationPage() {
 
   return (
     <div className="mx-auto w-full max-w-[960px] space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Edytuj obserwacje</h1>
-          <p className="text-sm text-slate-600">
-            {observation.player?.last_name} {observation.player?.first_name}
-          </p>
-        </div>
-        <Button variant="outline" type="button" onClick={() => navigate(`/observations/${observation.id}`)}>
-          Wroc do szczegolow
-        </Button>
-      </div>
+      <PageHeader
+        title="Edytuj obserwacje"
+        subtitle={`${observation.player?.last_name ?? ""} ${observation.player?.first_name ?? ""}`.trim()}
+        actions={
+          <Button variant="outline" type="button" onClick={() => navigate(`/observations/${observation.id}`)}>
+            Wroc do szczegolow
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Dane obserwacji</CardTitle>
-          <CardDescription>Wprowadz zmiany i kliknij zapisz.</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Card className="border-0 bg-transparent shadow-none">
+        <CardContent className="p-0">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
@@ -263,15 +259,16 @@ export function EditObservationPage() {
 
               <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
                 <h2 className="text-sm font-semibold text-slate-700">2. Pozycja</h2>
-                <FormField
-                  control={form.control}
-                  name="primary_position"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Pozycja na boisku *</FormLabel>
+              <FormField
+                control={form.control}
+                name="primary_position"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pozycja na boisku *</FormLabel>
+                    <div className="flex items-center gap-2">
                       <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="flex-1">
                             <SelectValue placeholder="Wybierz pozycje" />
                           </SelectTrigger>
                         </FormControl>
@@ -283,10 +280,12 @@ export function EditObservationPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <PositionPickerDialog value={field.value} onSelect={field.onChange} />
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               </section>
 
               <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
@@ -295,25 +294,40 @@ export function EditObservationPage() {
                   control={form.control}
                   name="overall_rating"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Ogolna ocena: {field.value}/10</FormLabel>
-                      <FormControl>
-                        <input
-                          type="range"
-                          min={1}
-                          max={10}
-                          step={1}
-                          value={field.value}
-                          onChange={(event) => field.onChange(Number(event.target.value))}
-                          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-red-600"
-                        />
-                      </FormControl>
-                      <div className="flex justify-between text-[11px] text-slate-500">
-                        <span>Slaby (1)</span>
-                        <span>Przecietny (5)</span>
-                        <span>Doskonały (10)</span>
-                      </div>
-                    </FormItem>
+                <FormItem>
+                  {(() => {
+                    const ratingValue = Number.isFinite(field.value) ? field.value : 1;
+                    const ratingPercent = ((ratingValue - 1) / 9) * 100;
+                    const ratingLabel = Number.isInteger(ratingValue)
+                      ? ratingValue.toString()
+                      : ratingValue.toFixed(1);
+
+                    return (
+                      <>
+                        <FormLabel>Ogolna ocena: {ratingLabel}/10</FormLabel>
+                        <FormControl>
+                          <input
+                            type="range"
+                            min={1}
+                            max={10}
+                            step={0.5}
+                            value={ratingValue}
+                            onChange={(event) => field.onChange(Number(event.target.value))}
+                            className="overall-rating-slider h-4 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-red-600"
+                            style={{
+                              background: `linear-gradient(to right, #dc2626 0%, #dc2626 ${ratingPercent}%, #e2e8f0 ${ratingPercent}%, #e2e8f0 100%)`,
+                            }}
+                          />
+                        </FormControl>
+                        <div className="flex justify-between text-[11px] text-slate-500">
+                          <span>Slaby (1)</span>
+                          <span>Przecietny (5)</span>
+                          <span>Doskonały (10)</span>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </FormItem>
                   )}
                 />
                 <FormField

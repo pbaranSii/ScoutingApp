@@ -17,6 +17,7 @@ export type Player = {
   guardian_phone?: string | null;
   guardian_email?: string | null;
   pipeline_status?: string | null;
+  observation_count?: number | null;
   created_at?: string;
   updated_at?: string;
 };

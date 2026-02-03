@@ -1,15 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InviteForm } from "@/features/auth/InviteForm";
+import { PageHeader } from "@/components/common/PageHeader";
 
 export function SettingsPage() {
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Ustawienia</h1>
-        <p className="text-sm text-slate-600">
-          Zarzadzaj uzytkownikami i zaproszeniami.
-        </p>
-      </div>
+      <PageHeader
+        title="Ustawienia"
+        subtitle="Zarzadzaj uzytkownikami i zaproszeniami."
+      />
       <Card>
         <CardHeader>
           <CardTitle>Zaproszenia</CardTitle>

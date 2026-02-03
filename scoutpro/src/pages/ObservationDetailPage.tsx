@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { formatPosition } from "@/features/players/positions";
+import { PageHeader } from "@/components/common/PageHeader";
 
 export function ObservationDetailPage() {
   const navigate = useNavigate();
@@ -39,43 +40,41 @@ export function ObservationDetailPage() {
 
   return (
     <div className="mx-auto w-full max-w-[960px] space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Szczegoly obserwacji</h1>
-          <p className="text-sm text-slate-600">
-            {observation.player?.last_name} {observation.player?.first_name} • {dateLabel}
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Button
-            type="button"
-            variant="destructive"
-            disabled={isDeleting}
-            onClick={async () => {
-              const confirmed = window.confirm(
-                "Czy na pewno chcesz usunac obserwacje? Tej operacji nie mozna cofnac."
-              );
-              if (!confirmed) return;
-              try {
-                await deleteObservation(observation.id);
-                navigate("/observations");
-              } catch (error) {
-                const message =
-                  error instanceof Error && error.message
-                    ? error.message
-                    : "Nie udalo sie usunac obserwacji";
-                window.alert(message);
-                console.error("Delete observation failed:", error);
-              }
-            }}
-          >
-            {isDeleting ? "Usuwanie..." : "Usun obserwacje"}
-          </Button>
-          <Button asChild>
-            <Link to={`/observations/${observation.id}/edit`}>Edytuj obserwacje</Link>
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Szczegoly obserwacji"
+        subtitle={`${observation.player?.last_name ?? ""} ${observation.player?.first_name ?? ""} • ${dateLabel}`.trim()}
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isDeleting}
+              onClick={async () => {
+                const confirmed = window.confirm(
+                  "Czy na pewno chcesz usunac obserwacje? Tej operacji nie mozna cofnac."
+                );
+                if (!confirmed) return;
+                try {
+                  await deleteObservation(observation.id);
+                  navigate("/observations");
+                } catch (error) {
+                  const message =
+                    error instanceof Error && error.message
+                      ? error.message
+                      : "Nie udalo sie usunac obserwacji";
+                  window.alert(message);
+                  console.error("Delete observation failed:", error);
+                }
+              }}
+            >
+              {isDeleting ? "Usuwanie..." : "Usun obserwacje"}
+            </Button>
+            <Button asChild>
+              <Link to={`/observations/${observation.id}/edit`}>Edytuj obserwacje</Link>
+            </Button>
+          </>
+        }
+      />
 
       <Card>
         <CardHeader>

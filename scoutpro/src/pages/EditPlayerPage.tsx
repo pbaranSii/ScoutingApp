@@ -2,6 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { usePlayer } from "@/features/players/hooks/usePlayers";
 import { PlayerForm } from "@/features/players/components/PlayerForm";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/common/PageHeader";
 
 export function EditPlayerPage() {
   const navigate = useNavigate();
@@ -36,17 +37,15 @@ export function EditPlayerPage() {
 
   return (
     <div className="mx-auto w-full max-w-[960px] space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Edytuj zawodnika</h1>
-          <p className="text-sm text-slate-600">
-            Zmien dane zawodnika i zapisz aktualizacje.
-          </p>
-        </div>
-        <Button variant="outline" type="button" onClick={() => navigate(`/players/${player.id}`)}>
-          Wroc do profilu
-        </Button>
-      </div>
+      <PageHeader
+        title="Edytuj zawodnika"
+        subtitle="Zmien dane zawodnika i zapisz aktualizacje."
+        actions={
+          <Button variant="outline" type="button" onClick={() => navigate(`/players/${player.id}`)}>
+            Wroc do profilu
+          </Button>
+        }
+      />
 
       <PlayerForm
         mode="edit"

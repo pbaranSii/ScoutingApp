@@ -8,7 +8,7 @@ export async function fetchPlayers(filters?: {
 }) {
   let query = supabase
     .from("players")
-    .select("*, club:clubs(name), region:regions(name)")
+    .select("*, club:clubs(name), region:regions(name), observations:observations(count)")
     .order("created_at", { ascending: false });
 
   if (filters?.birthYear) {
@@ -25,18 +25,32 @@ export async function fetchPlayers(filters?: {
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as Player[];
+  return (data ?? []).map((player) => {
+    const { observations, ...rest } = player as Player & { observations?: { count: number }[] };
+    const observation_count =
+      Array.isArray(observations) && observations.length > 0 ? observations[0]?.count ?? 0 : 0;
+    return {
+      ...rest,
+      observation_count,
+    };
+  });
 }
 
 export async function fetchPlayerById(id: string) {
   const { data, error } = await supabase
     .from("players")
-    .select("*, club:clubs(name), region:regions(name)")
+    .select("*, club:clubs(name), region:regions(name), observations:observations(count)")
     .eq("id", id)
     .single();
 
   if (error) throw error;
-  return data as Player;
+  const { observations, ...rest } = (data ?? {}) as Player & { observations?: { count: number }[] };
+  const observation_count =
+    Array.isArray(observations) && observations.length > 0 ? observations[0]?.count ?? 0 : 0;
+  return {
+    ...rest,
+    observation_count,
+  };
 }
 
 export async function createPlayer(input: PlayerInput) {
