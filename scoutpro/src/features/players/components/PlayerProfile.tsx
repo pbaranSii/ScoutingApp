@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useDeletePlayer } from "../hooks/usePlayers";
 import { PIPELINE_COLUMNS } from "@/features/pipeline/types";
+import { formatPosition } from "@/features/players/positions";
 
 type PlayerProfileProps = {
   player: Player;
@@ -59,11 +60,11 @@ export function PlayerProfile({ player }: PlayerProfileProps) {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="px-6">
           <CardTitle className="text-base">Dane podstawowe</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
-          <div>Pozycja: {player.primary_position ?? "Brak"}</div>
+        <CardContent className="grid gap-2 px-6 text-sm text-slate-600 sm:grid-cols-2">
+          <div>Pozycja: {formatPosition(player.primary_position)}</div>
           <div>Noga: {player.dominant_foot ?? "Brak"}</div>
           <div>Status: {statusLabel}</div>
         </CardContent>

@@ -11,10 +11,14 @@ export type OfflineObservation = {
     birth_year: number;
     club_name?: string;
     primary_position?: string;
-    dominant_foot?: string;
     source: string;
     rank?: string;
     notes?: string;
+    strengths?: string;
+    weaknesses?: string;
+    overall_rating?: number;
+    competition?: string;
+    photo_url?: string;
     potential_now?: number;
     potential_future?: number;
     observation_date: string;

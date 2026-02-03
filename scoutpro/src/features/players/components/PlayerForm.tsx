@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,19 +7,44 @@ import { useCreatePlayer, useUpdatePlayer } from "../hooks/usePlayers";
 import { ClubSelect } from "./ClubSelect";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { PIPELINE_COLUMNS } from "@/features/pipeline/types";
+import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
+
+const optionalText = z.preprocess(
+  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  z.string().trim().optional()
+);
+
+const optionalNumber = z.preprocess(
+  (value) => (value === "" || value === null ? undefined : value),
+  z.coerce.number().int().positive().optional()
+);
 
 const playerSchema = z.object({
   first_name: z.string().min(2, "Podaj imie"),
   last_name: z.string().min(2, "Podaj nazwisko"),
   birth_year: z.coerce.number().int().min(2000).max(2030),
-  club_name: z.string().optional(),
-  primary_position: z.string().optional(),
-  dominant_foot: z.string().optional(),
-  pipeline_status: z.string().optional(),
+  nationality: optionalText,
+  club_name: optionalText,
+  primary_position: optionalText,
+  dominant_foot: optionalText,
+  pipeline_status: optionalText,
+  height_cm: optionalNumber,
+  weight_kg: optionalNumber,
+  guardian_name: optionalText,
+  guardian_phone: optionalText,
+  guardian_email: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().email("Podaj poprawny email").optional()
+  ),
+  photo_url: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().url("Podaj poprawny URL").optional()
+  ),
 });
 
 type PlayerFormValues = z.infer<typeof playerSchema>;
@@ -39,6 +65,7 @@ export function PlayerForm({
   onUpdated,
 }: PlayerFormProps) {
   const isEdit = mode === "edit";
+  const navigate = useNavigate();
   const { mutateAsync: createPlayer, isPending: isCreating } = useCreatePlayer();
   const { mutateAsync: updatePlayer, isPending: isUpdating } = useUpdatePlayer();
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -48,11 +75,19 @@ export function PlayerForm({
       first_name: "",
       last_name: "",
       birth_year: new Date().getFullYear() - 14,
+      nationality: "",
       club_name: "",
-      primary_position: "",
+      primary_position: mapLegacyPosition(initialValues?.primary_position ?? ""),
       dominant_foot: "",
       pipeline_status: "observed",
+      height_cm: undefined,
+      weight_kg: undefined,
+      guardian_name: "",
+      guardian_phone: "",
+      guardian_email: "",
+      photo_url: "",
       ...initialValues,
+      primary_position: mapLegacyPosition(initialValues?.primary_position ?? ""),
     }),
     [initialValues]
   );
@@ -86,14 +121,25 @@ export function PlayerForm({
     setSubmitError(null);
     try {
       const clubId = await resolveClubId(values.club_name?.trim());
+      const toNullable = (value?: string) =>
+        typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+      const toNullableNumber = (value?: number) =>
+        typeof value === "number" && !Number.isNaN(value) ? value : null;
       const input = {
         first_name: values.first_name,
         last_name: values.last_name,
         birth_year: values.birth_year,
         club_id: clubId ?? null,
-        primary_position: values.primary_position || undefined,
-        dominant_foot: values.dominant_foot || undefined,
-        pipeline_status: values.pipeline_status || undefined,
+        nationality: toNullable(values.nationality),
+        primary_position: toNullable(values.primary_position),
+        dominant_foot: toNullable(values.dominant_foot),
+        pipeline_status: values.pipeline_status || "observed",
+        height_cm: toNullableNumber(values.height_cm),
+        weight_kg: toNullableNumber(values.weight_kg),
+        guardian_name: toNullable(values.guardian_name),
+        guardian_phone: toNullable(values.guardian_phone),
+        guardian_email: toNullable(values.guardian_email),
+        photo_urls: values.photo_url?.trim() ? [values.photo_url.trim()] : null,
       };
 
       if (isEdit) {
@@ -103,10 +149,7 @@ export function PlayerForm({
         await updatePlayer({ id: playerId, input });
         onUpdated?.();
       } else {
-        await createPlayer({
-          ...input,
-          pipeline_status: "observed",
-        });
+        await createPlayer(input);
         form.reset();
         onCreated?.();
       }
@@ -120,118 +163,114 @@ export function PlayerForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="last_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nazwisko *</FormLabel>
-                <FormControl>
-                  <Input placeholder="Kowalski" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="first_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Imie *</FormLabel>
-                <FormControl>
-                  <Input placeholder="Jan" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+        <Card>
+          <CardHeader className="px-6">
+            <CardTitle className="text-base">Dane podstawowe</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 px-6">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="first_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Imie *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Jan" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="last_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nazwisko *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Kowalski" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="birth_year"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rok urodzenia *</FormLabel>
+                    <FormControl>
+                      <Input type="number" inputMode="numeric" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="nationality"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Narodowosc</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Polska" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-        <FormField
-          control={form.control}
-          name="birth_year"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Rocznik *</FormLabel>
-              <FormControl>
-                <Input type="number" inputMode="numeric" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="club_name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Klub</FormLabel>
-              <FormControl>
-                <ClubSelect
-                  value={field.value ?? ""}
-                  onChange={field.onChange}
-                  placeholder="Wybierz klub"
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-
-        <div className="grid gap-3 sm:grid-cols-2">
-          <FormField
-            control={form.control}
-            name="primary_position"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Pozycja</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Wybierz pozycje" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="1">GK</SelectItem>
-                    <SelectItem value="4">CB</SelectItem>
-                    <SelectItem value="2">RB</SelectItem>
-                    <SelectItem value="3">LB</SelectItem>
-                    <SelectItem value="6">CDM</SelectItem>
-                    <SelectItem value="8">CM</SelectItem>
-                    <SelectItem value="10">CAM</SelectItem>
-                    <SelectItem value="7">RW</SelectItem>
-                    <SelectItem value="11">LW</SelectItem>
-                    <SelectItem value="9">ST</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="dominant_foot"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Noga dominujaca</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Wybierz" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="right">Prawa</SelectItem>
-                    <SelectItem value="left">Lewa</SelectItem>
-                    <SelectItem value="both">Obie</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            )}
-          />
-          {isEdit && (
+        <Card>
+          <CardHeader className="px-6">
+            <CardTitle className="text-base">Pozycja i klub</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 px-6">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="primary_position"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Pozycja</FormLabel>
+                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Wybierz pozycje" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {POSITION_OPTIONS.map((option) => (
+                          <SelectItem key={option.code} value={option.code}>
+                            {option.label} ({option.code})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="club_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Aktualny klub</FormLabel>
+                    <FormControl>
+                      <ClubSelect
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        placeholder="Wybierz klub"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
             <FormField
               control={form.control}
               name="pipeline_status"
@@ -255,18 +294,151 @@ export function PlayerForm({
                 </FormItem>
               )}
             />
-          )}
-        </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="px-6">
+            <CardTitle className="text-base">Parametry fizyczne</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 px-6 sm:grid-cols-3">
+            <FormField
+              control={form.control}
+              name="height_cm"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Wzrost (cm)</FormLabel>
+                  <FormControl>
+                    <Input type="number" inputMode="numeric" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="weight_kg"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Waga (kg)</FormLabel>
+                  <FormControl>
+                    <Input type="number" inputMode="numeric" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="dominant_foot"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Preferowana noga</FormLabel>
+                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Wybierz" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="right">Prawa</SelectItem>
+                      <SelectItem value="left">Lewa</SelectItem>
+                      <SelectItem value="both">Obie</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="px-6">
+            <CardTitle className="text-base">Dane kontaktowe (opcjonalne)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 px-6">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="guardian_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rodzic/Opiekun</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Adam Kowalski" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="guardian_phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefon</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+48 600 123 456" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <FormField
+              control={form.control}
+              name="guardian_email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input placeholder="adam.kowalski@email.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="px-6">
+            <CardTitle className="text-base">Zdjecie (opcjonalnie)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 px-6">
+            <FormField
+              control={form.control}
+              name="photo_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>URL zdjecia</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://example.com/photo.jpg" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <p className="text-xs text-slate-500">Wklej link do zdjecia zawodnika.</p>
+          </CardContent>
+        </Card>
 
         {submitError && <p className="text-sm text-red-600">{submitError}</p>}
 
-        <Button type="submit" className="w-full" disabled={isCreating || isUpdating}>
-          {isCreating || isUpdating
-            ? "Zapisywanie..."
-            : isEdit
-              ? "Zapisz zmiany"
-              : "Dodaj zawodnika"}
-        </Button>
+        <div className="flex items-center justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate(isEdit ? `/players/${playerId ?? ""}` : "/players")}
+          >
+            Anuluj
+          </Button>
+          <Button type="submit" disabled={isCreating || isUpdating}>
+            {isCreating || isUpdating
+              ? "Zapisywanie..."
+              : isEdit
+                ? "Zapisz zmiany"
+                : "Zapisz zawodnika"}
+          </Button>
+        </div>
       </form>
     </Form>
   );

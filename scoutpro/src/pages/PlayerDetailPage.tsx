@@ -21,7 +21,7 @@ export function PlayerDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-[960px] space-y-6">
       <PlayerProfile player={data} />
 
       <Card>
@@ -54,6 +54,12 @@ export function PlayerDetailPage() {
                       <div className="text-xs text-slate-500">
                         Ranga: {observation.rank ?? "-"}
                       </div>
+                      {observation.competition && (
+                        <div className="text-xs text-slate-500">Rozgrywki: {observation.competition}</div>
+                      )}
+                      {observation.overall_rating && (
+                        <div className="text-xs text-slate-500">Ocena: {observation.overall_rating}/10</div>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button asChild size="sm" variant="outline">

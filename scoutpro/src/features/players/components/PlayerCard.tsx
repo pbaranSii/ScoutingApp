@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Player } from "../types";
+import { formatPosition } from "@/features/players/positions";
 
 type PlayerCardProps = {
   player: Player;
@@ -22,7 +23,7 @@ export function PlayerCard({ player }: PlayerCardProps) {
             </div>
             {player.primary_position && (
               <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
-                {player.primary_position}
+                {formatPosition(player.primary_position)}
               </span>
             )}
           </div>

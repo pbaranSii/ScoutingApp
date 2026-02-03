@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { startOfMonth, format } from "date-fns";
+import { startOfMonth, subDays, format } from "date-fns";
 import {
   fetchObservationCounts,
+  fetchPlayerCount,
   fetchPlayersByStatus,
   fetchRecentObservations,
   fetchTopRankedPlayers,
@@ -10,7 +11,18 @@ import {
 export function useObservationStats() {
   return useQuery({
     queryKey: ["dashboard", "observations"],
-    queryFn: () => fetchObservationCounts(format(startOfMonth(new Date()), "yyyy-MM-dd")),
+    queryFn: () =>
+      fetchObservationCounts(
+        format(startOfMonth(new Date()), "yyyy-MM-dd"),
+        format(subDays(new Date(), 7), "yyyy-MM-dd")
+      ),
+  });
+}
+
+export function usePlayerCount() {
+  return useQuery({
+    queryKey: ["dashboard", "players-count"],
+    queryFn: fetchPlayerCount,
   });
 }
 
