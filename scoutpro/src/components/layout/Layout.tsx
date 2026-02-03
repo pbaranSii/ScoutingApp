@@ -7,7 +7,7 @@ import { FAB } from "@/components/common/FAB";
 
 export function Layout() {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-background">
       <OfflineIndicator />
       <Header />
       <div className="flex min-h-[calc(100vh-3.5rem)] lg:min-h-[calc(100vh-4rem)]">

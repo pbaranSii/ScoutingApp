@@ -15,11 +15,17 @@ export function ObservationsPage() {
     return data.filter((observation) => {
       const playerName = `${observation.player?.first_name ?? ""} ${observation.player?.last_name ?? ""}`.toLowerCase();
       const notes = observation.notes?.toLowerCase() ?? "";
+      const strengths = observation.strengths?.toLowerCase() ?? "";
+      const weaknesses = observation.weaknesses?.toLowerCase() ?? "";
+      const competition = observation.competition?.toLowerCase() ?? "";
       const source = observation.source?.toLowerCase() ?? "";
       const rank = observation.rank?.toLowerCase() ?? "";
       return (
         playerName.includes(query) ||
         notes.includes(query) ||
+        strengths.includes(query) ||
+        weaknesses.includes(query) ||
+        competition.includes(query) ||
         source.includes(query) ||
         rank.includes(query)
       );
@@ -40,7 +46,7 @@ export function ObservationsPage() {
         </div>
       )}
       <Input
-        placeholder="Szukaj po nazwisku, zrodle lub notatce"
+        placeholder="Szukaj po nazwisku, zrodle, rozgrywkach lub notatce"
         value={search}
         onChange={(event) => setSearch(event.target.value)}
       />

@@ -1,23 +1,39 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useObservation, useUpdateObservation } from "@/features/observations/hooks/useObservations";
+import { useUpdatePlayer } from "@/features/players/hooks/usePlayers";
+import { ClubSelect } from "@/features/players/components/ClubSelect";
+import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
 
 const schema = z.object({
-  observation_date: z.string().min(1, "Podaj date"),
+  full_name: z
+    .string()
+    .min(3, "Podaj imie i nazwisko")
+    .refine((value) => value.trim().split(/\s+/).length >= 2, "Podaj imie i nazwisko"),
+  age: z.coerce.number().int().min(8).max(50),
+  club_name: z.string().optional(),
+  competition: z.string().optional(),
+  match_date: z.string().min(1, "Wybierz date meczu"),
+  primary_position: z.string().min(1, "Wybierz pozycje"),
+  overall_rating: z.coerce.number().int().min(1).max(10),
   source: z.string().min(1, "Wybierz zrodlo"),
   rank: z.string().optional(),
   potential_now: z.coerce.number().int().min(1).max(5).optional(),
   potential_future: z.coerce.number().int().min(1).max(5).optional(),
+  strengths: z.string().optional(),
+  weaknesses: z.string().optional(),
   notes: z.string().optional(),
+  photo_url: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -28,30 +44,50 @@ export function EditObservationPage() {
   const observationId = id ?? "";
   const { data: observation, isLoading } = useObservation(observationId);
   const { mutateAsync: updateObservation, isPending } = useUpdateObservation();
+  const { mutateAsync: updatePlayer } = useUpdatePlayer();
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      observation_date: "",
+      full_name: "",
+      age: 16,
+      club_name: "",
+      competition: "",
+      match_date: "",
+      primary_position: "",
+      overall_rating: 5,
       source: "",
       rank: "",
       potential_now: 3,
       potential_future: 3,
+      strengths: "",
+      weaknesses: "",
       notes: "",
+      photo_url: "",
     },
   });
 
   useEffect(() => {
     if (!observation) return;
     form.reset({
-      observation_date: observation.observation_date ?? "",
+      full_name: `${observation.player?.first_name ?? ""} ${observation.player?.last_name ?? ""}`.trim(),
+      age: observation.player?.birth_year ? currentYear - observation.player.birth_year : 16,
+      club_name: observation.player?.club?.name ?? "",
+      competition: observation.competition ?? "",
+      match_date: observation.observation_date ?? "",
+      primary_position: mapLegacyPosition(observation.player?.primary_position ?? ""),
+      overall_rating: observation.overall_rating ?? 5,
       source: observation.source ?? "",
       rank: observation.rank ?? "",
       potential_now: observation.potential_now ?? 3,
       potential_future: observation.potential_future ?? 3,
+      strengths: observation.strengths ?? "",
+      weaknesses: observation.weaknesses ?? "",
       notes: observation.notes ?? "",
+      photo_url: observation.photo_url ?? "",
     });
-  }, [observation, form]);
+  }, [observation, form, currentYear]);
 
   if (isLoading) {
     return <p className="text-sm text-slate-500">Ladowanie...</p>;
@@ -61,17 +97,62 @@ export function EditObservationPage() {
     return <p className="text-sm text-slate-500">Nie znaleziono obserwacji.</p>;
   }
 
+  const resolveClubId = async (clubName?: string) => {
+    if (!clubName) return null;
+    const { data: existing } = await supabase
+      .from("clubs")
+      .select("id")
+      .eq("name", clubName)
+      .maybeSingle();
+
+    if (existing?.id) {
+      return existing.id as string;
+    }
+    throw new Error(
+      "Brak uprawnien do dodania klubu. Wybierz istniejacy klub lub zostaw pole puste."
+    );
+  };
+
+  const parseFullName = (value: string) => {
+    const parts = value.trim().split(/\s+/);
+    if (parts.length === 1) {
+      return { firstName: parts[0], lastName: parts[0] };
+    }
+    const lastName = parts.pop() ?? "";
+    return { firstName: parts.join(" "), lastName };
+  };
+
   const onSubmit = async (values: FormValues) => {
     try {
+      const { firstName, lastName } = parseFullName(values.full_name);
+      const birthYear = currentYear - values.age;
+      const clubId = await resolveClubId(values.club_name?.trim());
+
+      await updatePlayer({
+        id: observation.player_id,
+        input: {
+          first_name: firstName,
+          last_name: lastName,
+          birth_year: birthYear,
+          club_id: clubId,
+          primary_position: values.primary_position,
+        },
+      });
+
       await updateObservation({
         id: observation.id,
         input: {
-          observation_date: values.observation_date,
+          observation_date: values.match_date,
           source: values.source,
           rank: values.rank || null,
           potential_now: values.potential_now ?? null,
           potential_future: values.potential_future ?? null,
           notes: values.notes || null,
+          competition: values.competition?.trim() || null,
+          overall_rating: values.overall_rating ?? null,
+          strengths: values.strengths?.trim() || null,
+          weaknesses: values.weaknesses?.trim() || null,
+          photo_url: values.photo_url?.trim() || null,
         },
       });
       navigate(`/observations/${observation.id}`);
@@ -86,7 +167,7 @@ export function EditObservationPage() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto w-full max-w-[960px] space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Edytuj obserwacje</h1>
@@ -106,108 +187,262 @@ export function EditObservationPage() {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="observation_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Data obserwacji *</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+                <h2 className="text-sm font-semibold text-slate-700">1. Dane zawodnika</h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="full_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Imie i nazwisko *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Jan Kowalski" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="age"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Wiek *</FormLabel>
+                        <FormControl>
+                          <Input type="number" inputMode="numeric" min={8} max={50} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="club_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Klub</FormLabel>
+                        <FormControl>
+                          <ClubSelect
+                            value={field.value ?? ""}
+                            onChange={field.onChange}
+                            placeholder="Wybierz klub"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="competition"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Rozgrywki</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Liga Juniorow U17" {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="match_date"
+                    render={({ field }) => (
+                      <FormItem className="sm:col-span-2">
+                        <FormLabel>Data meczu *</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </section>
 
-              <FormField
-                control={form.control}
-                name="source"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Zrodlo *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Wybierz zrodlo" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="scouting">Skauting</SelectItem>
-                        <SelectItem value="referral">Polecenie</SelectItem>
-                        <SelectItem value="application">Zgloszenie</SelectItem>
-                        <SelectItem value="trainer_report">Raport trenera</SelectItem>
-                        <SelectItem value="scout_report">Raport skauta</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="rank"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ranga</FormLabel>
-                    <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Wybierz range" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="A">A - TOP</SelectItem>
-                        <SelectItem value="B">B - Dobry</SelectItem>
-                        <SelectItem value="C">C - Szeroka kadra</SelectItem>
-                        <SelectItem value="D">D - Slaby</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid gap-3 sm:grid-cols-2">
+              <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+                <h2 className="text-sm font-semibold text-slate-700">2. Pozycja</h2>
                 <FormField
                   control={form.control}
-                  name="potential_now"
+                  name="primary_position"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Potencjal teraz (1-5)</FormLabel>
+                      <FormLabel>Pozycja na boisku *</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Wybierz pozycje" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {POSITION_OPTIONS.map((option) => (
+                            <SelectItem key={option.code} value={option.code}>
+                              {option.label} ({option.code})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </section>
+
+              <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+                <h2 className="text-sm font-semibold text-slate-700">3. Ocena i notatki</h2>
+                <FormField
+                  control={form.control}
+                  name="overall_rating"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ogolna ocena: {field.value}/10</FormLabel>
                       <FormControl>
-                        <Input type="number" min={1} max={5} {...field} />
+                        <input
+                          type="range"
+                          min={1}
+                          max={10}
+                          step={1}
+                          value={field.value}
+                          onChange={(event) => field.onChange(Number(event.target.value))}
+                          className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-red-600"
+                        />
+                      </FormControl>
+                      <div className="flex justify-between text-[11px] text-slate-500">
+                        <span>Slaby (1)</span>
+                        <span>Przecietny (5)</span>
+                        <span>Doskonały (10)</span>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="strengths"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mocne strony</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="np. Szybkosc, technika, pozycjonowanie..." {...field} />
                       </FormControl>
                     </FormItem>
                   )}
                 />
                 <FormField
                   control={form.control}
-                  name="potential_future"
+                  name="weaknesses"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Potencjal przyszly (1-5)</FormLabel>
+                      <FormLabel>Slabe strony</FormLabel>
                       <FormControl>
-                        <Input type="number" min={1} max={5} {...field} />
+                        <Textarea placeholder="np. Gra glowa, sila fizyczna, koncentracja..." {...field} />
                       </FormControl>
                     </FormItem>
                   )}
                 />
-              </div>
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Dodatkowe notatki</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Szczegolowa analiza wystepu, rekomendacje, itp." {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="rank"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ranga</FormLabel>
+                        <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Wybierz range" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="A">A - TOP</SelectItem>
+                            <SelectItem value="B">B - Dobry</SelectItem>
+                            <SelectItem value="C">C - Szeroka kadra</SelectItem>
+                            <SelectItem value="D">D - Slaby</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="source"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Zrodlo *</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Wybierz zrodlo" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="scouting">Skauting</SelectItem>
+                            <SelectItem value="referral">Polecenie</SelectItem>
+                            <SelectItem value="application">Zgloszenie</SelectItem>
+                            <SelectItem value="trainer_report">Raport trenera</SelectItem>
+                            <SelectItem value="scout_report">Raport skauta</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="potential_now"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Potencjal teraz (1-5)</FormLabel>
+                        <FormControl>
+                          <Input type="number" min={1} max={5} {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="potential_future"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Potencjal przyszly (1-5)</FormLabel>
+                        <FormControl>
+                          <Input type="number" min={1} max={5} {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </section>
 
-              <FormField
-                control={form.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Komentarz</FormLabel>
-                    <FormControl>
-                      <Textarea placeholder="Krotki opis" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+              <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+                <h2 className="text-sm font-semibold text-slate-700">4. Zdjecie (opcjonalnie)</h2>
+                <FormField
+                  control={form.control}
+                  name="photo_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL zdjecia</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://example.com/photo.jpg" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </section>
 
               <Button type="submit" disabled={isPending}>
                 {isPending ? "Zapisywanie..." : "Zapisz zmiany"}

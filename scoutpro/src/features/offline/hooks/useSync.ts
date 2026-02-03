@@ -56,7 +56,6 @@ export function useSync() {
                 last_name: obs.data.last_name,
                 birth_year: obs.data.birth_year,
                 primary_position: obs.data.primary_position,
-                dominant_foot: obs.data.dominant_foot,
               })
               .select()
               .single();
@@ -75,6 +74,11 @@ export function useSync() {
               potential_now: obs.data.potential_now,
               potential_future: obs.data.potential_future,
               observation_date: obs.data.observation_date,
+              competition: obs.data.competition,
+              overall_rating: obs.data.overall_rating,
+              strengths: obs.data.strengths,
+              weaknesses: obs.data.weaknesses,
+              photo_url: obs.data.photo_url,
               is_offline_created: true,
             })
             .select()

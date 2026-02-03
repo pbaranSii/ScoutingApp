@@ -26,8 +26,16 @@ export function ObservationCard({ observation }: ObservationCardProps) {
               <div className="text-xs text-slate-500">
                 {player?.birth_year ?? "-"} • {dateLabel}
               </div>
+              {observation.competition && (
+                <div className="text-xs text-slate-500">{observation.competition}</div>
+              )}
             </div>
-            {observation.rank && <Badge>{observation.rank}</Badge>}
+            <div className="flex flex-col items-end gap-1">
+              {observation.rank && <Badge>{observation.rank}</Badge>}
+              {observation.overall_rating && (
+                <span className="text-[11px] text-slate-500">{observation.overall_rating}/10</span>
+              )}
+            </div>
           </div>
           {observation.notes && (
             <p className="mt-2 text-xs text-slate-600">

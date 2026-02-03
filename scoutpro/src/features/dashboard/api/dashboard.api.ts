@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase";
 
-export async function fetchObservationCounts(startOfMonthIso: string) {
+export async function fetchObservationCounts(startOfMonthIso: string, startOfWeekIso: string) {
   const total = await supabase
     .from("observations")
     .select("*", { count: "exact", head: true });
@@ -12,10 +12,25 @@ export async function fetchObservationCounts(startOfMonthIso: string) {
     .gte("observation_date", startOfMonthIso);
   if (monthly.error) throw monthly.error;
 
+  const weekly = await supabase
+    .from("observations")
+    .select("*", { count: "exact", head: true })
+    .gte("observation_date", startOfWeekIso);
+  if (weekly.error) throw weekly.error;
+
   return {
     total: total.count ?? 0,
     monthly: monthly.count ?? 0,
+    weekly: weekly.count ?? 0,
   };
+}
+
+export async function fetchPlayerCount() {
+  const { count, error } = await supabase
+    .from("players")
+    .select("*", { count: "exact", head: true });
+  if (error) throw error;
+  return count ?? 0;
 }
 
 export async function fetchPlayersByStatus() {

@@ -12,6 +12,10 @@ export type Player = {
   dominant_foot?: string | null;
   height_cm?: number | null;
   weight_kg?: number | null;
+  nationality?: string | null;
+  guardian_name?: string | null;
+  guardian_phone?: string | null;
+  guardian_email?: string | null;
   pipeline_status?: string | null;
   created_at?: string;
   updated_at?: string;

@@ -5,6 +5,11 @@ export type Observation = {
   source: string;
   rank?: string | null;
   notes?: string | null;
+  strengths?: string | null;
+  weaknesses?: string | null;
+  overall_rating?: number | null;
+  competition?: string | null;
+  photo_url?: string | null;
   potential_now?: number | null;
   potential_future?: number | null;
   observation_date?: string;
@@ -13,6 +18,8 @@ export type Observation = {
     first_name: string;
     last_name: string;
     birth_year?: number;
+    primary_position?: string | null;
+    club?: { name: string } | null;
   } | null;
   scout?: {
     full_name?: string | null;
@@ -25,6 +32,11 @@ export type ObservationInput = {
   source: string;
   rank?: string | null;
   notes?: string | null;
+  strengths?: string | null;
+  weaknesses?: string | null;
+  overall_rating?: number | null;
+  competition?: string | null;
+  photo_url?: string | null;
   potential_now?: number | null;
   potential_future?: number | null;
   observation_date: string;

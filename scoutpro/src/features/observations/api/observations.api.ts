@@ -4,7 +4,7 @@ import type { Observation, ObservationInput } from "../types";
 export async function fetchObservations() {
   const { data, error } = await supabase
     .from("observations")
-    .select("*, player:players(first_name,last_name,birth_year)")
+    .select("*, player:players(first_name,last_name,birth_year,primary_position,club:clubs(name))")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -14,7 +14,7 @@ export async function fetchObservations() {
 export async function fetchObservationsByPlayer(playerId: string) {
   const { data, error } = await supabase
     .from("observations")
-    .select("*, player:players(first_name,last_name,birth_year)")
+    .select("*, player:players(first_name,last_name,birth_year,primary_position,club:clubs(name))")
     .eq("player_id", playerId)
     .order("created_at", { ascending: false });
 
@@ -25,7 +25,7 @@ export async function fetchObservationsByPlayer(playerId: string) {
 export async function fetchObservationById(id: string) {
   const { data, error } = await supabase
     .from("observations")
-    .select("*, player:players(first_name,last_name,birth_year)")
+    .select("*, player:players(first_name,last_name,birth_year,primary_position,club:clubs(name))")
     .eq("id", id)
     .single();
 

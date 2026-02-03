@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
+import { Link } from "react-router-dom";
 import { useCreateObservation } from "../hooks/useObservations";
 import { useCreatePlayer } from "@/features/players/hooks/usePlayers";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
@@ -16,19 +17,27 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
 
 const wizardSchema = z.object({
-  first_name: z.string().min(2, "Podaj imie"),
-  last_name: z.string().min(2, "Podaj nazwisko"),
-  birth_year: z.coerce.number().int().min(2000).max(2030),
+  full_name: z
+    .string()
+    .min(3, "Podaj imie i nazwisko")
+    .refine((value) => value.trim().split(/\s+/).length >= 2, "Podaj imie i nazwisko"),
+  age: z.coerce.number().int().min(8).max(50),
   club_name: z.string().optional(),
+  competition: z.string().optional(),
+  match_date: z.string().min(1, "Wybierz date meczu"),
   primary_position: z.string().min(1, "Wybierz pozycje"),
-  dominant_foot: z.string().min(1, "Wybierz noge"),
+  overall_rating: z.coerce.number().int().min(1).max(10),
+  strengths: z.string().optional(),
+  weaknesses: z.string().optional(),
+  notes: z.string().optional(),
+  photo_url: z.string().optional(),
   rank: z.string().min(1, "Wybierz range"),
   potential_now: z.coerce.number().int().min(1).max(5),
   potential_future: z.coerce.number().int().min(1).max(5),
   source: z.string().min(1, "Wybierz zrodlo"),
-  notes: z.string().optional(),
 });
 
 type WizardFormValues = z.infer<typeof wizardSchema>;
@@ -40,36 +49,54 @@ type PrefillPlayer = {
   birth_year: number;
   club_name?: string;
   primary_position?: string;
-  dominant_foot?: string;
 };
 
 type ObservationWizardProps = {
   prefillPlayer?: PrefillPlayer;
   lockPlayerFields?: boolean;
+  cancelHref?: string;
 };
 
-export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: ObservationWizardProps) {
+const parseFullName = (value: string) => {
+  const parts = value.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: parts[0] };
+  }
+  const lastName = parts.pop() ?? "";
+  return { firstName: parts.join(" "), lastName };
+};
+
+export function ObservationWizard({
+  prefillPlayer,
+  lockPlayerFields = false,
+  cancelHref = "/observations",
+}: ObservationWizardProps) {
   const { user } = useAuthStore();
   const isOnline = useOnlineStatus();
   const { addOfflineObservation } = useSync();
   const { mutateAsync: createObservation, isPending: isSaving } = useCreateObservation();
   const { mutateAsync: createPlayer } = useCreatePlayer();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
 
   const form = useForm<WizardFormValues>({
     resolver: zodResolver(wizardSchema),
     defaultValues: {
-      first_name: "",
-      last_name: "",
-      birth_year: new Date().getFullYear() - 14,
+      full_name: "",
+      age: 16,
       club_name: "",
+      competition: "",
+      match_date: format(new Date(), "yyyy-MM-dd"),
       primary_position: "",
-      dominant_foot: "",
+      overall_rating: 5,
+      strengths: "",
+      weaknesses: "",
       rank: "",
       potential_now: 3,
       potential_future: 3,
       source: "scouting",
       notes: "",
+      photo_url: "",
     },
   });
 
@@ -87,13 +114,11 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
 
   useEffect(() => {
     if (!prefillPlayer) return;
-    form.setValue("first_name", prefillPlayer.first_name);
-    form.setValue("last_name", prefillPlayer.last_name);
-    form.setValue("birth_year", prefillPlayer.birth_year);
+    form.setValue("full_name", `${prefillPlayer.first_name} ${prefillPlayer.last_name}`.trim());
+    form.setValue("age", currentYear - prefillPlayer.birth_year);
     form.setValue("club_name", prefillPlayer.club_name ?? "");
-    form.setValue("primary_position", prefillPlayer.primary_position ?? "");
-    form.setValue("dominant_foot", prefillPlayer.dominant_foot ?? "");
-  }, [prefillPlayer, form]);
+    form.setValue("primary_position", mapLegacyPosition(prefillPlayer.primary_position ?? ""));
+  }, [prefillPlayer, form, currentYear]);
 
   const resolveClubId = async (clubName?: string) => {
     if (!clubName) return null;
@@ -117,24 +142,30 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
       return;
     }
     setSubmitError(null);
+    const { firstName, lastName } = parseFullName(values.full_name);
+    const birthYear = currentYear - values.age;
     try {
       if (!isOnline) {
         await addOfflineObservation({
           localId: uuidv4(),
           data: {
             player_id: prefillPlayer?.id,
-            first_name: values.first_name,
-            last_name: values.last_name,
-            birth_year: values.birth_year,
+            first_name: firstName,
+            last_name: lastName,
+            birth_year: birthYear,
             club_name: values.club_name?.trim(),
             primary_position: values.primary_position,
-            dominant_foot: values.dominant_foot,
             source: values.source,
             rank: values.rank,
             notes: values.notes,
             potential_now: values.potential_now,
             potential_future: values.potential_future,
-            observation_date: format(new Date(), "yyyy-MM-dd"),
+            observation_date: values.match_date,
+            competition: values.competition?.trim(),
+            overall_rating: values.overall_rating,
+            strengths: values.strengths?.trim(),
+            weaknesses: values.weaknesses?.trim(),
+            photo_url: values.photo_url?.trim(),
           },
           createdAt: new Date(),
           syncStatus: "pending",
@@ -145,12 +176,11 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
         if (!playerId) {
           const clubId = await resolveClubId(values.club_name?.trim());
           const player = await createPlayer({
-            first_name: values.first_name,
-            last_name: values.last_name,
-            birth_year: values.birth_year,
+            first_name: firstName,
+            last_name: lastName,
+            birth_year: birthYear,
             club_id: clubId,
             primary_position: values.primary_position,
-            dominant_foot: values.dominant_foot,
             pipeline_status: "observed",
           });
           playerId = player.id;
@@ -164,7 +194,12 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
           notes: values.notes,
           potential_now: values.potential_now,
           potential_future: values.potential_future,
-          observation_date: format(new Date(), "yyyy-MM-dd"),
+          observation_date: values.match_date,
+          competition: values.competition?.trim() || null,
+          overall_rating: values.overall_rating,
+          strengths: values.strengths?.trim() || null,
+          weaknesses: values.weaknesses?.trim() || null,
+          photo_url: values.photo_url?.trim() || null,
         });
       }
 
@@ -185,15 +220,16 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-slate-700">Zawodnik</h2>
+            <h2 className="text-sm font-semibold text-slate-700">1. Dane zawodnika</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
-                name="last_name"
+                name="full_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Nazwisko *</FormLabel>
+                    <FormLabel>Imie i nazwisko *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Kowalski" disabled={lockPlayerFields} {...field} />
+                      <Input placeholder="Jan Kowalski" disabled={lockPlayerFields} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -201,25 +237,12 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
               />
               <FormField
                 control={form.control}
-                name="first_name"
+                name="age"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Imie *</FormLabel>
+                    <FormLabel>Wiek *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Jan" disabled={lockPlayerFields} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="birth_year"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Rocznik *</FormLabel>
-                    <FormControl>
-                      <Input type="number" inputMode="numeric" disabled={lockPlayerFields} {...field} />
+                      <Input type="number" inputMode="numeric" min={8} max={50} disabled={lockPlayerFields} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -242,74 +265,126 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
                   </FormItem>
                 )}
               />
-          </section>
-
-          <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-slate-700">Pozycja</h2>
               <FormField
                 control={form.control}
-                name="primary_position"
+                name="competition"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Pozycja glowna *</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={lockPlayerFields}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Wybierz pozycje" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="1">GK</SelectItem>
-                        <SelectItem value="2">RB</SelectItem>
-                        <SelectItem value="3">LB</SelectItem>
-                        <SelectItem value="4">CB</SelectItem>
-                        <SelectItem value="5">CB</SelectItem>
-                        <SelectItem value="6">CDM</SelectItem>
-                        <SelectItem value="8">CM</SelectItem>
-                        <SelectItem value="10">CAM</SelectItem>
-                        <SelectItem value="7">RW</SelectItem>
-                        <SelectItem value="11">LW</SelectItem>
-                        <SelectItem value="9">ST</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
+                    <FormLabel>Rozgrywki</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Liga Juniorow U17" {...field} />
+                    </FormControl>
                   </FormItem>
                 )}
               />
               <FormField
                 control={form.control}
-                name="dominant_foot"
+                name="match_date"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Noga dominujaca *</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={lockPlayerFields}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Wybierz noge" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="right">Prawa</SelectItem>
-                        <SelectItem value="left">Lewa</SelectItem>
-                        <SelectItem value="both">Obie</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>Data meczu *</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+            </div>
           </section>
 
           <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-slate-700">Ocena</h2>
+            <h2 className="text-sm font-semibold text-slate-700">2. Pozycja</h2>
+            <FormField
+              control={form.control}
+              name="primary_position"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Pozycja na boisku *</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange} disabled={lockPlayerFields}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Wybierz pozycje" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {POSITION_OPTIONS.map((option) => (
+                        <SelectItem key={option.code} value={option.code}>
+                          {option.label} ({option.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </section>
+
+          <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-slate-700">3. Ocena i notatki</h2>
+            <FormField
+              control={form.control}
+              name="overall_rating"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ogolna ocena: {field.value}/10</FormLabel>
+                  <FormControl>
+                    <input
+                      type="range"
+                      min={1}
+                      max={10}
+                      step={1}
+                      value={field.value}
+                      onChange={(event) => field.onChange(Number(event.target.value))}
+                      className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-red-600"
+                    />
+                  </FormControl>
+                  <div className="flex justify-between text-[11px] text-slate-500">
+                    <span>Slaby (1)</span>
+                    <span>Przecietny (5)</span>
+                    <span>Doskonały (10)</span>
+                  </div>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="strengths"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Mocne strony</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="np. Szybkosc, technika, pozycjonowanie..." {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="weaknesses"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Slabe strony</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="np. Gra glowa, sila fizyczna, koncentracja..." {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Dodatkowe notatki</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Szczegolowa analiza wystepu, rekomendacje, itp." {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="rank"
@@ -333,32 +408,6 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
                   </FormItem>
                 )}
               />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="potential_now"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Potencjal teraz (1-5)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min={1} max={5} {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="potential_future"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Potencjal przyszly (1-5)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min={1} max={5} {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
               <FormField
                 control={form.control}
                 name="source"
@@ -383,30 +432,62 @@ export function ObservationWizard({ prefillPlayer, lockPlayerFields = false }: O
                   </FormItem>
                 )}
               />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
               <FormField
                 control={form.control}
-                name="notes"
+                name="potential_now"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Komentarz</FormLabel>
+                    <FormLabel>Potencjal teraz (1-5)</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Krotki opis" {...field} />
+                      <Input type="number" min={1} max={5} {...field} />
                     </FormControl>
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="potential_future"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Potencjal przyszly (1-5)</FormLabel>
+                    <FormControl>
+                      <Input type="number" min={1} max={5} {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
           </section>
 
-          <section className="rounded-lg border border-dashed p-4 text-center text-sm text-slate-500">
-            Dodawanie zdjec zostanie wlaczone w kolejnym kroku.
+          <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-slate-700">4. Zdjecie (opcjonalnie)</h2>
+            <FormField
+              control={form.control}
+              name="photo_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>URL zdjecia</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://example.com/photo.jpg" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
           </section>
 
           {submitError && <p className="text-sm text-red-600">{submitError}</p>}
 
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Button type="button" variant="secondary" onClick={handleSaveDraft}>
-              Zapisz szkic
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="secondary" onClick={handleSaveDraft}>
+                Zapisz szkic
+              </Button>
+              <Button asChild type="button" variant="outline">
+                <Link to={cancelHref}>Anuluj</Link>
+              </Button>
+            </div>
             <Button type="submit" disabled={isSaving}>
               {isSaving ? "Zapisywanie..." : "Zapisz obserwacje"}
             </Button>

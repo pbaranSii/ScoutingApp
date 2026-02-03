@@ -2,6 +2,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Player } from "@/features/players/types";
 import { Link } from "react-router-dom";
+import { formatPosition } from "@/features/players/positions";
 
 type PlayerPipelineCardProps = {
   player: Player;
@@ -32,7 +33,7 @@ export function PlayerPipelineCard({ player }: PlayerPipelineCardProps) {
         {player.last_name} {player.first_name}
       </div>
       <div className="text-xs text-slate-500">
-        {player.birth_year} • {player.primary_position ?? "-"}
+        {player.birth_year} • {formatPosition(player.primary_position)}
       </div>
     </Link>
   );
