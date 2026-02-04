@@ -1,17 +1,25 @@
-import { useNavigate, useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useDeleteObservation, useObservation } from "@/features/observations/hooks/useObservations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { formatPosition } from "@/features/players/positions";
-import { PageHeader } from "@/components/common/PageHeader";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Pencil, Star, Trash2 } from "lucide-react";
+import { PIPELINE_COLUMNS } from "@/features/pipeline/types";
+import { toast } from "@/hooks/use-toast";
 
 export function ObservationDetailPage() {
-  const navigate = useNavigate();
   const { id } = useParams();
   const observationId = id ?? "";
+  const navigate = useNavigate();
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const { data: observation, isLoading } = useObservation(observationId);
-  const { mutateAsync: deleteObservation, isPending: isDeleting } = useDeleteObservation();
+  const deleteObservation = useDeleteObservation();
+  const canUseDom = typeof document !== "undefined";
 
   if (isLoading) {
     return <p className="text-sm text-slate-500">Ladowanie...</p>;
@@ -28,135 +36,215 @@ export function ObservationDetailPage() {
   const ageLabel = observation.player?.birth_year
     ? `${currentYear - observation.player.birth_year} lat`
     : "-";
-  const sourceLabels: Record<string, string> = {
-    scouting: "Skauting",
-    referral: "Polecenie",
-    application: "Zgloszenie",
-    trainer_report: "Raport trenera",
-    scout_report: "Raport skauta",
-  };
-  const sourceLabel = observation.source ? sourceLabels[observation.source] ?? observation.source : "-";
   const positionLabel = formatPosition(observation.player?.primary_position ?? "");
+  const statusLabel =
+    PIPELINE_COLUMNS.find((column) => column.id === (observation.player?.pipeline_status ?? "observed"))
+      ?.label ?? "Obserwacja";
+  const rating = observation.overall_rating;
+  const ratingClass =
+    typeof rating === "number" && rating >= 8
+      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+      : typeof rating === "number" && rating >= 6
+        ? "bg-amber-100 text-amber-700 hover:bg-amber-100"
+        : "bg-slate-100 text-slate-700 hover:bg-slate-100";
+  const createdAtLabel = observation.created_at
+    ? format(parseISO(observation.created_at), "dd.MM.yyyy, HH:mm")
+    : "-";
+  const updatedAtLabel = observation.updated_at
+    ? format(parseISO(observation.updated_at), "dd.MM.yyyy, HH:mm")
+    : "-";
+  const createdByLabel = observation.created_by_name ?? "Brak";
+  const updatedByLabel = observation.updated_by_name ?? "Brak";
+  const roleLabels: Record<string, string> = {
+    admin: "Admin",
+    user: "Uzytkownik",
+  };
+  const createdByRole = observation.created_by_role
+    ? roleLabels[observation.created_by_role] ?? observation.created_by_role
+    : "-";
+  const updatedByRole = observation.updated_by_role
+    ? roleLabels[observation.updated_by_role] ?? observation.updated_by_role
+    : "-";
 
   return (
-    <div className="mx-auto w-full max-w-[960px] space-y-4">
-      <PageHeader
-        title="Szczegoly obserwacji"
-        subtitle={`${observation.player?.last_name ?? ""} ${observation.player?.first_name ?? ""} • ${dateLabel}`.trim()}
-        actions={
-          <>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={isDeleting}
-              onClick={async () => {
-                const confirmed = window.confirm(
-                  "Czy na pewno chcesz usunac obserwacje? Tej operacji nie mozna cofnac."
-                );
-                if (!confirmed) return;
-                try {
-                  await deleteObservation(observation.id);
-                  navigate("/observations");
-                } catch (error) {
-                  const message =
-                    error instanceof Error && error.message
-                      ? error.message
-                      : "Nie udalo sie usunac obserwacji";
-                  window.alert(message);
-                  console.error("Delete observation failed:", error);
-                }
+    <div className="mx-auto w-full max-w-[960px] space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+        <Link to="/observations" className="inline-flex items-center gap-2 hover:text-slate-900">
+          <ArrowLeft className="h-4 w-4" />
+          Powrot do listy
+        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild className="gap-2 bg-red-600 hover:bg-red-700">
+            <Link to={`/observations/${observation.id}/edit`}>
+              <Pencil className="h-4 w-4" />
+              Edytuj obserwacje
+            </Link>
+          </Button>
+          <Button
+            variant="destructive"
+            className="gap-2"
+            onClick={() => {
+              setDeleteError(null);
+              setIsDeleteOpen(true);
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+            Usuń
+          </Button>
+        </div>
+      </div>
+
+      {canUseDom &&
+        isDeleteOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-[80] flex items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/60"
+              onClick={() => {
+                setDeleteError(null);
+                setIsDeleteOpen(false);
               }}
+            />
+            <div
+              className="relative z-[81] w-[min(520px,92vw)] rounded-lg bg-white p-6 shadow-xl"
+              onClick={(event) => event.stopPropagation()}
             >
-              {isDeleting ? "Usuwanie..." : "Usun obserwacje"}
-            </Button>
-            <Button asChild>
-              <Link to={`/observations/${observation.id}/edit`}>Edytuj obserwacje</Link>
-            </Button>
-          </>
-        }
-      />
+              <div className="space-y-2">
+                <h2 className="text-lg font-semibold text-slate-900">Usun obserwacje?</h2>
+                <p className="text-sm text-slate-600">
+                  Ta operacja jest nieodwracalna. Obserwacja zostanie trwale usunieta z bazy.
+                </p>
+              </div>
+              {deleteError && <p className="mt-3 text-sm text-red-600">{deleteError}</p>}
+              <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDeleteError(null);
+                    setIsDeleteOpen(false);
+                  }}
+                  disabled={deleteObservation.isPending}
+                >
+                  Anuluj
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    setDeleteError(null);
+                    try {
+                      await deleteObservation.mutateAsync(observation.id);
+                      toast({
+                        title: "Usunieto obserwacje",
+                        description: "Obserwacja zostala trwale usunieta.",
+                      });
+                      setIsDeleteOpen(false);
+                      navigate("/observations");
+                    } catch (error) {
+                      const message =
+                        error instanceof Error && error.message
+                          ? error.message
+                          : "Nie udalo sie usunac obserwacji";
+                      setDeleteError(message);
+                      toast({
+                        variant: "destructive",
+                        title: "Nie udalo sie usunac",
+                        description: message,
+                      });
+                      console.error("Delete observation failed:", error);
+                    }
+                  }}
+                  disabled={deleteObservation.isPending}
+                >
+                  Usuń
+                </Button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          <div className="text-2xl font-semibold text-slate-900">
+            {observation.player
+              ? `${observation.player.first_name} ${observation.player.last_name}`.trim()
+              : "Szczegoly obserwacji"}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
+              {ageLabel}
+            </Badge>
+            {observation.player?.primary_position && (
+              <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
+                {positionLabel}
+              </Badge>
+            )}
+          </div>
+        </div>
+        {typeof rating === "number" && (
+          <Badge className={`flex items-center gap-1 rounded-full px-2 ${ratingClass}`}>
+            <Star className="h-3.5 w-3.5" />
+            {rating}
+          </Badge>
+        )}
+      </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Dane obserwacji</CardTitle>
+          <CardTitle className="text-base">Informacje podstawowe</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-4 text-sm text-slate-600 sm:grid-cols-2">
+        <CardContent className="space-y-3 text-sm text-slate-600">
           <div>
-            <div className="text-xs uppercase text-slate-400">Zawodnik</div>
-            <div className="text-sm text-slate-700">
-              {observation.player
-                ? `${observation.player.first_name} ${observation.player.last_name}`.trim()
-                : "-"}
+            <div className="text-sm font-medium text-slate-700">
+              {observation.player?.club?.name ?? "Brak klubu"}
             </div>
-          </div>
-          <div>
-            <div className="text-xs uppercase text-slate-400">Wiek</div>
-            <div className="text-sm text-slate-700">{ageLabel}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase text-slate-400">Klub</div>
-            <div className="text-sm text-slate-700">{observation.player?.club?.name ?? "-"}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase text-slate-400">Rozgrywki</div>
-            <div className="text-sm text-slate-700">{observation.competition ?? "-"}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase text-slate-400">Data meczu</div>
-            <div className="text-sm text-slate-700">{dateLabel}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase text-slate-400">Pozycja</div>
-            <div className="text-sm text-slate-700">{positionLabel}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase text-slate-400">Ogolna ocena</div>
-            <div className="text-sm text-slate-700">
-              {observation.overall_rating ? `${observation.overall_rating}/10` : "-"}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs uppercase text-slate-400">Ranga</div>
-            <div className="text-sm text-slate-700">{observation.rank ?? "-"}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase text-slate-400">Zrodlo</div>
-            <div className="text-sm text-slate-700">{sourceLabel}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase text-slate-400">Potencjal teraz</div>
-            <div className="text-sm text-slate-700">{observation.potential_now ?? "-"}</div>
-          </div>
-          <div>
-            <div className="text-xs uppercase text-slate-400">Potencjal przyszly</div>
-            <div className="text-sm text-slate-700">{observation.potential_future ?? "-"}</div>
-          </div>
-          <div className="sm:col-span-2">
-            <div className="text-xs uppercase text-slate-400">Mocne strony</div>
-            <div className="text-sm text-slate-700">{observation.strengths ?? "Brak"}</div>
-          </div>
-          <div className="sm:col-span-2">
-            <div className="text-xs uppercase text-slate-400">Slabe strony</div>
-            <div className="text-sm text-slate-700">{observation.weaknesses ?? "Brak"}</div>
-          </div>
-          <div className="sm:col-span-2">
-            <div className="text-xs uppercase text-slate-400">Dodatkowe notatki</div>
-            <div className="text-sm text-slate-700">{observation.notes ?? "Brak"}</div>
-          </div>
-          <div className="sm:col-span-2">
-            <div className="text-xs uppercase text-slate-400">Zdjecie</div>
-            {observation.photo_url ? (
-              <a
-                href={observation.photo_url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-primary underline-offset-2 hover:underline"
-              >
-                {observation.photo_url}
-              </a>
-            ) : (
-              <div className="text-sm text-slate-700">Brak</div>
+            {observation.competition && (
+              <div className="text-xs text-slate-500">{observation.competition}</div>
             )}
+          </div>
+          <div className="flex flex-wrap gap-4 text-xs text-slate-500">
+            <div>Data meczu: {dateLabel}</div>
+            <div>Pozycja: {positionLabel}</div>
+            <div>Status zawodnika: {statusLabel}</div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Mocne strony</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-slate-600">
+          {observation.strengths ?? "Brak"}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Slabe strony</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-slate-600">
+          {observation.weaknesses ?? "Brak"}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Dodatkowe notatki</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm text-slate-600">{observation.notes ?? "Brak"}</CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Metadane</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-slate-600">
+          <div>
+            Utworzono: {createdAtLabel} • {createdByLabel} • {createdByRole}
+          </div>
+          <div>
+            Ostatnia edycja: {updatedAtLabel} • {updatedByLabel} • {updatedByRole}
           </div>
         </CardContent>
       </Card>

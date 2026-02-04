@@ -1,10 +1,12 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useObservation, useUpdateObservation } from "@/features/observations/hooks/useObservations";
-import { useUpdatePlayer } from "@/features/players/hooks/usePlayers";
+import type { ObservationSource } from "@/features/observations/types";
+import { useUpdatePlayer, useUpdatePlayerStatus } from "@/features/players/hooks/usePlayers";
+import type { PipelineStatus } from "@/features/players/types";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
 import { PositionPickerDialog } from "@/features/players/components/PositionPickerDialog";
 import { supabase } from "@/lib/supabase";
@@ -16,6 +18,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
 import { PageHeader } from "@/components/common/PageHeader";
+import { PIPELINE_COLUMNS } from "@/features/pipeline/types";
+import { toast } from "@/hooks/use-toast";
+import { useAuthStore } from "@/stores/authStore";
 
 const schema = z.object({
   full_name: z
@@ -28,6 +33,7 @@ const schema = z.object({
   match_date: z.string().min(1, "Wybierz date meczu"),
   primary_position: z.string().min(1, "Wybierz pozycje"),
   overall_rating: z.coerce.number().min(1).max(10).multipleOf(0.5),
+  pipeline_status: z.string().optional(),
   source: z.string().min(1, "Wybierz zrodlo"),
   rank: z.string().optional(),
   potential_now: z.coerce.number().int().min(1).max(5).optional(),
@@ -47,10 +53,25 @@ export function EditObservationPage() {
   const { data: observation, isLoading } = useObservation(observationId);
   const { mutateAsync: updateObservation, isPending } = useUpdateObservation();
   const { mutateAsync: updatePlayer } = useUpdatePlayer();
+  const { mutateAsync: updateStatus } = useUpdatePlayerStatus();
+  const { user } = useAuthStore();
   const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const auditName =
+    (user?.user_metadata as { full_name?: string })?.full_name ??
+    user?.email ??
+    "Uzytkownik";
+  const auditRole =
+    (user?.user_metadata as { role?: string })?.role ?? "user";
+  const goBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate("/observations");
+    }
+  };
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+  const form = useForm<FormValues, unknown, FormValues>({
+    resolver: zodResolver(schema) as Resolver<FormValues>,
     defaultValues: {
       full_name: "",
       age: 16,
@@ -59,6 +80,7 @@ export function EditObservationPage() {
       match_date: "",
       primary_position: "",
       overall_rating: 5,
+      pipeline_status: "observed",
       source: "",
       rank: "",
       potential_now: 3,
@@ -80,6 +102,7 @@ export function EditObservationPage() {
       match_date: observation.observation_date ?? "",
       primary_position: mapLegacyPosition(observation.player?.primary_position ?? ""),
       overall_rating: observation.overall_rating ?? 5,
+      pipeline_status: observation.player?.pipeline_status ?? "observed",
       source: observation.source ?? "",
       rank: observation.rank ?? "",
       potential_now: observation.potential_now ?? 3,
@@ -126,6 +149,7 @@ export function EditObservationPage() {
 
   const onSubmit = async (values: FormValues) => {
     try {
+      const nowIso = new Date().toISOString();
       const { firstName, lastName } = parseFullName(values.full_name);
       const birthYear = currentYear - values.age;
       const clubId = await resolveClubId(values.club_name?.trim());
@@ -140,12 +164,22 @@ export function EditObservationPage() {
           primary_position: values.primary_position,
         },
       });
+      if (
+        values.pipeline_status &&
+        values.pipeline_status !== (observation.player?.pipeline_status ?? "observed")
+      ) {
+        await updateStatus({
+          id: observation.player_id,
+          status: values.pipeline_status as PipelineStatus,
+          fromStatus: observation.player?.pipeline_status ?? null,
+        });
+      }
 
       await updateObservation({
         id: observation.id,
         input: {
           observation_date: values.match_date,
-          source: values.source,
+          source: values.source as ObservationSource,
           rank: values.rank || null,
           potential_now: values.potential_now ?? null,
           potential_future: values.potential_future ?? null,
@@ -155,15 +189,27 @@ export function EditObservationPage() {
           strengths: values.strengths?.trim() || null,
           weaknesses: values.weaknesses?.trim() || null,
           photo_url: values.photo_url?.trim() || null,
+          updated_by: user?.id ?? null,
+          updated_by_name: auditName,
+          updated_by_role: auditRole,
+          updated_at: nowIso,
         },
       });
-      navigate(`/observations/${observation.id}`);
+      toast({
+        title: "Zapisano zmiany",
+        description: "Obserwacja zostala zaktualizowana.",
+      });
+      goBack();
     } catch (error) {
       const message =
         error instanceof Error && error.message
           ? error.message
           : "Nie udalo sie zapisac obserwacji";
-      window.alert(message);
+      toast({
+        variant: "destructive",
+        title: "Nie udalo sie zapisac",
+        description: message,
+      });
       console.error("Update observation failed:", error);
     }
   };
@@ -226,6 +272,29 @@ export function EditObservationPage() {
                             placeholder="Wybierz klub"
                           />
                         </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="pipeline_status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status zawodnika</FormLabel>
+                        <Select value={field.value ?? "observed"} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Wybierz status" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {PIPELINE_COLUMNS.map((column) => (
+                              <SelectItem key={column.id} value={column.id}>
+                                {column.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </FormItem>
                     )}
                   />

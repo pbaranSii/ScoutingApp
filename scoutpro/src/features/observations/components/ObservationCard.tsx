@@ -51,7 +51,7 @@ export function ObservationCard({ observation }: ObservationCardProps) {
               </div>
             </div>
             {typeof rating === "number" && (
-              <Badge className={`flex items-center gap-1 rounded-full ${ratingClass}`}>
+              <Badge className={`flex items-center gap-1 rounded-full px-2 ${ratingClass}`}>
                 <Star className="h-3.5 w-3.5" />
                 {rating}
               </Badge>

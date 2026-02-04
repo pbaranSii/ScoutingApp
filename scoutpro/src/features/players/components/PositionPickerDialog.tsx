@@ -43,7 +43,7 @@ export function PositionPickerDialog({
   buttonLabel = "Wybierz na boisku",
 }: PositionPickerDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+  const canUseDom = typeof document !== "undefined";
   const labels = useMemo(() => {
     return POSITION_OPTIONS.reduce<Record<string, string>>((acc, option) => {
       acc[option.code] = option.label;
@@ -55,10 +55,6 @@ export function PositionPickerDialog({
     onSelect(code);
     setIsOpen(false);
   };
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -82,7 +78,7 @@ export function PositionPickerDialog({
       >
         {buttonLabel}
       </Button>
-      {isMounted &&
+      {canUseDom &&
         isOpen &&
         createPortal(
           <div className="fixed inset-0 z-[70] flex items-center justify-center">

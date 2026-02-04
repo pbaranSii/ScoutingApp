@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useCreateObservation } from "../hooks/useObservations";
+import type { ObservationSource } from "../types";
 import { useCreatePlayer } from "@/features/players/hooks/usePlayers";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
 import { PositionPickerDialog } from "@/features/players/components/PositionPickerDialog";
@@ -19,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
+import { toast } from "@/hooks/use-toast";
 
 const wizardSchema = z.object({
   full_name: z
@@ -79,9 +81,23 @@ export function ObservationWizard({
   const { mutateAsync: createPlayer } = useCreatePlayer();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const currentYear = useMemo(() => new Date().getFullYear(), []);
+  const navigate = useNavigate();
+  const auditName =
+    (user?.user_metadata as { full_name?: string })?.full_name ??
+    user?.email ??
+    "Uzytkownik";
+  const auditRole =
+    (user?.user_metadata as { role?: string })?.role ?? "user";
+  const goBack = () => {
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate("/observations");
+    }
+  };
 
-  const form = useForm<WizardFormValues>({
-    resolver: zodResolver(wizardSchema),
+  const form = useForm<WizardFormValues, unknown, WizardFormValues>({
+    resolver: zodResolver(wizardSchema) as Resolver<WizardFormValues>,
     defaultValues: {
       full_name: "",
       age: 16,
@@ -150,17 +166,19 @@ export function ObservationWizard({
     const { firstName, lastName } = parseFullName(values.full_name);
     const birthYear = currentYear - values.age;
     try {
+      const nowIso = new Date().toISOString();
       if (!isOnline) {
         await addOfflineObservation({
           localId: uuidv4(),
           data: {
             player_id: prefillPlayer?.id,
+            scout_id: user.id,
             first_name: firstName,
             last_name: lastName,
             birth_year: birthYear,
             club_name: values.club_name?.trim(),
             primary_position: values.primary_position,
-            source: values.source,
+            source: values.source as ObservationSource,
             rank: values.rank,
             notes: values.notes,
             potential_now: values.potential_now,
@@ -171,10 +189,21 @@ export function ObservationWizard({
             strengths: values.strengths?.trim(),
             weaknesses: values.weaknesses?.trim(),
             photo_url: values.photo_url?.trim(),
+            created_by: user.id,
+            created_by_name: auditName,
+            created_by_role: auditRole,
+            updated_by: user.id,
+            updated_by_name: auditName,
+            updated_by_role: auditRole,
+            updated_at: nowIso,
           },
           createdAt: new Date(),
           syncStatus: "pending",
           syncAttempts: 0,
+        });
+        toast({
+          title: "Zapisano obserwacje",
+          description: "Obserwacja zostala zapisana offline.",
         });
       } else {
         let playerId = prefillPlayer?.id;
@@ -194,7 +223,7 @@ export function ObservationWizard({
         await createObservation({
           player_id: playerId,
           scout_id: user.id,
-          source: values.source,
+          source: values.source as ObservationSource,
           rank: values.rank,
           notes: values.notes,
           potential_now: values.potential_now,
@@ -205,13 +234,30 @@ export function ObservationWizard({
           strengths: values.strengths?.trim() || null,
           weaknesses: values.weaknesses?.trim() || null,
           photo_url: values.photo_url?.trim() || null,
+          created_by: user.id,
+          created_by_name: auditName,
+          created_by_role: auditRole,
+          updated_by: user.id,
+          updated_by_name: auditName,
+          updated_by_role: auditRole,
+          updated_at: nowIso,
+        });
+        toast({
+          title: "Zapisano obserwacje",
+          description: "Zmiany zostaly poprawnie zapisane.",
         });
       }
 
       form.reset();
       localStorage.removeItem("scoutpro-observation-draft");
+      goBack();
     } catch {
       setSubmitError("Nie udalo sie zapisac obserwacji");
+      toast({
+        variant: "destructive",
+        title: "Nie udalo sie zapisac",
+        description: "Sprobuj ponownie za chwile.",
+      });
     }
   };
 

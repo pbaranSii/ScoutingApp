@@ -20,7 +20,7 @@ export function MobileNav() {
             className={({ isActive }) =>
               [
                 "flex flex-col items-center justify-center gap-1 rounded-md py-1 text-[11px] font-medium",
-                isActive ? "text-blue-600" : "text-slate-500",
+                isActive ? "text-red-600" : "text-slate-500",
               ].join(" ")
             }
           >

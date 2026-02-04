@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -22,8 +22,8 @@ export function LoginForm() {
   const { login, isLoading, error } = useAuthStore();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+  const form = useForm<LoginFormValues, unknown, LoginFormValues>({
+    resolver: zodResolver(loginSchema) as Resolver<LoginFormValues>,
     defaultValues: {
       email: "",
       password: "",

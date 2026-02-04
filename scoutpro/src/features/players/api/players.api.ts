@@ -1,10 +1,10 @@
 import { supabase } from "@/lib/supabase";
-import type { Player, PlayerInput } from "../types";
+import type { PipelineHistoryEntry, PipelineStatus, Player, PlayerInput } from "../types";
 
 export async function fetchPlayers(filters?: {
   search?: string;
   birthYear?: number;
-  status?: string;
+  status?: PipelineStatus;
 }) {
   let query = supabase
     .from("players")
@@ -68,10 +68,12 @@ export async function createPlayer(input: PlayerInput) {
 }
 
 export async function updatePlayer(id: string, input: PlayerInput) {
+  const { pipeline_status, ...rest } = input;
   const { error } = await supabase
     .from("players")
     .update({
-      ...input,
+      ...rest,
+      pipeline_status: pipeline_status ?? undefined,
     })
     .eq("id", id);
 
@@ -90,16 +92,78 @@ export async function fetchClubs() {
 }
 
 export async function deletePlayer(id: string) {
-  const { error } = await supabase.from("players").delete().eq("id", id);
+  const { data, error } = await supabase.from("players").delete().eq("id", id).select("id");
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error(
+      "Nie udalo sie usunac zawodnika. Sprawdz uprawnienia lub czy rekord nadal istnieje."
+    );
+  }
+}
+
+export async function updatePlayerStatus(id: string, status: PipelineStatus) {
+  const { error } = await supabase.from("players").update({ pipeline_status: status }).eq("id", id);
+  if (error) throw error;
+  return null;
+}
+
+export async function createPipelineHistory(input: {
+  player_id: string;
+  from_status?: string | null;
+  to_status: string;
+  changed_by: string;
+  reason?: string | null;
+}) {
+  const { error } = await supabase.from("pipeline_history").insert({
+    player_id: input.player_id,
+    from_status: input.from_status ?? null,
+    to_status: input.to_status,
+    changed_by: input.changed_by,
+    reason: input.reason ?? null,
+  });
   if (error) throw error;
 }
 
-export async function updatePlayerStatus(id: string, status: string) {
+export async function updatePlayerStatusWithHistory(input: {
+  id: string;
+  status: PipelineStatus;
+  changed_by?: string | null;
+  from_status?: string | null;
+}) {
+  let previousStatus = input.from_status ?? null;
+  if (previousStatus === null) {
+    const { data: player, error: playerError } = await supabase
+      .from("players")
+      .select("pipeline_status")
+      .eq("id", input.id)
+      .single();
+    if (playerError) throw playerError;
+    previousStatus = (player?.pipeline_status as string | null) ?? null;
+  }
+
   const { error } = await supabase
     .from("players")
-    .update({ pipeline_status: status })
-    .eq("id", id);
+    .update({ pipeline_status: input.status })
+    .eq("id", input.id);
+  if (error) throw error;
+
+  if (input.changed_by && previousStatus !== input.status) {
+    await createPipelineHistory({
+      player_id: input.id,
+      from_status: previousStatus,
+      to_status: input.status,
+      changed_by: input.changed_by,
+    });
+  }
+}
+
+export async function fetchPipelineHistoryByPlayer(playerId: string) {
+  const { data, error } = await supabase
+    .from("pipeline_history")
+    .select("*")
+    .eq("player_id", playerId)
+    .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return null;
+  return (data ?? []) as PipelineHistoryEntry[];
 }

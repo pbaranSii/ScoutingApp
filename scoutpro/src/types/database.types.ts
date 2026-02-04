@@ -244,6 +244,9 @@ export type Database = {
         Row: {
           competition: string | null
           created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          created_by_role: string | null
           id: string
           is_offline_created: boolean
           match_id: string | null
@@ -260,11 +263,18 @@ export type Database = {
           strengths: string | null
           weaknesses: string | null
           overall_rating: number | null
+          updated_at: string | null
+          updated_by: string | null
+          updated_by_name: string | null
+          updated_by_role: string | null
           synced_at: string | null
         }
         Insert: {
           competition?: string | null
           created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          created_by_role?: string | null
           id?: string
           is_offline_created?: boolean
           match_id?: string | null
@@ -281,11 +291,18 @@ export type Database = {
           strengths?: string | null
           weaknesses?: string | null
           overall_rating?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_name?: string | null
+          updated_by_role?: string | null
           synced_at?: string | null
         }
         Update: {
           competition?: string | null
           created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          created_by_role?: string | null
           id?: string
           is_offline_created?: boolean
           match_id?: string | null
@@ -302,6 +319,10 @@ export type Database = {
           strengths?: string | null
           weaknesses?: string | null
           overall_rating?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          updated_by_name?: string | null
+          updated_by_role?: string | null
           synced_at?: string | null
         }
         Relationships: [

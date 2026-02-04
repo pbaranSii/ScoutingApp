@@ -1,17 +1,19 @@
 import Dexie from "dexie";
 import type { Table } from "dexie";
+import type { ObservationSource } from "@/features/observations/types";
 
 export type OfflineObservation = {
   localId: string;
   remoteId?: string;
   data: {
     player_id?: string;
+    scout_id?: string;
     first_name: string;
     last_name: string;
     birth_year: number;
     club_name?: string;
     primary_position?: string;
-    source: string;
+    source: ObservationSource;
     rank?: string;
     notes?: string;
     strengths?: string;
@@ -19,6 +21,13 @@ export type OfflineObservation = {
     overall_rating?: number;
     competition?: string;
     photo_url?: string;
+    created_by?: string;
+    created_by_name?: string;
+    created_by_role?: string;
+    updated_by?: string;
+    updated_by_name?: string;
+    updated_by_role?: string;
+    updated_at?: string;
     potential_now?: number;
     potential_future?: number;
     observation_date: string;
