@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/common/PageHeader";
-import { Mic, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { Plus, Search, SlidersHorizontal } from "lucide-react";
 import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -74,18 +74,12 @@ export function ObservationsPage() {
         title="Obserwacje"
         subtitle="Zarzadzaj i przegladaj raporty scoutingowe"
         actions={
-          <>
-            <Button asChild className="gap-2 bg-red-600 hover:bg-red-700">
-              <Link to="/observations/new">
-                <Plus className="h-4 w-4" />
-                Nowa obserwacja
-              </Link>
-            </Button>
-            <Button type="button" className="gap-2 bg-red-600 hover:bg-red-700">
-              <Mic className="h-4 w-4" />
-              Nagraj obserwacje
-            </Button>
-          </>
+          <Button asChild className="gap-2 bg-red-600 hover:bg-red-700">
+            <Link to="/observations/new">
+              <Plus className="h-4 w-4" />
+              Nowa obserwacja
+            </Link>
+          </Button>
         }
       />
       {isError && (

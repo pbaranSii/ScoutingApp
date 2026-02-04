@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useClubs } from "../hooks/usePlayers";
 
@@ -13,13 +13,6 @@ export function ClubSelect({ value, onChange, placeholder, disabled }: ClubSelec
   const { data: clubs = [], isLoading, isError } = useClubs();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState(value);
-  const [isFocused, setIsFocused] = useState(false);
-
-  useEffect(() => {
-    if (!isFocused) {
-      setQuery(value);
-    }
-  }, [value, isFocused]);
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -40,11 +33,11 @@ export function ClubSelect({ value, onChange, placeholder, disabled }: ClubSelec
         placeholder={placeholder}
         disabled={disabled}
         onFocus={() => {
-          setIsFocused(true);
+          setQuery(value);
           setIsOpen(true);
         }}
         onBlur={() => {
-          setIsFocused(false);
+          setQuery(value);
           setTimeout(() => setIsOpen(false), 120);
         }}
         onChange={(event) => handleChange(event.target.value)}

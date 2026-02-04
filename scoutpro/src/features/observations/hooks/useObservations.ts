@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createObservation,
   deleteObservation,
+  deleteObservationsByPlayer,
   fetchObservationById,
   fetchObservations,
   fetchObservationsByPlayer,
@@ -85,7 +86,45 @@ export function useDeleteObservation() {
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ["observations"] });
       queryClient.invalidateQueries({ queryKey: ["observations", "player"] });
+      queryClient.setQueryData<Observation[] | undefined>(["observations"], (observations) =>
+        observations?.filter((observation) => observation.id !== id)
+      );
+      queryClient.setQueriesData<Observation[] | undefined>(
+        { queryKey: ["observations", "player"], exact: false },
+        (observations) => observations?.filter((observation) => observation.id !== id)
+      );
       queryClient.removeQueries({ queryKey: ["observation", id] });
+      offlineDb.cachedObservations.delete(id).catch((error) => {
+        console.warn("Failed to delete cached observation:", error);
+      });
+    },
+  });
+}
+
+export function useDeleteObservationsByPlayer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (playerId: string) => deleteObservationsByPlayer(playerId),
+    onSuccess: async (_data, playerId) => {
+      queryClient.invalidateQueries({ queryKey: ["observations"] });
+      queryClient.invalidateQueries({ queryKey: ["observations", "player", playerId] });
+      queryClient.setQueryData<Observation[] | undefined>(["observations"], (observations) =>
+        observations?.filter((observation) => observation.player_id !== playerId)
+      );
+      queryClient.removeQueries({ queryKey: ["observations", "player", playerId] });
+
+      try {
+        const cached = await offlineDb.cachedObservations.toArray();
+        const toDelete = cached
+          .filter((item) => (item.data as Observation | undefined)?.player_id === playerId)
+          .map((item) => item.id);
+        if (toDelete.length > 0) {
+          await offlineDb.cachedObservations.bulkDelete(toDelete);
+        }
+      } catch (error) {
+        console.warn("Failed to delete cached observations by player:", error);
+      }
     },
   });
 }

@@ -1,21 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  createPipelineHistory,
   createPlayer,
   deletePlayer,
   fetchClubs,
+  fetchPipelineHistoryByPlayer,
   fetchPlayerById,
   fetchPlayers,
   updatePlayer,
-  updatePlayerStatus,
+  updatePlayerStatusWithHistory,
 } from "../api/players.api";
-import type { Player, PlayerInput } from "../types";
+import type { PipelineStatus, Player, PlayerInput } from "../types";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { offlineDb } from "@/features/offline/db/offlineDb";
+import { useAuthStore } from "@/stores/authStore";
 
 export function usePlayers(filters?: {
   search?: string;
   birthYear?: number;
-  status?: string;
+  status?: PipelineStatus;
 }) {
   const isOnline = useOnlineStatus();
   return useQuery({
@@ -86,19 +89,65 @@ export function useDeletePlayer() {
     mutationFn: (id: string) => deletePlayer(id),
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ["players"] });
+      queryClient.setQueriesData<Player[] | undefined>(
+        { queryKey: ["players"], exact: false },
+        (players) => players?.filter((player) => player.id !== id)
+      );
       queryClient.removeQueries({ queryKey: ["player", id] });
+      offlineDb.cachedPlayers.delete(id).catch((error) => {
+        console.warn("Failed to delete cached player:", error);
+      });
     },
   });
 }
 
 export function useUpdatePlayerStatus() {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
 
   return useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      updatePlayerStatus(id, status),
+    mutationFn: ({
+      id,
+      status,
+      fromStatus,
+    }: {
+      id: string;
+      status: PipelineStatus;
+      fromStatus?: string | null;
+    }) =>
+      updatePlayerStatusWithHistory({
+        id,
+        status,
+        from_status: fromStatus ?? null,
+        changed_by: user?.id ?? null,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["players"] });
+    },
+  });
+}
+
+export function usePipelineHistory(playerId: string) {
+  return useQuery({
+    queryKey: ["pipeline-history", playerId],
+    queryFn: () => fetchPipelineHistoryByPlayer(playerId),
+    enabled: Boolean(playerId),
+  });
+}
+
+export function useCreatePipelineHistory() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: {
+      player_id: string;
+      from_status?: string | null;
+      to_status: string;
+      changed_by: string;
+      reason?: string | null;
+    }) => createPipelineHistory(input),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["pipeline-history", variables.player_id] });
     },
   });
 }

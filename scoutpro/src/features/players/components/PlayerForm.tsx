@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCreatePlayer, useUpdatePlayer } from "../hooks/usePlayers";
+import { useCreatePipelineHistory, useCreatePlayer, useUpdatePlayer } from "../hooks/usePlayers";
+import type { DominantFoot, PipelineStatus } from "../types";
 import { ClubSelect } from "./ClubSelect";
 import { PositionPickerDialog } from "@/features/players/components/PositionPickerDialog";
 import { supabase } from "@/lib/supabase";
@@ -14,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { PIPELINE_COLUMNS } from "@/features/pipeline/types";
 import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
+import { useAuthStore } from "@/stores/authStore";
+import { toast } from "@/hooks/use-toast";
 
 const optionalText = z.preprocess(
   (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
@@ -69,16 +72,36 @@ export function PlayerForm({
   const navigate = useNavigate();
   const { mutateAsync: createPlayer, isPending: isCreating } = useCreatePlayer();
   const { mutateAsync: updatePlayer, isPending: isUpdating } = useUpdatePlayer();
+  const { mutateAsync: createHistory } = useCreatePipelineHistory();
+  const { user } = useAuthStore();
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const defaultValues = useMemo(
-    () => ({
+  const defaultValues = useMemo(() => {
+    const normalizedInitial: PlayerFormValues = {
+      ...initialValues,
+      first_name: initialValues?.first_name ?? "",
+      last_name: initialValues?.last_name ?? "",
+      birth_year: initialValues?.birth_year ?? new Date().getFullYear() - 14,
+      nationality: initialValues?.nationality ?? "",
+      club_name: initialValues?.club_name ?? "",
+      primary_position: mapLegacyPosition(initialValues?.primary_position ?? ""),
+      dominant_foot: initialValues?.dominant_foot ?? "",
+      pipeline_status: initialValues?.pipeline_status ?? "observed",
+      height_cm: initialValues?.height_cm ?? undefined,
+      weight_kg: initialValues?.weight_kg ?? undefined,
+      guardian_name: initialValues?.guardian_name ?? "",
+      guardian_phone: initialValues?.guardian_phone ?? "",
+      guardian_email: initialValues?.guardian_email ?? "",
+      photo_url: initialValues?.photo_url ?? "",
+    };
+
+    const defaults: PlayerFormValues = {
       first_name: "",
       last_name: "",
       birth_year: new Date().getFullYear() - 14,
       nationality: "",
       club_name: "",
-      primary_position: mapLegacyPosition(initialValues?.primary_position ?? ""),
+      primary_position: "",
       dominant_foot: "",
       pipeline_status: "observed",
       height_cm: undefined,
@@ -87,14 +110,17 @@ export function PlayerForm({
       guardian_phone: "",
       guardian_email: "",
       photo_url: "",
-      ...initialValues,
-      primary_position: mapLegacyPosition(initialValues?.primary_position ?? ""),
-    }),
-    [initialValues]
-  );
+    };
 
-  const form = useForm<PlayerFormValues>({
-    resolver: zodResolver(playerSchema),
+    return {
+      ...defaults,
+      ...normalizedInitial,
+      primary_position: mapLegacyPosition(normalizedInitial.primary_position ?? ""),
+    };
+  }, [initialValues]);
+
+  const form = useForm<PlayerFormValues, unknown, PlayerFormValues>({
+    resolver: zodResolver(playerSchema) as Resolver<PlayerFormValues>,
     defaultValues,
   });
 
@@ -126,6 +152,12 @@ export function PlayerForm({
         typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
       const toNullableNumber = (value?: number) =>
         typeof value === "number" && !Number.isNaN(value) ? value : null;
+      const dominantFoot = values.dominant_foot
+        ? (values.dominant_foot as DominantFoot)
+        : null;
+      const pipelineStatus = values.pipeline_status
+        ? (values.pipeline_status as PipelineStatus)
+        : undefined;
       const input = {
         first_name: values.first_name,
         last_name: values.last_name,
@@ -133,8 +165,8 @@ export function PlayerForm({
         club_id: clubId ?? null,
         nationality: toNullable(values.nationality),
         primary_position: toNullable(values.primary_position),
-        dominant_foot: toNullable(values.dominant_foot),
-        pipeline_status: values.pipeline_status || "observed",
+        dominant_foot: dominantFoot,
+        pipeline_status: pipelineStatus ?? "observed",
         height_cm: toNullableNumber(values.height_cm),
         weight_kg: toNullableNumber(values.weight_kg),
         guardian_name: toNullable(values.guardian_name),
@@ -148,9 +180,41 @@ export function PlayerForm({
           throw new Error("Brak identyfikatora zawodnika do aktualizacji.");
         }
         await updatePlayer({ id: playerId, input });
+        if (user?.id && pipelineStatus && pipelineStatus !== initialValues?.pipeline_status) {
+          try {
+            await createHistory({
+              player_id: playerId,
+              from_status: initialValues?.pipeline_status ?? null,
+              to_status: pipelineStatus,
+              changed_by: user.id,
+            });
+          } catch (error) {
+            console.warn("Pipeline history insert blocked:", error);
+          }
+        }
+        toast({
+          title: "Zapisano zmiany",
+          description: "Profil zawodnika zostal zaktualizowany.",
+        });
         onUpdated?.();
       } else {
-        await createPlayer(input);
+        const created = await createPlayer(input);
+        if (user?.id && input.pipeline_status) {
+          try {
+            await createHistory({
+              player_id: created.id,
+              from_status: null,
+              to_status: input.pipeline_status,
+              changed_by: user.id,
+            });
+          } catch (error) {
+            console.warn("Pipeline history insert blocked:", error);
+          }
+        }
+        toast({
+          title: "Zapisano zawodnika",
+          description: "Nowy zawodnik zostal dodany.",
+        });
         form.reset();
         onCreated?.();
       }
@@ -158,6 +222,11 @@ export function PlayerForm({
       const message = extractErrorMessage(error, "Nie udalo sie zapisac zawodnika");
       console.error("Save player failed:", error);
       setSubmitError(message);
+      toast({
+        variant: "destructive",
+        title: "Nie udalo sie zapisac",
+        description: message,
+      });
     }
   };
 
@@ -309,28 +378,34 @@ export function PlayerForm({
             <FormField
               control={form.control}
               name="height_cm"
-              render={({ field }) => (
+              render={({ field }) => {
+                const { value, ...rest } = field;
+                return (
                 <FormItem>
                   <FormLabel>Wzrost (cm)</FormLabel>
                   <FormControl>
-                    <Input type="number" inputMode="numeric" {...field} />
+                    <Input type="number" inputMode="numeric" value={value ?? ""} {...rest} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
-              )}
+                );
+              }}
             />
             <FormField
               control={form.control}
               name="weight_kg"
-              render={({ field }) => (
+              render={({ field }) => {
+                const { value, ...rest } = field;
+                return (
                 <FormItem>
                   <FormLabel>Waga (kg)</FormLabel>
                   <FormControl>
-                    <Input type="number" inputMode="numeric" {...field} />
+                    <Input type="number" inputMode="numeric" value={value ?? ""} {...rest} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
-              )}
+                );
+              }}
             />
             <FormField
               control={form.control}

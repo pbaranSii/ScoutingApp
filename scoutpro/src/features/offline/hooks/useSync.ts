@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import type { Database } from "@/types/database.types";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { offlineDb } from "../db/offlineDb";
 import type { OfflineObservation } from "../db/offlineDb";
@@ -64,23 +65,38 @@ export function useSync() {
             playerId = player.id as string;
           }
 
+          const scoutId = obs.data.scout_id;
+          if (!scoutId) {
+            throw new Error("Brak scout_id do synchronizacji obserwacji.");
+          }
+
+          const insertPayload: Database["public"]["Tables"]["observations"]["Insert"] = {
+              player_id: playerId,
+              scout_id: scoutId,
+              source: obs.data.source,
+              rank: obs.data.rank ?? null,
+              notes: obs.data.notes ?? null,
+              potential_now: obs.data.potential_now ?? null,
+              potential_future: obs.data.potential_future ?? null,
+              observation_date: obs.data.observation_date,
+              competition: obs.data.competition ?? null,
+              overall_rating: obs.data.overall_rating ?? null,
+              strengths: obs.data.strengths ?? null,
+              weaknesses: obs.data.weaknesses ?? null,
+              photo_url: obs.data.photo_url ?? null,
+              created_by: obs.data.created_by ?? null,
+              created_by_name: obs.data.created_by_name ?? null,
+              created_by_role: obs.data.created_by_role ?? null,
+              updated_by: obs.data.updated_by ?? null,
+              updated_by_name: obs.data.updated_by_name ?? null,
+              updated_by_role: obs.data.updated_by_role ?? null,
+              updated_at: obs.data.updated_at ?? null,
+              is_offline_created: true,
+            };
+
           const { data: observation, error: obsError } = await supabase
             .from("observations")
-            .insert({
-              player_id: playerId,
-              source: obs.data.source,
-              rank: obs.data.rank,
-              notes: obs.data.notes,
-              potential_now: obs.data.potential_now,
-              potential_future: obs.data.potential_future,
-              observation_date: obs.data.observation_date,
-              competition: obs.data.competition,
-              overall_rating: obs.data.overall_rating,
-              strengths: obs.data.strengths,
-              weaknesses: obs.data.weaknesses,
-              photo_url: obs.data.photo_url,
-              is_offline_created: true,
-            })
+            .insert(insertPayload)
             .select()
             .single();
 

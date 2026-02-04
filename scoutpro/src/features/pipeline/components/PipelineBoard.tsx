@@ -113,7 +113,7 @@ export function PipelineBoard({ search = "" }: PipelineBoardProps) {
     }
 
     try {
-      await updateStatus({ id: activeId, status: targetColumn });
+      await updateStatus({ id: activeId, status: targetColumn, fromStatus: sourceColumn });
     } catch {
       setColumns(initialColumns);
     }
