@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useDeleteObservation, useObservation } from "@/features/observations/hooks/useObservations";
@@ -15,6 +15,7 @@ export function ObservationDetailPage() {
   const { id } = useParams();
   const observationId = id ?? "";
   const navigate = useNavigate();
+  const location = useLocation();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const { data: observation, isLoading } = useObservation(observationId);
@@ -75,7 +76,10 @@ export function ObservationDetailPage() {
         </Link>
         <div className="flex flex-wrap gap-2">
           <Button asChild className="gap-2 bg-red-600 hover:bg-red-700">
-            <Link to={`/observations/${observation.id}/edit`}>
+            <Link
+              to={`/observations/${observation.id}/edit`}
+              state={{ from: `${location.pathname}${location.search}` }}
+            >
               <Pencil className="h-4 w-4" />
               Edytuj obserwacje
             </Link>

@@ -1,11 +1,11 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo } from "react";
-import { useForm, type Resolver } from "react-hook-form";
+import { useForm, type FieldErrors, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useObservation, useUpdateObservation } from "@/features/observations/hooks/useObservations";
 import type { ObservationSource } from "@/features/observations/types";
-import { useUpdatePlayer, useUpdatePlayerStatus } from "@/features/players/hooks/usePlayers";
+import { usePlayer, useUpdatePlayer, useUpdatePlayerStatus } from "@/features/players/hooks/usePlayers";
 import type { PipelineStatus } from "@/features/players/types";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
 import { PositionPickerDialog } from "@/features/players/components/PositionPickerDialog";
@@ -35,9 +35,9 @@ const schema = z.object({
   overall_rating: z.coerce.number().min(1).max(10).multipleOf(0.5),
   pipeline_status: z.string().optional(),
   source: z.string().min(1, "Wybierz zrodlo"),
-  rank: z.string().optional(),
-  potential_now: z.coerce.number().int().min(1).max(5).optional(),
-  potential_future: z.coerce.number().int().min(1).max(5).optional(),
+  rank: z.string().min(1, "Wybierz range"),
+  potential_now: z.coerce.number().int().min(1).max(5),
+  potential_future: z.coerce.number().int().min(1).max(5),
   strengths: z.string().optional(),
   weaknesses: z.string().optional(),
   notes: z.string().optional(),
@@ -48,9 +48,11 @@ type FormValues = z.infer<typeof schema>;
 
 export function EditObservationPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const observationId = id ?? "";
   const { data: observation, isLoading } = useObservation(observationId);
+  const { data: playerData } = usePlayer(observation?.player_id ?? "");
   const { mutateAsync: updateObservation, isPending } = useUpdateObservation();
   const { mutateAsync: updatePlayer } = useUpdatePlayer();
   const { mutateAsync: updateStatus } = useUpdatePlayerStatus();
@@ -62,8 +64,14 @@ export function EditObservationPage() {
     "Uzytkownik";
   const auditRole =
     (user?.user_metadata as { role?: string })?.role ?? "user";
+  const fromLocation =
+    typeof location.state === "object" && location.state !== null && "from" in location.state
+      ? (location.state as { from?: string }).from
+      : undefined;
   const goBack = () => {
-    if (window.history.length > 1) {
+    if (fromLocation) {
+      navigate(fromLocation);
+    } else if (window.history.length > 1) {
       navigate(-1);
     } else {
       navigate("/observations");
@@ -103,7 +111,7 @@ export function EditObservationPage() {
       primary_position: mapLegacyPosition(observation.player?.primary_position ?? ""),
       overall_rating: observation.overall_rating ?? 5,
       pipeline_status: observation.player?.pipeline_status ?? "observed",
-      source: observation.source ?? "",
+      source: observation.source ?? "scouting",
       rank: observation.rank ?? "",
       potential_now: observation.potential_now ?? 3,
       potential_future: observation.potential_future ?? 3,
@@ -113,6 +121,17 @@ export function EditObservationPage() {
       photo_url: observation.photo_url ?? "",
     });
   }, [observation, form, currentYear]);
+
+  useEffect(() => {
+    if (!playerData) return;
+    const { dirtyFields } = form.formState;
+    if (!dirtyFields.club_name) {
+      form.setValue("club_name", playerData.club?.name ?? "");
+    }
+    if (!dirtyFields.primary_position) {
+      form.setValue("primary_position", mapLegacyPosition(playerData.primary_position ?? ""));
+    }
+  }, [playerData, form]);
 
   if (isLoading) {
     return <p className="text-sm text-slate-500">Ladowanie...</p>;
@@ -149,6 +168,9 @@ export function EditObservationPage() {
 
   const onSubmit = async (values: FormValues) => {
     try {
+      if (import.meta.env.DEV) {
+        console.log("EditObservation submit", values);
+      }
       const nowIso = new Date().toISOString();
       const { firstName, lastName } = parseFullName(values.full_name);
       const birthYear = currentYear - values.age;
@@ -179,7 +201,7 @@ export function EditObservationPage() {
         id: observation.id,
         input: {
           observation_date: values.match_date,
-          source: values.source as ObservationSource,
+          source: (values.source || observation.source || "scouting") as ObservationSource,
           rank: values.rank || null,
           potential_now: values.potential_now ?? null,
           potential_future: values.potential_future ?? null,
@@ -195,6 +217,12 @@ export function EditObservationPage() {
           updated_at: nowIso,
         },
       });
+      if (import.meta.env.DEV) {
+        console.log("EditObservation update complete", {
+          observationId: observation.id,
+          playerId: observation.player_id,
+        });
+      }
       toast({
         title: "Zapisano zmiany",
         description: "Obserwacja zostala zaktualizowana.",
@@ -214,6 +242,13 @@ export function EditObservationPage() {
     }
   };
 
+  const handleInvalid = (errors: FieldErrors<FormValues>) => {
+    const firstField = Object.keys(errors)[0] as keyof FormValues | undefined;
+    if (firstField) {
+      form.setFocus(firstField);
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-[960px] space-y-4">
       <PageHeader
@@ -229,7 +264,7 @@ export function EditObservationPage() {
       <Card className="border-0 bg-transparent shadow-none">
         <CardContent className="p-0">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit, handleInvalid)} className="space-y-6">
               <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
                 <h2 className="text-sm font-semibold text-slate-700">1. Dane zawodnika</h2>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -238,7 +273,9 @@ export function EditObservationPage() {
                     name="full_name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Imie i nazwisko *</FormLabel>
+                        <FormLabel>
+                          Imie i nazwisko <span className="text-red-600">*</span>
+                        </FormLabel>
                         <FormControl>
                           <Input placeholder="Jan Kowalski" {...field} />
                         </FormControl>
@@ -251,7 +288,9 @@ export function EditObservationPage() {
                     name="age"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Wiek *</FormLabel>
+                        <FormLabel>
+                          Wiek <span className="text-red-600">*</span>
+                        </FormLabel>
                         <FormControl>
                           <Input type="number" inputMode="numeric" min={8} max={50} {...field} />
                         </FormControl>
@@ -283,7 +322,7 @@ export function EditObservationPage() {
                         <FormLabel>Status zawodnika</FormLabel>
                         <Select value={field.value ?? "observed"} onValueChange={field.onChange}>
                           <FormControl>
-                            <SelectTrigger>
+                        <SelectTrigger ref={field.ref}>
                               <SelectValue placeholder="Wybierz status" />
                             </SelectTrigger>
                           </FormControl>
@@ -315,7 +354,9 @@ export function EditObservationPage() {
                     name="match_date"
                     render={({ field }) => (
                       <FormItem className="sm:col-span-2">
-                        <FormLabel>Data meczu *</FormLabel>
+                        <FormLabel>
+                          Data meczu <span className="text-red-600">*</span>
+                        </FormLabel>
                         <FormControl>
                           <Input type="date" {...field} />
                         </FormControl>
@@ -333,11 +374,13 @@ export function EditObservationPage() {
                 name="primary_position"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Pozycja na boisku *</FormLabel>
+                    <FormLabel>
+                      Pozycja na boisku <span className="text-red-600">*</span>
+                    </FormLabel>
                     <div className="flex items-center gap-2">
                       <Select value={field.value} onValueChange={field.onChange}>
                         <FormControl>
-                          <SelectTrigger className="flex-1">
+                          <SelectTrigger ref={field.ref} className="flex-1">
                             <SelectValue placeholder="Wybierz pozycje" />
                           </SelectTrigger>
                         </FormControl>
@@ -373,7 +416,9 @@ export function EditObservationPage() {
 
                     return (
                       <>
-                        <FormLabel>Ogolna ocena: {ratingLabel}/10</FormLabel>
+                        <FormLabel>
+                          Ogolna ocena: {ratingLabel}/10 <span className="text-red-600">*</span>
+                        </FormLabel>
                         <FormControl>
                           <input
                             type="range"
@@ -382,7 +427,7 @@ export function EditObservationPage() {
                             step={0.5}
                             value={ratingValue}
                             onChange={(event) => field.onChange(Number(event.target.value))}
-                            className="overall-rating-slider h-4 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-red-600"
+                            className="overall-rating-slider h-4 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-red-600 aria-invalid:outline aria-invalid:outline-2 aria-invalid:outline-destructive"
                             style={{
                               background: `linear-gradient(to right, #dc2626 0%, #dc2626 ${ratingPercent}%, #e2e8f0 ${ratingPercent}%, #e2e8f0 100%)`,
                             }}
@@ -393,6 +438,7 @@ export function EditObservationPage() {
                           <span>Przecietny (5)</span>
                           <span>Doskonały (10)</span>
                         </div>
+                        <FormMessage />
                       </>
                     );
                   })()}
@@ -441,10 +487,12 @@ export function EditObservationPage() {
                     name="rank"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Ranga</FormLabel>
+                      <FormLabel>
+                        Ranga <span className="text-red-600">*</span>
+                      </FormLabel>
                         <Select value={field.value ?? ""} onValueChange={field.onChange}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger ref={field.ref}>
                               <SelectValue placeholder="Wybierz range" />
                             </SelectTrigger>
                           </FormControl>
@@ -455,6 +503,7 @@ export function EditObservationPage() {
                             <SelectItem value="D">D - Slaby</SelectItem>
                           </SelectContent>
                         </Select>
+                      <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -463,10 +512,12 @@ export function EditObservationPage() {
                     name="source"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Zrodlo *</FormLabel>
+                        <FormLabel>
+                          Zrodlo <span className="text-red-600">*</span>
+                        </FormLabel>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger ref={field.ref}>
                               <SelectValue placeholder="Wybierz zrodlo" />
                             </SelectTrigger>
                           </FormControl>
@@ -489,10 +540,13 @@ export function EditObservationPage() {
                     name="potential_now"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Potencjal teraz (1-5)</FormLabel>
+                      <FormLabel>
+                        Potencjal teraz (1-5) <span className="text-red-600">*</span>
+                      </FormLabel>
                         <FormControl>
                           <Input type="number" min={1} max={5} {...field} />
                         </FormControl>
+                      <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -501,10 +555,13 @@ export function EditObservationPage() {
                     name="potential_future"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Potencjal przyszly (1-5)</FormLabel>
+                      <FormLabel>
+                        Potencjal przyszly (1-5) <span className="text-red-600">*</span>
+                      </FormLabel>
                         <FormControl>
                           <Input type="number" min={1} max={5} {...field} />
                         </FormControl>
+                      <FormMessage />
                       </FormItem>
                     )}
                   />

@@ -129,7 +129,7 @@ export async function updatePlayerStatusWithHistory(input: {
   status: PipelineStatus;
   changed_by?: string | null;
   from_status?: string | null;
-}) {
+}): Promise<{ historyError?: string | null }> {
   let previousStatus = input.from_status ?? null;
   if (previousStatus === null) {
     const { data: player, error: playerError } = await supabase
@@ -147,14 +147,22 @@ export async function updatePlayerStatusWithHistory(input: {
     .eq("id", input.id);
   if (error) throw error;
 
+  let historyError: string | null = null;
   if (input.changed_by && previousStatus !== input.status) {
-    await createPipelineHistory({
-      player_id: input.id,
-      from_status: previousStatus,
-      to_status: input.status,
-      changed_by: input.changed_by,
-    });
+    try {
+      await createPipelineHistory({
+        player_id: input.id,
+        from_status: previousStatus,
+        to_status: input.status,
+        changed_by: input.changed_by,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Nie udalo sie zapisac historii.";
+      console.warn("Pipeline history insert blocked:", err);
+      historyError = message;
+    }
   }
+  return { historyError };
 }
 
 export async function fetchPipelineHistoryByPlayer(playerId: string) {

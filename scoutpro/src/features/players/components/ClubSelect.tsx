@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useClubs } from "../hooks/usePlayers";
 
@@ -13,6 +13,12 @@ export function ClubSelect({ value, onChange, placeholder, disabled }: ClubSelec
   const { data: clubs = [], isLoading, isError } = useClubs();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState(value);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setQuery(value);
+    }
+  }, [value, isOpen]);
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();

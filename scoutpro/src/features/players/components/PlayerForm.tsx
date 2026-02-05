@@ -349,8 +349,8 @@ export function PlayerForm({
               name="pipeline_status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Status w pipeline</FormLabel>
-                  <Select value={field.value ?? ""} onValueChange={field.onChange}>
+                  <FormLabel>Status zawodnika</FormLabel>
+                  <Select value={field.value ?? "observed"} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Wybierz status" />

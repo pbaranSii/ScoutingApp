@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { useForm, type Resolver } from "react-hook-form";
+import { useForm, type FieldErrors, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { Link, useNavigate } from "react-router-dom";
 import { useCreateObservation } from "../hooks/useObservations";
 import type { ObservationSource } from "../types";
-import { useCreatePlayer } from "@/features/players/hooks/usePlayers";
+import { useCreatePlayer, useUpdatePlayer } from "@/features/players/hooks/usePlayers";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
 import { PositionPickerDialog } from "@/features/players/components/PositionPickerDialog";
 import { useAuthStore } from "@/stores/authStore";
@@ -79,6 +79,7 @@ export function ObservationWizard({
   const { addOfflineObservation } = useSync();
   const { mutateAsync: createObservation, isPending: isSaving } = useCreateObservation();
   const { mutateAsync: createPlayer } = useCreatePlayer();
+  const { mutateAsync: updatePlayer } = useUpdatePlayer();
   const [submitError, setSubmitError] = useState<string | null>(null);
   const currentYear = useMemo(() => new Date().getFullYear(), []);
   const navigate = useNavigate();
@@ -88,6 +89,7 @@ export function ObservationWizard({
     "Uzytkownik";
   const auditRole =
     (user?.user_metadata as { role?: string })?.role ?? "user";
+  const shouldUpdatePlayer = Boolean(prefillPlayer?.id) && !lockPlayerFields;
   const goBack = () => {
     if (window.history.length > 1) {
       navigate(-1);
@@ -178,6 +180,7 @@ export function ObservationWizard({
             birth_year: birthYear,
             club_name: values.club_name?.trim(),
             primary_position: values.primary_position,
+            should_update_player: shouldUpdatePlayer,
             source: values.source as ObservationSource,
             rank: values.rank,
             notes: values.notes,
@@ -207,6 +210,19 @@ export function ObservationWizard({
         });
       } else {
         let playerId = prefillPlayer?.id;
+        if (playerId && shouldUpdatePlayer) {
+          const clubId = await resolveClubId(values.club_name?.trim());
+          await updatePlayer({
+            id: playerId,
+            input: {
+              first_name: firstName,
+              last_name: lastName,
+              birth_year: birthYear,
+              club_id: clubId ?? null,
+              primary_position: values.primary_position,
+            },
+          });
+        }
         if (!playerId) {
           const clubId = await resolveClubId(values.club_name?.trim());
           const player = await createPlayer({
@@ -266,10 +282,17 @@ export function ObservationWizard({
     localStorage.setItem("scoutpro-observation-draft", JSON.stringify(values));
   };
 
+  const handleInvalid = (errors: FieldErrors<WizardFormValues>) => {
+    const firstField = Object.keys(errors)[0] as keyof WizardFormValues | undefined;
+    if (firstField) {
+      form.setFocus(firstField);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <form onSubmit={form.handleSubmit(onSubmit, handleInvalid)} className="space-y-6">
           <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
             <h2 className="text-sm font-semibold text-slate-700">1. Dane zawodnika</h2>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -278,7 +301,9 @@ export function ObservationWizard({
                 name="full_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Imie i nazwisko *</FormLabel>
+                    <FormLabel>
+                      Imie i nazwisko <span className="text-red-600">*</span>
+                    </FormLabel>
                     <FormControl>
                       <Input
                         placeholder="Jan Kowalski"
@@ -295,7 +320,9 @@ export function ObservationWizard({
                 name="age"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Wiek *</FormLabel>
+                    <FormLabel>
+                      Wiek <span className="text-red-600">*</span>
+                    </FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -344,7 +371,9 @@ export function ObservationWizard({
                 name="match_date"
                 render={({ field }) => (
                   <FormItem className="sm:col-span-2">
-                    <FormLabel>Data meczu *</FormLabel>
+                    <FormLabel>
+                      Data meczu <span className="text-red-600">*</span>
+                    </FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -362,7 +391,9 @@ export function ObservationWizard({
               name="primary_position"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Pozycja na boisku *</FormLabel>
+                  <FormLabel>
+                    Pozycja na boisku <span className="text-red-600">*</span>
+                  </FormLabel>
                   <div className="flex items-center gap-2">
                     <Select
                       value={field.value}
@@ -370,7 +401,7 @@ export function ObservationWizard({
                       disabled={lockPlayerFields && Boolean(field.value)}
                     >
                       <FormControl>
-                        <SelectTrigger className="flex-1">
+                        <SelectTrigger ref={field.ref} className="flex-1">
                           <SelectValue placeholder="Wybierz pozycje" />
                         </SelectTrigger>
                       </FormControl>
@@ -408,7 +439,9 @@ export function ObservationWizard({
 
                   return (
                     <>
-                      <FormLabel>Ogolna ocena: {ratingLabel}/10</FormLabel>
+                      <FormLabel>
+                        Ogolna ocena: {ratingLabel}/10 <span className="text-red-600">*</span>
+                      </FormLabel>
                       <FormControl>
                         <input
                           type="range"
@@ -417,7 +450,7 @@ export function ObservationWizard({
                           step={0.5}
                           value={ratingValue}
                           onChange={(event) => field.onChange(Number(event.target.value))}
-                          className="overall-rating-slider h-4 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-red-600"
+                            className="overall-rating-slider h-4 w-full cursor-pointer appearance-none rounded-full bg-slate-200 accent-red-600 aria-invalid:outline aria-invalid:outline-2 aria-invalid:outline-destructive"
                           style={{
                             background: `linear-gradient(to right, #dc2626 0%, #dc2626 ${ratingPercent}%, #e2e8f0 ${ratingPercent}%, #e2e8f0 100%)`,
                           }}
@@ -428,6 +461,7 @@ export function ObservationWizard({
                         <span>Przecietny (5)</span>
                         <span>Doskonały (10)</span>
                       </div>
+                      <FormMessage />
                     </>
                   );
                 })()}
@@ -476,10 +510,12 @@ export function ObservationWizard({
                 name="rank"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Ranga *</FormLabel>
+                    <FormLabel>
+                      Ranga <span className="text-red-600">*</span>
+                    </FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger ref={field.ref}>
                           <SelectValue placeholder="Wybierz range" />
                         </SelectTrigger>
                       </FormControl>
@@ -499,10 +535,12 @@ export function ObservationWizard({
                 name="source"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Zrodlo *</FormLabel>
+                    <FormLabel>
+                      Zrodlo <span className="text-red-600">*</span>
+                    </FormLabel>
                     <Select value={field.value} onValueChange={field.onChange}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger ref={field.ref}>
                           <SelectValue placeholder="Wybierz zrodlo" />
                         </SelectTrigger>
                       </FormControl>
@@ -525,10 +563,13 @@ export function ObservationWizard({
                 name="potential_now"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Potencjal teraz (1-5)</FormLabel>
+                  <FormLabel>
+                    Potencjal teraz (1-5) <span className="text-red-600">*</span>
+                  </FormLabel>
                     <FormControl>
                       <Input type="number" min={1} max={5} {...field} />
                     </FormControl>
+                  <FormMessage />
                   </FormItem>
                 )}
               />
@@ -537,10 +578,13 @@ export function ObservationWizard({
                 name="potential_future"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Potencjal przyszly (1-5)</FormLabel>
+                  <FormLabel>
+                    Potencjal przyszly (1-5) <span className="text-red-600">*</span>
+                  </FormLabel>
                     <FormControl>
                       <Input type="number" min={1} max={5} {...field} />
                     </FormControl>
+                  <FormMessage />
                   </FormItem>
                 )}
               />

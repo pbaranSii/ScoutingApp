@@ -13,6 +13,7 @@ export type OfflineObservation = {
     birth_year: number;
     club_name?: string;
     primary_position?: string;
+    should_update_player?: boolean;
     source: ObservationSource;
     rank?: string;
     notes?: string;
