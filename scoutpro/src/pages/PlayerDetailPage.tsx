@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { usePipelineHistory, usePlayer } from "@/features/players/hooks/usePlayers";
 import { PlayerProfile } from "@/features/players/components/PlayerProfile";
@@ -14,6 +14,7 @@ import { supabase } from "@/lib/supabase";
 
 export function PlayerDetailPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const { data, isLoading } = usePlayer(id ?? "");
   const { data: observations = [], isLoading: isObsLoading } = useObservationsByPlayer(id ?? "");
@@ -141,6 +142,7 @@ export function PlayerDetailPage() {
                           <Link
                             to={`/observations/${observation.id}/edit`}
                             aria-label="Edytuj obserwacje"
+                            state={{ from: `${location.pathname}${location.search}` }}
                             onClick={(event) => event.stopPropagation()}
                           >
                             <Pencil className="h-4 w-4" />

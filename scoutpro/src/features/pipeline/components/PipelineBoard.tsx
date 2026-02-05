@@ -13,6 +13,7 @@ import { PIPELINE_COLUMNS } from "../types";
 import type { PipelineStatus } from "../types";
 import { PipelineColumn } from "./PipelineColumn";
 import { usePlayers, useUpdatePlayerStatus } from "@/features/players/hooks/usePlayers";
+import { toast } from "@/hooks/use-toast";
 
 type ColumnState = Record<PipelineStatus, Player[]>;
 
@@ -113,9 +114,23 @@ export function PipelineBoard({ search = "" }: PipelineBoardProps) {
     }
 
     try {
-      await updateStatus({ id: activeId, status: targetColumn, fromStatus: sourceColumn });
+      const result = await updateStatus({
+        id: activeId,
+        status: targetColumn,
+        fromStatus: sourceColumn,
+      });
+      if (result?.historyError) {
+        toast({
+          title: "Status zapisany",
+          description: "Nie udalo sie zapisac wpisu w historii Pipeline.",
+        });
+      }
     } catch {
       setColumns(initialColumns);
+      toast({
+        title: "Nie udalo sie zapisac zmiany",
+        description: "Sprobuj ponownie za chwile.",
+      });
     }
   };
 

@@ -65,6 +65,36 @@ export function useSync() {
             playerId = player.id as string;
           }
 
+          if (playerId && obs.data.should_update_player) {
+            const updatePayload: Database["public"]["Tables"]["players"]["Update"] = {
+              first_name: obs.data.first_name,
+              last_name: obs.data.last_name,
+              birth_year: obs.data.birth_year,
+              primary_position: obs.data.primary_position ?? null,
+            };
+            if (typeof obs.data.club_name === "string") {
+              const trimmedClub = obs.data.club_name.trim();
+              if (trimmedClub.length === 0) {
+                updatePayload.club_id = null;
+              } else {
+                const { data: club, error: clubError } = await supabase
+                  .from("clubs")
+                  .select("id")
+                  .eq("name", trimmedClub)
+                  .maybeSingle();
+                if (clubError) throw clubError;
+                if (club?.id) {
+                  updatePayload.club_id = club.id as string;
+                }
+              }
+            }
+            const { error: updateError } = await supabase
+              .from("players")
+              .update(updatePayload)
+              .eq("id", playerId);
+            if (updateError) throw updateError;
+          }
+
           const scoutId = obs.data.scout_id;
           if (!scoutId) {
             throw new Error("Brak scout_id do synchronizacji obserwacji.");

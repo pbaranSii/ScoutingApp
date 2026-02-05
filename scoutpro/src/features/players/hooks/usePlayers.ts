@@ -121,8 +121,31 @@ export function useUpdatePlayerStatus() {
         from_status: fromStatus ?? null,
         changed_by: user?.id ?? null,
       }),
-    onSuccess: () => {
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ["players"] });
+      const previousPlayers = queryClient.getQueriesData<Player[]>({ queryKey: ["players"] });
+      queryClient.setQueriesData<Player[] | undefined>(
+        { queryKey: ["players"], exact: false },
+        (players) =>
+          players?.map((player) =>
+            player.id === variables.id
+              ? {
+                  ...player,
+                  pipeline_status: variables.status,
+                }
+              : player
+          )
+      );
+      return { previousPlayers };
+    },
+    onError: (_error, _variables, context) => {
+      context?.previousPlayers?.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+    },
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["players"] });
+      queryClient.invalidateQueries({ queryKey: ["pipeline-history", variables.id] });
     },
   });
 }

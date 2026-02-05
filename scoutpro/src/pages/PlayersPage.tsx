@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePlayers } from "@/features/players/hooks/usePlayers";
 import { PlayerList } from "@/features/players/components/PlayerList";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,10 @@ export function PlayersPage() {
     birthYear: "",
   });
   const hasActiveFilters = filters.position || filters.status || filters.birthYear;
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, []);
 
   const filteredPlayers = data.filter((player) => {
     if (filters.position && player.primary_position !== filters.position) return false;
