@@ -8,7 +8,10 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "seed:admin": "tsx scripts/seed-admin.ts"
+    "seed:admin": "tsx scripts/seed-admin.ts",
+    "migrate:auth": "tsx scripts/migrate-auth.ts",
+    "migrate:storage": "tsx scripts/migrate-storage.ts",
+    "migrate:data": "tsx scripts/migrate-data.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

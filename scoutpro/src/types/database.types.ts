@@ -659,6 +659,7 @@ export type Database = {
       users: {
         Row: {
           avatar_url: string | null
+          business_role: Database["public"]["Enums"]["user_business_role"]
           created_at: string
           email: string
           full_name: string | null
@@ -670,6 +671,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          business_role?: Database["public"]["Enums"]["user_business_role"]
           created_at?: string
           email: string
           full_name?: string | null
@@ -681,6 +683,7 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          business_role?: Database["public"]["Enums"]["user_business_role"]
           created_at?: string
           email?: string
           full_name?: string | null
@@ -710,6 +713,7 @@ export type Database = {
         | "trainer_report"
         | "scout_report"
       pipeline_status:
+        | "unassigned"
         | "observed"
         | "shortlist"
         | "trial"
@@ -717,6 +721,7 @@ export type Database = {
         | "signed"
         | "rejected"
       sync_status: "pending" | "synced" | "failed"
+      user_business_role: "scout" | "coach" | "director" | "suspended" | "admin"
       user_role: "admin" | "user"
     }
     CompositeTypes: {
@@ -856,6 +861,7 @@ export const Constants = {
         "scout_report",
       ],
       pipeline_status: [
+        "unassigned",
         "observed",
         "shortlist",
         "trial",

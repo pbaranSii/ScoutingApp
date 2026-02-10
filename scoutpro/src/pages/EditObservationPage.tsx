@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
 import { PageHeader } from "@/components/common/PageHeader";
-import { PIPELINE_COLUMNS } from "@/features/pipeline/types";
+import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { toast } from "@/hooks/use-toast";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -88,7 +88,7 @@ export function EditObservationPage() {
       match_date: "",
       primary_position: "",
       overall_rating: 5,
-      pipeline_status: "observed",
+      pipeline_status: "unassigned",
       source: "",
       rank: "",
       potential_now: 3,
@@ -110,7 +110,7 @@ export function EditObservationPage() {
       match_date: observation.observation_date ?? "",
       primary_position: mapLegacyPosition(observation.player?.primary_position ?? ""),
       overall_rating: observation.overall_rating ?? 5,
-      pipeline_status: observation.player?.pipeline_status ?? "observed",
+      pipeline_status: observation.player?.pipeline_status ?? "unassigned",
       source: observation.source ?? "scouting",
       rank: observation.rank ?? "",
       potential_now: observation.potential_now ?? 3,
@@ -188,7 +188,7 @@ export function EditObservationPage() {
       });
       if (
         values.pipeline_status &&
-        values.pipeline_status !== (observation.player?.pipeline_status ?? "observed")
+        values.pipeline_status !== (observation.player?.pipeline_status ?? "unassigned")
       ) {
         await updateStatus({
           id: observation.player_id,
@@ -327,7 +327,7 @@ export function EditObservationPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {PIPELINE_COLUMNS.map((column) => (
+                            {ALL_PIPELINE_STATUSES.map((column) => (
                               <SelectItem key={column.id} value={column.id}>
                                 {column.label}
                               </SelectItem>

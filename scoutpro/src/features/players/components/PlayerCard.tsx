@@ -2,22 +2,17 @@ import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { Player } from "../types";
+import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { mapLegacyPosition } from "@/features/players/positions";
 
-const STATUS_LABELS: Record<string, string> = {
-  observed: "Observed",
-  shortlist: "Shortlist",
-  trial: "Trial",
-  signed: "Signed",
-  archived: "Archived",
-};
-
 const STATUS_STYLES: Record<string, string> = {
+  unassigned: "border-slate-200 bg-slate-50 text-slate-600",
   observed: "border-slate-200 bg-slate-100 text-slate-700",
   shortlist: "border-blue-200 bg-blue-100 text-blue-700",
   trial: "border-amber-200 bg-amber-100 text-amber-700",
+  offer: "border-orange-200 bg-orange-100 text-orange-700",
   signed: "border-emerald-200 bg-emerald-100 text-emerald-700",
-  archived: "border-slate-200 bg-slate-50 text-slate-500",
+  rejected: "border-red-200 bg-red-100 text-red-700",
 };
 
 const formatObservations = (count?: number | null) => {
@@ -34,9 +29,10 @@ type PlayerCardProps = {
 export function PlayerCard({ player }: PlayerCardProps) {
   const initials = `${player.first_name?.[0] ?? ""}${player.last_name?.[0] ?? ""}`.toUpperCase();
   const positionCode = player.primary_position ? mapLegacyPosition(player.primary_position) : "";
-  const statusKey = player.pipeline_status ?? "observed";
-  const statusLabel = STATUS_LABELS[statusKey] ?? "Observed";
-  const statusStyle = STATUS_STYLES[statusKey] ?? STATUS_STYLES.observed;
+  const statusKey = player.pipeline_status ?? "unassigned";
+  const statusLabel =
+    ALL_PIPELINE_STATUSES.find((s) => s.id === statusKey)?.label ?? "Nieprzypisany";
+  const statusStyle = STATUS_STYLES[statusKey] ?? STATUS_STYLES.unassigned;
 
   return (
     <Link to={`/players/${player.id}`}>

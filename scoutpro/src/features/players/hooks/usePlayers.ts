@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   createPipelineHistory,
   createPlayer,
+  deletePipelineHistoryByPlayer,
   deletePlayer,
   fetchClubs,
   fetchPipelineHistoryByPlayer,
@@ -97,6 +98,17 @@ export function useDeletePlayer() {
       offlineDb.cachedPlayers.delete(id).catch((error) => {
         console.warn("Failed to delete cached player:", error);
       });
+    },
+  });
+}
+
+export function useDeletePipelineHistoryByPlayer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (playerId: string) => deletePipelineHistoryByPlayer(playerId),
+    onSuccess: (_data, playerId) => {
+      queryClient.removeQueries({ queryKey: ["pipeline-history", playerId] });
     },
   });
 }

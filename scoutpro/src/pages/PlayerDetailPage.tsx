@@ -9,7 +9,7 @@ import { format, parseISO } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Plus, Star } from "lucide-react";
-import { PIPELINE_COLUMNS } from "@/features/pipeline/types";
+import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { supabase } from "@/lib/supabase";
 
 export function PlayerDetailPage() {
@@ -170,7 +170,7 @@ export function PlayerDetailPage() {
               {!isHistoryLoading &&
                 history.map((entry, index) => {
                   const statusLabel =
-                    PIPELINE_COLUMNS.find((column) => column.id === entry.to_status)?.label ??
+                    ALL_PIPELINE_STATUSES.find((column) => column.id === entry.to_status)?.label ??
                     entry.to_status;
                   const author = userMap[entry.changed_by] ?? "Scout";
                   const dateLabel = entry.created_at

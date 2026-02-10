@@ -10,9 +10,9 @@ export function Layout() {
     <div className="min-h-screen bg-background">
       <OfflineIndicator />
       <Header />
-      <div className="flex min-h-[calc(100vh-3.5rem)] lg:min-h-[calc(100vh-4rem)]">
+      <div className="flex h-[calc(100vh-3.5rem)] overflow-hidden lg:h-screen">
         <Sidebar />
-        <main className="flex-1 px-4 pb-24 pt-4 lg:px-8 lg:pb-8">
+        <main className="min-h-0 flex-1 overflow-y-auto px-4 pb-24 pt-4 lg:px-8 lg:pb-8">
           <Outlet />
         </main>
       </div>

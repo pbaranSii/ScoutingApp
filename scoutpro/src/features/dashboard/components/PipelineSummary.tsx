@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PIPELINE_COLUMNS } from "@/features/pipeline/types";
+import { PIPELINE_BOARD_COLUMNS } from "@/features/pipeline/types";
 import { usePlayersByStatus } from "../hooks/useDashboard";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -8,6 +8,7 @@ const STATUS_COLORS: Record<string, string> = {
   trial: "bg-yellow-400",
   offer: "bg-orange-500",
   signed: "bg-green-500",
+  rejected: "bg-red-400",
 };
 
 export function PipelineSummary() {
@@ -21,7 +22,7 @@ export function PipelineSummary() {
       <CardContent className="space-y-3 px-6 text-sm">
         {isLoading && <p className="text-sm text-slate-500">Ladowanie...</p>}
         {!isLoading &&
-          PIPELINE_COLUMNS.map((column) => (
+          PIPELINE_BOARD_COLUMNS.map((column) => (
             <div key={column.id} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className={`h-2.5 w-2.5 rounded-full ${STATUS_COLORS[column.id]}`} />

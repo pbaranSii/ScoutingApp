@@ -4,11 +4,11 @@ import { createPortal } from "react-dom";
 import type { Player } from "../types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PIPELINE_COLUMNS } from "@/features/pipeline/types";
+import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { formatPosition } from "@/features/players/positions";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
-import { useDeletePlayer } from "@/features/players/hooks/usePlayers";
+import { useDeletePipelineHistoryByPlayer, useDeletePlayer } from "@/features/players/hooks/usePlayers";
 import { useDeleteObservationsByPlayer } from "@/features/observations/hooks/useObservations";
 import { toast } from "@/hooks/use-toast";
 
@@ -22,10 +22,11 @@ export function PlayerProfile({ player }: PlayerProfileProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const deletePlayer = useDeletePlayer();
   const deleteObservations = useDeleteObservationsByPlayer();
+  const deletePipelineHistory = useDeletePipelineHistoryByPlayer();
   const canUseDom = typeof document !== "undefined";
   const statusLabel =
-    PIPELINE_COLUMNS.find((column) => column.id === (player.pipeline_status ?? "observed"))
-      ?.label ?? "Obserwowany";
+    ALL_PIPELINE_STATUSES.find((column) => column.id === (player.pipeline_status ?? "unassigned"))
+      ?.label ?? "Nieprzypisany";
   const initials = `${player.first_name?.[0] ?? ""}${player.last_name?.[0] ?? ""}`.toUpperCase();
   const footLabel =
     player.dominant_foot === "left"
@@ -122,7 +123,11 @@ export function PlayerProfile({ player }: PlayerProfileProps) {
                     setDeleteError(null);
                     setIsDeleteOpen(false);
                   }}
-                  disabled={deletePlayer.isPending || deleteObservations.isPending}
+                  disabled={
+                    deletePlayer.isPending ||
+                    deleteObservations.isPending ||
+                    deletePipelineHistory.isPending
+                  }
                 >
                   Anuluj
                 </Button>
@@ -131,6 +136,7 @@ export function PlayerProfile({ player }: PlayerProfileProps) {
                   onClick={async () => {
                     setDeleteError(null);
                     try {
+                      await deletePipelineHistory.mutateAsync(player.id);
                       await deleteObservations.mutateAsync(player.id);
                       await deletePlayer.mutateAsync(player.id);
                       toast({
@@ -143,7 +149,9 @@ export function PlayerProfile({ player }: PlayerProfileProps) {
                       const rawMessage =
                         error instanceof Error && error.message ? error.message : "";
                       const isForeignKeyIssue =
-                        rawMessage.includes("foreign key") || rawMessage.includes("observations");
+                        rawMessage.includes("foreign key") ||
+                        rawMessage.includes("observations") ||
+                        rawMessage.includes("pipeline_history");
                       const message = isForeignKeyIssue
                         ? "Nie mozna usunac zawodnika z powodu powiazanych obserwacji."
                         : rawMessage || "Nie udalo sie usunac zawodnika";
@@ -156,7 +164,11 @@ export function PlayerProfile({ player }: PlayerProfileProps) {
                       console.error("Delete player failed:", error);
                     }
                   }}
-                  disabled={deletePlayer.isPending || deleteObservations.isPending}
+                  disabled={
+                    deletePlayer.isPending ||
+                    deleteObservations.isPending ||
+                    deletePipelineHistory.isPending
+                  }
                 >
                   Usuń
                 </Button>

@@ -1,0 +1,6 @@
+# Wyłączenie weryfikacji JWT w gatewayu dla send-invitation.
+# Gateway domyślnie weryfikuje JWT (starsza metoda); przy nowych kluczach JWT
+# może zwracać 401 zanim żądanie dotrze do funkcji. Autoryzację (getUser + admin)
+# realizujemy wewnątrz funkcji.
+[functions.send-invitation]
+verify_jwt = false

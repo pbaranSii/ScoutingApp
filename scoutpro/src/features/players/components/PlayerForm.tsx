@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { PIPELINE_COLUMNS } from "@/features/pipeline/types";
+import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
 import { useAuthStore } from "@/stores/authStore";
 import { toast } from "@/hooks/use-toast";
@@ -86,7 +86,7 @@ export function PlayerForm({
       club_name: initialValues?.club_name ?? "",
       primary_position: mapLegacyPosition(initialValues?.primary_position ?? ""),
       dominant_foot: initialValues?.dominant_foot ?? "",
-      pipeline_status: initialValues?.pipeline_status ?? "observed",
+      pipeline_status: initialValues?.pipeline_status ?? "unassigned",
       height_cm: initialValues?.height_cm ?? undefined,
       weight_kg: initialValues?.weight_kg ?? undefined,
       guardian_name: initialValues?.guardian_name ?? "",
@@ -103,7 +103,7 @@ export function PlayerForm({
       club_name: "",
       primary_position: "",
       dominant_foot: "",
-      pipeline_status: "observed",
+      pipeline_status: "unassigned",
       height_cm: undefined,
       weight_kg: undefined,
       guardian_name: "",
@@ -166,7 +166,7 @@ export function PlayerForm({
         nationality: toNullable(values.nationality),
         primary_position: toNullable(values.primary_position),
         dominant_foot: dominantFoot,
-        pipeline_status: pipelineStatus ?? "observed",
+        pipeline_status: pipelineStatus ?? "unassigned",
         height_cm: toNullableNumber(values.height_cm),
         weight_kg: toNullableNumber(values.weight_kg),
         guardian_name: toNullable(values.guardian_name),
@@ -350,14 +350,14 @@ export function PlayerForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Status zawodnika</FormLabel>
-                  <Select value={field.value ?? "observed"} onValueChange={field.onChange}>
+                  <Select value={field.value ?? "unassigned"} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Wybierz status" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {PIPELINE_COLUMNS.map((column) => (
+                      {ALL_PIPELINE_STATUSES.map((column) => (
                         <SelectItem key={column.id} value={column.id}>
                           {column.label}
                         </SelectItem>

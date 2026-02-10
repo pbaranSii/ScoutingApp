@@ -231,7 +231,7 @@ export function ObservationWizard({
             birth_year: birthYear,
             club_id: clubId,
             primary_position: values.primary_position,
-            pipeline_status: "observed",
+            pipeline_status: "unassigned",
           });
           playerId = player.id;
         }
