@@ -58,7 +58,7 @@ export async function createPlayer(input: PlayerInput) {
     .from("players")
     .insert({
       ...input,
-      pipeline_status: input.pipeline_status ?? "observed",
+      pipeline_status: input.pipeline_status ?? "unassigned",
     })
     .select("id")
     .single();
@@ -99,6 +99,11 @@ export async function deletePlayer(id: string) {
       "Nie udalo sie usunac zawodnika. Sprawdz uprawnienia lub czy rekord nadal istnieje."
     );
   }
+}
+
+export async function deletePipelineHistoryByPlayer(playerId: string) {
+  const { error } = await supabase.from("pipeline_history").delete().eq("player_id", playerId);
+  if (error) throw error;
 }
 
 export async function updatePlayerStatus(id: string, status: PipelineStatus) {

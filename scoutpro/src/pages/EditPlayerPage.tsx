@@ -26,7 +26,7 @@ export function EditPlayerPage() {
     club_name: player.club?.name ?? "",
     primary_position: player.primary_position ?? "",
     dominant_foot: player.dominant_foot ?? "",
-    pipeline_status: player.pipeline_status ?? "observed",
+    pipeline_status: player.pipeline_status ?? "unassigned",
     height_cm: player.height_cm ?? undefined,
     weight_kg: player.weight_kg ?? undefined,
     guardian_name: player.guardian_name ?? "",

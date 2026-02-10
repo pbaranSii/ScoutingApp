@@ -8,7 +8,7 @@ import { format, parseISO } from "date-fns";
 import { formatPosition } from "@/features/players/positions";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Pencil, Star, Trash2 } from "lucide-react";
-import { PIPELINE_COLUMNS } from "@/features/pipeline/types";
+import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { toast } from "@/hooks/use-toast";
 
 export function ObservationDetailPage() {
@@ -39,8 +39,8 @@ export function ObservationDetailPage() {
     : "-";
   const positionLabel = formatPosition(observation.player?.primary_position ?? "");
   const statusLabel =
-    PIPELINE_COLUMNS.find((column) => column.id === (observation.player?.pipeline_status ?? "observed"))
-      ?.label ?? "Obserwacja";
+    ALL_PIPELINE_STATUSES.find((column) => column.id === (observation.player?.pipeline_status ?? "unassigned"))
+      ?.label ?? "Nieprzypisany";
   const rating = observation.overall_rating;
   const ratingClass =
     typeof rating === "number" && rating >= 8

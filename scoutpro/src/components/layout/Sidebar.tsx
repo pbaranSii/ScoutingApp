@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { LayoutDashboard, Users, ClipboardList, KanbanSquare, Settings } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
+import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
 
@@ -13,13 +14,14 @@ const navItems = [
 ];
 
 export function Sidebar() {
-  const { logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  const { data: profile } = useCurrentUserProfile();
 
   return (
-    <aside className="hidden w-60 border-r border-slate-200 bg-white lg:block">
-      <div className="flex h-full flex-col justify-between p-4">
-        <div className="space-y-6">
-          <div className="flex items-center gap-3">
+    <aside className="hidden h-full w-60 flex-shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
+      <div className="flex min-h-0 flex-1 flex-col p-4">
+        <div className="flex flex-1 flex-col gap-6 min-h-0">
+          <div className="flex items-center gap-3 flex-shrink-0">
             <img
               src={logo}
               alt="Logo ScoutPro"
@@ -31,19 +33,19 @@ export function Sidebar() {
             </div>
           </div>
 
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600">
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 flex-shrink-0">
             <span className="h-2 w-2 rounded-full bg-green-500" />
             Online
           </div>
 
-          <nav className="flex flex-col gap-2">
+          <nav className="flex flex-col gap-2 min-h-0 overflow-y-auto">
             {navItems.map(({ to, label, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
                 className={({ isActive }) =>
                   [
-                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition",
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition flex-shrink-0",
                     isActive
                       ? "bg-primary text-primary-foreground shadow-sm"
                       : "text-slate-600 hover:bg-slate-100",
@@ -57,9 +59,17 @@ export function Sidebar() {
           </nav>
         </div>
 
-        <Button variant="outline" onClick={logout}>
-          Wyloguj sie
-        </Button>
+        <div className="mt-auto flex flex-shrink-0 flex-col gap-3 border-t border-slate-200 pt-4">
+          <div className="min-w-0 rounded-md bg-slate-50 px-3 py-2">
+            <div className="truncate text-sm font-medium text-slate-900">
+              {profile?.full_name?.trim() || "Zalogowany użytkownik"}
+            </div>
+            <div className="truncate text-xs text-slate-500">{user?.email ?? "—"}</div>
+          </div>
+          <Button variant="outline" onClick={logout} className="w-full">
+            Wyloguj się
+          </Button>
+        </div>
       </div>
     </aside>
   );

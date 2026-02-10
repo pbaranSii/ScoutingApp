@@ -9,27 +9,28 @@ import {
 import type { DragEndEvent, DragOverEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import type { Player } from "@/features/players/types";
-import { PIPELINE_COLUMNS } from "../types";
+import { PIPELINE_BOARD_COLUMNS } from "../types";
 import type { PipelineStatus } from "../types";
 import { PipelineColumn } from "./PipelineColumn";
 import { usePlayers, useUpdatePlayerStatus } from "@/features/players/hooks/usePlayers";
 import { toast } from "@/hooks/use-toast";
 
-type ColumnState = Record<PipelineStatus, Player[]>;
+type BoardColumnId = (typeof PIPELINE_BOARD_COLUMNS)[number]["id"];
+type ColumnState = Record<BoardColumnId, Player[]>;
 
 const EMPTY_PLAYERS: Player[] = [];
 
 function groupByStatus(players: Player[]): ColumnState {
-  return PIPELINE_COLUMNS.reduce((acc, column) => {
+  return PIPELINE_BOARD_COLUMNS.reduce((acc, column) => {
     acc[column.id] = players.filter(
-      (player) => (player.pipeline_status ?? "observed") === column.id
+      (player) => (player.pipeline_status ?? "unassigned") === column.id
     );
     return acc;
   }, {} as ColumnState);
 }
 
-function findColumnByPlayerId(playerId: string, columns: ColumnState) {
-  return PIPELINE_COLUMNS.find((column) =>
+function findColumnByPlayerId(playerId: string, columns: ColumnState): BoardColumnId | undefined {
+  return PIPELINE_BOARD_COLUMNS.find((column) =>
     columns[column.id].some((player) => player.id === playerId)
   )?.id;
 }
@@ -69,8 +70,8 @@ export function PipelineBoard({ search = "" }: PipelineBoardProps) {
     const overId = String(over.id);
 
     const sourceColumn = findColumnByPlayerId(activeId, columns);
-    const targetColumn = PIPELINE_COLUMNS.find((c) => c.id === overId)
-      ? (overId as PipelineStatus)
+    const targetColumn = PIPELINE_BOARD_COLUMNS.find((c) => c.id === overId)
+      ? (overId as BoardColumnId)
       : findColumnByPlayerId(overId, columns);
 
     if (!sourceColumn || !targetColumn || sourceColumn === targetColumn) {
@@ -94,8 +95,8 @@ export function PipelineBoard({ search = "" }: PipelineBoardProps) {
     const activeId = String(active.id);
     const overId = String(over.id);
     const sourceColumn = findColumnByPlayerId(activeId, initialColumns);
-    const targetColumn = PIPELINE_COLUMNS.find((c) => c.id === overId)
-      ? (overId as PipelineStatus)
+    const targetColumn = PIPELINE_BOARD_COLUMNS.find((c) => c.id === overId)
+      ? (overId as BoardColumnId)
       : findColumnByPlayerId(overId, columns);
 
     if (!sourceColumn || !targetColumn) return;
@@ -146,7 +147,7 @@ export function PipelineBoard({ search = "" }: PipelineBoardProps) {
       onDragEnd={handleDragEnd}
     >
       <div className="grid gap-4 lg:grid-cols-6">
-        {PIPELINE_COLUMNS.map((column) => (
+        {PIPELINE_BOARD_COLUMNS.map((column) => (
           <div key={column.id} id={column.id}>
             <PipelineColumn
               id={column.id}

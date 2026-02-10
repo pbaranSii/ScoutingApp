@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { POSITION_OPTIONS } from "@/features/players/positions";
 import { SlidersHorizontal } from "lucide-react";
 
@@ -89,11 +90,11 @@ export function PlayersPage() {
                   <SelectValue placeholder="Dowolny" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="observed">Obserwowany</SelectItem>
-                  <SelectItem value="shortlist">Shortlista</SelectItem>
-                  <SelectItem value="trial">Testy</SelectItem>
-                  <SelectItem value="signed">Podpisany</SelectItem>
-                  <SelectItem value="archived">Archiwum</SelectItem>
+                  {ALL_PIPELINE_STATUSES.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

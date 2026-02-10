@@ -13,7 +13,11 @@ const schema = z.object({
 
 type InviteValues = z.infer<typeof schema>;
 
-export function InviteForm() {
+type InviteFormProps = {
+  onSuccess?: () => void;
+};
+
+export function InviteForm({ onSuccess }: InviteFormProps) {
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -25,18 +29,41 @@ export function InviteForm() {
   const onSubmit = async (values: InviteValues) => {
     setStatus("idle");
     setErrorMessage(null);
-    const { error } = await supabase.functions.invoke("send-invitation", {
-      body: { email: values.email },
-    });
-
-    if (error) {
+    await supabase.auth.refreshSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session?.access_token) {
       setStatus("error");
-      setErrorMessage(error.message);
+      setErrorMessage("Zaloguj sie ponownie i sprobuj jeszcze raz.");
+      return;
+    }
+    const redirectTo = `${import.meta.env.VITE_APP_URL ?? window.location.origin}/set-new-password`;
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    const res = await fetch(`${supabaseUrl}/functions/v1/send-invitation`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+        apikey: anonKey,
+      },
+      body: JSON.stringify({ email: values.email, redirectTo }),
+    });
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    const msg = body?.error;
+
+    if (!res.ok) {
+      setStatus("error");
+      setErrorMessage(
+        msg ?? `Blad ${res.status}. Zaloguj sie ponownie lub skontaktuj sie z administratorem.`
+      );
       return;
     }
 
     setStatus("success");
     form.reset();
+    onSuccess?.();
   };
 
   return (
