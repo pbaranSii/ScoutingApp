@@ -10,7 +10,6 @@ import type { DragEndEvent, DragOverEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import type { Player } from "@/features/players/types";
 import { PIPELINE_BOARD_COLUMNS } from "../types";
-import type { PipelineStatus } from "../types";
 import { PipelineColumn } from "./PipelineColumn";
 import { usePlayers, useUpdatePlayerStatus } from "@/features/players/hooks/usePlayers";
 import { toast } from "@/hooks/use-toast";

@@ -11,7 +11,8 @@
     "seed:admin": "tsx scripts/seed-admin.ts",
     "migrate:auth": "tsx scripts/migrate-auth.ts",
     "migrate:storage": "tsx scripts/migrate-storage.ts",
-    "migrate:data": "tsx scripts/migrate-data.ts"
+    "migrate:data": "tsx scripts/migrate-data.ts",
+    "deploy:verify": "npm run build && node scripts/list-migrations.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

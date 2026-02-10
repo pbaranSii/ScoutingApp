@@ -8,7 +8,7 @@ import {
   updateUserProfile,
   updateUserStatus,
 } from "../api/users.api";
-import type { BusinessRole, UserProfile } from "../types";
+import type { BusinessRole } from "../types";
 
 export function useUsers() {
   return useQuery({

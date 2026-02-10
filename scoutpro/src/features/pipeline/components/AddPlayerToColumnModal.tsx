@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { fetchPlayers } from "@/features/players/api/players.api";
 import type { Player } from "@/features/players/types";
 import { useUpdatePlayerStatus } from "@/features/players/hooks/usePlayers";
-import { useAuthStore } from "@/stores/authStore";
 import { ALL_PIPELINE_STATUSES } from "../types";
 import type { PipelineStatus } from "../types";
 import { toast } from "@/hooks/use-toast";
@@ -31,7 +30,6 @@ export function AddPlayerToColumnModal({
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<Player[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const { user } = useAuthStore();
   const { mutateAsync: updateStatus, isPending: isUpdating } = useUpdatePlayerStatus();
 
   const runSearch = useCallback(async (query: string) => {
