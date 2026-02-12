@@ -36,7 +36,17 @@ export async function createUserDirect(input: {
       },
     },
   });
-  if (signUpError) throw signUpError;
+  if (signUpError) {
+    const msg = signUpError.message ?? "";
+    if (
+      msg.toLowerCase().includes("already registered") ||
+      msg.toLowerCase().includes("user already exists") ||
+      signUpError.status === 422
+    ) {
+      throw new Error("Użytkownik z tym adresem e-mail już istnieje.");
+    }
+    throw signUpError;
+  }
   const user = authData?.user;
   if (!user?.id) throw new Error("Nie udalo sie utworzyc konta.");
 
@@ -83,6 +93,42 @@ export async function updateUserProfile(
     })
     .eq("id", userId);
   if (error) throw error;
+}
+
+/** Update user via Edge Function (Auth + public.users). Use for admin edit. */
+export async function adminUpdateUser(body: {
+  user_id: string;
+  email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  business_role?: BusinessRole;
+}) {
+  const { data, error } = await supabase.functions.invoke("admin-update-user", { body });
+  const errMsg = (data as { error?: string } | null)?.error;
+  if (errMsg) throw new Error(errMsg);
+  if (error) throw error;
+  return (data ?? {}) as { status: string };
+}
+
+/** Admin edit: try Edge Function first; on failure (e.g. not deployed) fall back to direct update of public.users. */
+export async function updateUserAsAdmin(body: {
+  user_id: string;
+  email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  business_role?: BusinessRole;
+}) {
+  try {
+    return await adminUpdateUser(body);
+  } catch {
+    await updateUserProfile(body.user_id, {
+      email: body.email,
+      first_name: body.first_name,
+      last_name: body.last_name,
+      business_role: body.business_role,
+    });
+    return { status: "ok" };
+  }
 }
 
 export async function adminSetUserPassword(input: { user_id: string; password: string }) {

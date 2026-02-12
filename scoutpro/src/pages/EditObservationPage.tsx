@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, type FieldErrors, type Resolver } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,6 +21,15 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { toast } from "@/hooks/use-toast";
 import { useAuthStore } from "@/stores/authStore";
+import {
+  MediaPreview,
+  MediaUploadModal,
+  useMultimediaByObservation,
+  useUploadMediaFile,
+  useAddYoutubeLink,
+  useDeleteMultimedia,
+} from "@/features/multimedia";
+import { MAX_MEDIA_PER_OBSERVATION } from "@/features/multimedia/types";
 
 const schema = z.object({
   full_name: z
@@ -57,6 +66,17 @@ export function EditObservationPage() {
   const { mutateAsync: updatePlayer } = useUpdatePlayer();
   const { mutateAsync: updateStatus } = useUpdatePlayerStatus();
   const { user } = useAuthStore();
+  const { data: savedMedia = [] } = useMultimediaByObservation(observationId);
+  const uploadMedia = useUploadMediaFile(
+    observation?.player_id ?? "",
+    observation?.id ?? null
+  );
+  const addYoutube = useAddYoutubeLink(
+    observation?.player_id ?? "",
+    observation?.id ?? null
+  );
+  const deleteMedia = useDeleteMultimedia(observation?.player_id ?? "");
+  const [mediaModalOpen, setMediaModalOpen] = useState(false);
   const currentYear = useMemo(() => new Date().getFullYear(), []);
   const auditName =
     (user?.user_metadata as { full_name?: string })?.full_name ??
@@ -567,6 +587,74 @@ export function EditObservationPage() {
                   />
                 </div>
               </section>
+
+              {observation && (
+                <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+                  <h2 className="text-sm font-semibold text-slate-700">Multimedia</h2>
+                  <p className="text-sm text-slate-600">
+                    Zdjęcia, wideo i linki YouTube powiązane z tą obserwacją.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => setMediaModalOpen(true)}
+                  >
+                    + Dodaj multimedia
+                  </Button>
+                  <MediaPreview
+                    savedMedia={savedMedia}
+                    onRemoveSaved={async (mediaId) => {
+                      try {
+                        await deleteMedia.mutateAsync(mediaId);
+                        toast({ title: "Plik usunięty" });
+                      } catch {
+                        toast({
+                          variant: "destructive",
+                          title: "Nie udało się usunąć pliku",
+                        });
+                      }
+                    }}
+                  />
+                  <MediaUploadModal
+                    open={mediaModalOpen}
+                    onOpenChange={setMediaModalOpen}
+                    maxFiles={MAX_MEDIA_PER_OBSERVATION}
+                    currentCount={savedMedia.length}
+                    onFilesSelected={async (files) => {
+                      if (!user?.id) return;
+                      for (const file of files) {
+                        try {
+                          await uploadMedia.mutateAsync({ file, createdBy: user.id });
+                          toast({ title: "Plik dodany" });
+                        } catch {
+                          toast({
+                            variant: "destructive",
+                            title: "Nie udało się dodać pliku",
+                          });
+                        }
+                      }
+                    }}
+                    onYoutubeAdd={async ({ url, videoId, thumbnailUrl }) => {
+                      if (!user?.id) return;
+                      try {
+                        await addYoutube.mutateAsync({
+                          youtubeUrl: url,
+                          videoId,
+                          createdBy: user.id,
+                          thumbnailUrl,
+                        });
+                        toast({ title: "Link YouTube dodany" });
+                      } catch {
+                        toast({
+                          variant: "destructive",
+                          title: "Nie udało się dodać linku",
+                        });
+                      }
+                    }}
+                  />
+                </section>
+              )}
 
               <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
                 <h2 className="text-sm font-semibold text-slate-700">4. Zdjecie (opcjonalnie)</h2>

@@ -21,6 +21,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
 import { toast } from "@/hooks/use-toast";
+import { MediaPreview, MediaUploadModal } from "@/features/multimedia";
+import { uploadMediaFile, addYoutubeLink } from "@/features/multimedia/api/multimedia.api";
+import { MAX_MEDIA_PER_OBSERVATION } from "@/features/multimedia/types";
 
 const wizardSchema = z.object({
   full_name: z
@@ -83,6 +86,11 @@ export function ObservationWizard({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const currentYear = useMemo(() => new Date().getFullYear(), []);
   const navigate = useNavigate();
+  const [mediaModalOpen, setMediaModalOpen] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<{ file: File; id: string }[]>([]);
+  const [pendingYoutube, setPendingYoutube] = useState<
+    { url: string; videoId: string; thumbnailUrl: string }[]
+  >([]);
   const auditName =
     (user?.user_metadata as { full_name?: string })?.full_name ??
     user?.email ??
@@ -236,7 +244,7 @@ export function ObservationWizard({
           playerId = player.id;
         }
 
-        await createObservation({
+        const observation = await createObservation({
           player_id: playerId,
           scout_id: user.id,
           source: values.source as ObservationSource,
@@ -258,6 +266,35 @@ export function ObservationWizard({
           updated_by_role: auditRole,
           updated_at: nowIso,
         });
+        if (pendingFiles.length > 0 || pendingYoutube.length > 0) {
+          try {
+            for (const { file } of pendingFiles) {
+              await uploadMediaFile({
+                file,
+                playerId: observation.player_id,
+                observationId: observation.id,
+                createdBy: user.id,
+              });
+            }
+            for (const y of pendingYoutube) {
+              await addYoutubeLink({
+                playerId: observation.player_id,
+                observationId: observation.id,
+                youtubeUrl: y.url,
+                videoId: y.videoId,
+                createdBy: user.id,
+                thumbnailUrl: y.thumbnailUrl,
+              });
+            }
+          } catch (mediaErr) {
+            console.error("Multimedia upload failed:", mediaErr);
+            toast({
+              variant: "destructive",
+              title: "Obserwacja zapisana",
+              description: "Nie wszystkie multimedia zostaly dodane. Sprobuj dodac je w edycji.",
+            });
+          }
+        }
         toast({
           title: "Zapisano obserwacje",
           description: "Zmiany zostaly poprawnie zapisane.",
@@ -265,6 +302,8 @@ export function ObservationWizard({
       }
 
       form.reset();
+      setPendingFiles([]);
+      setPendingYoutube([]);
       localStorage.removeItem("scoutpro-observation-draft");
       goBack();
     } catch {
@@ -589,6 +628,46 @@ export function ObservationWizard({
                 )}
               />
             </div>
+          </section>
+
+          <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-slate-700">Multimedia</h2>
+            <p className="text-sm text-slate-600">
+              Zdjęcia, wideo lub linki YouTube zostana dolaczone do obserwacji po jej zapisaniu.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => setMediaModalOpen(true)}
+            >
+              + Dodaj multimedia
+            </Button>
+            <MediaPreview
+              pendingFiles={pendingFiles}
+              pendingYoutube={pendingYoutube}
+              savedMedia={[]}
+              onRemovePending={(id) => setPendingFiles((prev) => prev.filter((p) => p.id !== id))}
+              onRemoveYoutube={(index) =>
+                setPendingYoutube((prev) => prev.filter((_, i) => i !== index))
+              }
+              onRemoveSaved={() => {}}
+            />
+            <MediaUploadModal
+              open={mediaModalOpen}
+              onOpenChange={setMediaModalOpen}
+              maxFiles={MAX_MEDIA_PER_OBSERVATION}
+              currentCount={pendingFiles.length + pendingYoutube.length}
+              onFilesSelected={(files) =>
+                setPendingFiles((prev) => [
+                  ...prev,
+                  ...files.map((file) => ({ file, id: uuidv4() })),
+                ])
+              }
+              onYoutubeAdd={({ url, videoId, thumbnailUrl }) =>
+                setPendingYoutube((prev) => [...prev, { url, videoId, thumbnailUrl }])
+              }
+            />
           </section>
 
           <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">

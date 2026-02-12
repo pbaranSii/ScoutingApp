@@ -349,6 +349,91 @@ export type Database = {
           },
         ]
       }
+      multimedia: {
+        Row: {
+          id: string
+          player_id: string
+          observation_id: string | null
+          file_name: string
+          file_type: Database["public"]["Enums"]["multimedia_file_type"]
+          file_size: number | null
+          file_format: string | null
+          storage_path: string | null
+          youtube_url: string | null
+          youtube_video_id: string | null
+          youtube_title: string | null
+          youtube_thumbnail_url: string | null
+          youtube_duration_seconds: number | null
+          created_by: string
+          created_at: string
+          updated_at: string
+          sync_status: Database["public"]["Enums"]["sync_status"]
+          sync_error_message: string | null
+        }
+        Insert: {
+          id?: string
+          player_id: string
+          observation_id?: string | null
+          file_name?: string
+          file_type: Database["public"]["Enums"]["multimedia_file_type"]
+          file_size?: number | null
+          file_format?: string | null
+          storage_path?: string | null
+          youtube_url?: string | null
+          youtube_video_id?: string | null
+          youtube_title?: string | null
+          youtube_thumbnail_url?: string | null
+          youtube_duration_seconds?: number | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+          sync_status?: Database["public"]["Enums"]["sync_status"]
+          sync_error_message?: string | null
+        }
+        Update: {
+          id?: string
+          player_id?: string
+          observation_id?: string | null
+          file_name?: string
+          file_type?: Database["public"]["Enums"]["multimedia_file_type"]
+          file_size?: number | null
+          file_format?: string | null
+          storage_path?: string | null
+          youtube_url?: string | null
+          youtube_video_id?: string | null
+          youtube_title?: string | null
+          youtube_thumbnail_url?: string | null
+          youtube_duration_seconds?: number | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+          sync_status?: Database["public"]["Enums"]["sync_status"]
+          sync_error_message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "multimedia_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "multimedia_observation_id_fkey"
+            columns: ["observation_id"]
+            isOneToOne: false
+            referencedRelation: "observations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "multimedia_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offline_queue: {
         Row: {
           action_type: string
@@ -706,6 +791,7 @@ export type Database = {
       contact_type: "parent" | "guardian" | "agent" | "other"
       dominant_foot: "left" | "right" | "both"
       match_type: "live" | "video"
+      multimedia_file_type: "image" | "video" | "youtube_link"
       observation_source:
         | "scouting"
         | "referral"
@@ -853,6 +939,7 @@ export const Constants = {
       contact_type: ["parent", "guardian", "agent", "other"],
       dominant_foot: ["left", "right", "both"],
       match_type: ["live", "video"],
+      multimedia_file_type: ["image", "video", "youtube_link"],
       observation_source: [
         "scouting",
         "referral",

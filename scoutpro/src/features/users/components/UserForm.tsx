@@ -61,10 +61,9 @@ export function UserForm({
     defaultValues,
   });
 
-  const roleOptions = Object.entries(BUSINESS_ROLE_LABELS) as [
-    BusinessRole,
-    { label: string; description: string },
-  ][];
+  const roleOptions = (
+    Object.entries(BUSINESS_ROLE_LABELS) as [BusinessRole, { label: string; description: string }][]
+  ).filter(([key]) => key !== "suspended");
 
   return (
     <Form {...form}>
@@ -163,7 +162,12 @@ export function UserForm({
           />
         )}
 
-        <Button type="submit" className="w-full" disabled={isSubmitting}>
+        <Button
+          type="button"
+          className="w-full"
+          disabled={isSubmitting}
+          onClick={form.handleSubmit(onSubmit)}
+        >
           {submitLabel}
         </Button>
       </form>

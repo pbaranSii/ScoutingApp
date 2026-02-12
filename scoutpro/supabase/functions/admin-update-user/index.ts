@@ -29,7 +29,7 @@ function jsonResponse(body: unknown, init: ResponseInit = {}) {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   if (req.method !== "POST") {
@@ -86,6 +86,22 @@ serve(async (req) => {
 
   if (existingError || !existingUser) {
     return jsonResponse({ error: "User not found" }, { status: 404 });
+  }
+
+  if (payload.email !== undefined && payload.email !== null && payload.email.trim() !== "") {
+    const newEmail = payload.email.trim();
+    const { data: existingByEmail } = await supabaseAdmin
+      .from("users")
+      .select("id")
+      .eq("email", newEmail)
+      .neq("id", payload.user_id)
+      .maybeSingle();
+    if (existingByEmail) {
+      return jsonResponse(
+        { error: "Użytkownik z tym adresem e-mail już istnieje." },
+        { status: 400 }
+      );
+    }
   }
 
   const fullName = `${payload.first_name ?? ""} ${payload.last_name ?? ""}`.trim();
