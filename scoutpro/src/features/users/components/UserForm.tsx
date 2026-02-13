@@ -19,7 +19,8 @@ const baseSchema = z.object({
   last_name: z.string(),
   email: z.string().email("Podaj poprawny email"),
   business_role: z.enum(["scout", "coach", "director", "suspended", "admin"]),
-  password: z.string().min(8, "Haslo musi miec co najmniej 8 znakow").optional(),
+  // Przy edycji pole hasła jest niewidoczne i puste – nie walidujemy min długości
+  password: z.string().optional(),
 });
 
 const createSchema = baseSchema.extend({
@@ -38,6 +39,8 @@ type UserFormProps = {
   submitLabel: string;
   includePassword?: boolean;
   isSubmitting?: boolean;
+  /** Gdy true, pole email jest tylko do odczytu (np. przy edycji uzytkownika). */
+  emailReadOnly?: boolean;
 };
 
 export function UserForm({
@@ -46,6 +49,7 @@ export function UserForm({
   submitLabel,
   includePassword = false,
   isSubmitting = false,
+  emailReadOnly = false,
 }: UserFormProps) {
   const schema = useMemo(() => {
     if (includePassword) {
@@ -104,8 +108,17 @@ export function UserForm({
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input type="email" placeholder="uzytkownik@scoutpro.pl" {...field} />
+                <Input
+                  type="email"
+                  placeholder="uzytkownik@scoutpro.pl"
+                  {...field}
+                  readOnly={emailReadOnly}
+                  className={emailReadOnly ? "bg-slate-50 cursor-not-allowed" : ""}
+                />
               </FormControl>
+              {emailReadOnly && (
+                <p className="text-xs text-slate-500">Adres email nie moze byc zmieniony.</p>
+              )}
               <FormMessage />
             </FormItem>
           )}
@@ -116,9 +129,9 @@ export function UserForm({
           name="business_role"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Rola (informacyjna)</FormLabel>
+              <FormLabel>Rola</FormLabel>
               <p className="text-xs text-slate-500 mb-1">
-                Okresla funkcje uzytkownika w systemie (np. Scout, Trener, Administrator). Na razie sluzy tylko do informacji.
+                Okresla funkcje i uprawnienia uzytkownika (Scout, Trener, Dyrektor, Administrator).
               </p>
               <Select
                 onValueChange={field.onChange}
@@ -132,7 +145,7 @@ export function UserForm({
                 <SelectContent
                   side="top"
                   sideOffset={4}
-                  className="z-[90] max-h-[var(--radix-select-content-available-height)]"
+                  className="z-[110] max-h-[var(--radix-select-content-available-height)]"
                 >
                   {roleOptions.map(([value, { label, description }]) => (
                     <SelectItem key={value} value={value}>
@@ -163,10 +176,9 @@ export function UserForm({
         )}
 
         <Button
-          type="button"
+          type="submit"
           className="w-full"
           disabled={isSubmitting}
-          onClick={form.handleSubmit(onSubmit)}
         >
           {submitLabel}
         </Button>

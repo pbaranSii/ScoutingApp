@@ -16,7 +16,8 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
   return data as UserProfile | null;
 }
 
-/** Create user via Auth signUp + public.users insert. RLS allows admin to insert. */
+/** Create user via Edge Function (auth.admin.createUser with email_confirm: true).
+ * Konto jest aktywne od razu, bez potwierdzenia emailem. */
 export async function createUserDirect(input: {
   email: string;
   password: string;
@@ -24,47 +25,51 @@ export async function createUserDirect(input: {
   last_name?: string | null;
   business_role?: BusinessRole;
 }) {
-  const { data: authData, error: signUpError } = await supabase.auth.signUp({
-    email: input.email,
-    password: input.password,
-    options: {
-      data: {
-        first_name: input.first_name ?? null,
-        last_name: input.last_name ?? null,
-        full_name: [input.first_name, input.last_name].filter(Boolean).join(" ").trim() || null,
-        business_role: input.business_role ?? "scout",
-      },
-    },
-  });
-  if (signUpError) {
-    const msg = signUpError.message ?? "";
-    if (
-      msg.toLowerCase().includes("already registered") ||
-      msg.toLowerCase().includes("user already exists") ||
-      signUpError.status === 422
-    ) {
-      throw new Error("Użytkownik z tym adresem e-mail już istnieje.");
-    }
-    throw signUpError;
+  const email = (input.email ?? "").trim();
+  const password = input.password ?? "";
+  if (!email || !password) {
+    throw new Error("Email i hasło są wymagane.");
   }
-  const user = authData?.user;
-  if (!user?.id) throw new Error("Nie udalo sie utworzyc konta.");
+  if (password.length < 6) {
+    throw new Error("Hasło musi mieć co najmniej 6 znaków.");
+  }
 
-  const fullName = [input.first_name, input.last_name].filter(Boolean).join(" ").trim() || null;
-  const businessRole = input.business_role ?? "scout";
-  const role = businessRole === "admin" ? "admin" : "user";
-  const isActive = businessRole !== "suspended";
-
-  const { error: insertError } = await supabase.from("users").insert({
-    id: user.id,
-    email: input.email,
-    full_name: fullName,
-    role,
-    business_role: businessRole,
-    is_active: isActive,
+  await supabase.auth.refreshSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error("Sesja wygasla. Zaloguj sie ponownie i sprobuj jeszcze raz.");
+  }
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+  const res = await fetch(`${supabaseUrl}/functions/v1/admin-create-user`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: anonKey,
+    },
+    body: JSON.stringify({
+      email,
+      password,
+      first_name: input.first_name ?? null,
+      last_name: input.last_name ?? null,
+      business_role: input.business_role ?? "scout",
+    }),
   });
-  if (insertError) throw insertError;
-  return { id: user.id };
+  let body: { id?: string; error?: string } = {};
+  try {
+    const text = await res.text();
+    body = text ? JSON.parse(text) : {};
+  } catch {
+    /* ignore */
+  }
+  if (!res.ok) {
+    const msg = body?.error ?? `Błąd ${res.status}. Zaloguj się ponownie i spróbuj jeszcze raz.`;
+    throw new Error(msg);
+  }
+  return { id: body?.id ?? "" };
 }
 
 /** Update user profile in public.users. RLS allows admin. Email in auth is not changed. */
@@ -110,7 +115,7 @@ export async function adminUpdateUser(body: {
   return (data ?? {}) as { status: string };
 }
 
-/** Admin edit: try Edge Function first; on failure (e.g. not deployed) fall back to direct update of public.users. */
+/** Admin edit: uses Edge Function (Auth + public.users). Errors propagate to UI. */
 export async function updateUserAsAdmin(body: {
   user_id: string;
   email?: string | null;
@@ -118,25 +123,41 @@ export async function updateUserAsAdmin(body: {
   last_name?: string | null;
   business_role?: BusinessRole;
 }) {
-  try {
-    return await adminUpdateUser(body);
-  } catch {
-    await updateUserProfile(body.user_id, {
-      email: body.email,
-      first_name: body.first_name,
-      last_name: body.last_name,
-      business_role: body.business_role,
-    });
-    return { status: "ok" };
-  }
+  return await adminUpdateUser(body);
 }
 
 export async function adminSetUserPassword(input: { user_id: string; password: string }) {
-  const { data, error } = await supabase.functions.invoke("admin-set-password", {
-    body: input,
+  await supabase.auth.refreshSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error("Sesja wygasla. Zaloguj sie ponownie i sprobuj jeszcze raz.");
+  }
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+  const res = await fetch(`${supabaseUrl}/functions/v1/admin-set-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: anonKey,
+    },
+    body: JSON.stringify(input),
   });
-  if (error) throw error;
-  return data as { status: string };
+  let body: { error?: string; message?: string } = {};
+  try {
+    const text = await res.text();
+    body = text ? (JSON.parse(text) as { error?: string; message?: string }) : {};
+  } catch {
+    /* ignore parse error */
+  }
+  if (!res.ok) {
+    const msg =
+      body?.error ?? body?.message ?? `Blad ${res.status}. Zaloguj sie ponownie i sprobuj jeszcze raz.`;
+    throw new Error(msg);
+  }
+  return body as { status: string };
 }
 
 /** Suspend/restore user. Uses RLS (admin only). No edge function required. */
@@ -144,6 +165,15 @@ export async function updateUserStatus(
   userId: string,
   updates: { business_role?: BusinessRole; is_active?: boolean }
 ) {
-  const { error } = await supabase.from("users").update(updates).eq("id", userId);
+  const updatePayload: Record<string, unknown> = {};
+  if (updates.is_active !== undefined) {
+    updatePayload.is_active = updates.is_active;
+  }
+  if (updates.business_role !== undefined) {
+    updatePayload.business_role = updates.business_role;
+    updatePayload.role = updates.business_role === "admin" ? "admin" : "user";
+  }
+  if (Object.keys(updatePayload).length === 0) return;
+  const { error } = await supabase.from("users").update(updatePayload).eq("id", userId);
   if (error) throw error;
 }
