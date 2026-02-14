@@ -170,6 +170,7 @@ W **SQL Editor** w [Supabase Dashboard PROD](https://supabase.com/dashboard/proj
    - Alternatywnie: ręczne wgranie plików z `dist/` na inny hosting.
 
 3. Upewnij się, że zmienne środowiskowe PROD w Vercel wskazują na **Supabase PROD** (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_URL`).
+4. **Auth (logowanie bez linku weryfikacyjnego):** W projekcie Supabase PROD wyłącz potwierdzenie e-mail, aby nowi użytkownicy mogli od razu się logować. Instrukcja: `scoutpro/supabase/PROD_AUTH_NO_EMAIL_CONFIRM.md`.
 
 ### Krok 6: Weryfikacja po wdrożeniu (smoke test)
 
