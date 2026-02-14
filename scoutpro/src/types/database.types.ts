@@ -261,7 +261,9 @@ export type Database = {
           source: Database["public"]["Enums"]["observation_source"]
           status: string
           strengths: string | null
+          strengths_notes: string | null
           weaknesses: string | null
+          weaknesses_notes: string | null
           overall_rating: number | null
           updated_at: string | null
           updated_by: string | null
@@ -289,7 +291,9 @@ export type Database = {
           source?: Database["public"]["Enums"]["observation_source"]
           status?: string
           strengths?: string | null
+          strengths_notes?: string | null
           weaknesses?: string | null
+          weaknesses_notes?: string | null
           overall_rating?: number | null
           updated_at?: string | null
           updated_by?: string | null
@@ -317,7 +321,9 @@ export type Database = {
           source?: Database["public"]["Enums"]["observation_source"]
           status?: string
           strengths?: string | null
+          strengths_notes?: string | null
           weaknesses?: string | null
+          weaknesses_notes?: string | null
           overall_rating?: number | null
           updated_at?: string | null
           updated_by?: string | null
@@ -696,6 +702,177 @@ export type Database = {
           },
         ]
       }
+      dict_preferred_foot: {
+        Row: {
+          id: string
+          foot_code: string
+          name_pl: string
+          name_en: string
+          display_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          foot_code: string
+          name_pl: string
+          name_en: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          foot_code?: string
+          name_pl?: string
+          name_en?: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dict_player_sources: {
+        Row: {
+          id: string
+          source_code: string
+          name_pl: string
+          name_en: string
+          description: string | null
+          display_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          source_code: string
+          name_pl: string
+          name_en: string
+          description?: string | null
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          source_code?: string
+          name_pl?: string
+          name_en?: string
+          description?: string | null
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dict_recruitment_decisions: {
+        Row: {
+          id: string
+          decision_code: string
+          name_pl: string
+          name_en: string
+          decision_category: string | null
+          display_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          decision_code: string
+          name_pl: string
+          name_en: string
+          decision_category?: string | null
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          decision_code?: string
+          name_pl?: string
+          name_en?: string
+          decision_category?: string | null
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dict_strengths: {
+        Row: {
+          id: string
+          code: string
+          name_pl: string
+          name_en: string
+          display_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          name_pl: string
+          name_en: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          name_pl?: string
+          name_en?: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dict_weaknesses: {
+        Row: {
+          id: string
+          code: string
+          name_pl: string
+          name_en: string
+          display_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          name_pl: string
+          name_en: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          name_pl?: string
+          name_en?: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       positions: {
         Row: {
           category: string | null
@@ -703,6 +880,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          display_order: number
         }
         Insert: {
           category?: string | null
@@ -710,6 +888,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          display_order?: number
         }
         Update: {
           category?: string | null
@@ -717,6 +896,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          display_order?: number
         }
         Relationships: []
       }
@@ -726,18 +906,24 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          display_order: number
+          code: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           is_active?: boolean
           name: string
+          display_order?: number
+          code?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           is_active?: boolean
           name?: string
+          display_order?: number
+          code?: string | null
         }
         Relationships: []
       }

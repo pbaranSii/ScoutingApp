@@ -19,6 +19,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
 import { PageHeader } from "@/components/common/PageHeader";
 import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
+import { usePlayerSources, useStrengths, useWeaknesses } from "@/features/dictionaries/hooks/useDictionaries";
+import { StrengthsWeaknessesTagField } from "@/features/observations/components/StrengthsWeaknessesTagField";
 import { toast } from "@/hooks/use-toast";
 import { useAuthStore } from "@/stores/authStore";
 import {
@@ -48,7 +50,9 @@ const schema = z.object({
   potential_now: z.coerce.number().int().min(1).max(5),
   potential_future: z.coerce.number().int().min(1).max(5),
   strengths: z.string().optional(),
+  strengths_notes: z.string().optional(),
   weaknesses: z.string().optional(),
+  weaknesses_notes: z.string().optional(),
   notes: z.string().optional(),
   photo_url: z.string().optional(),
 });
@@ -76,6 +80,9 @@ export function EditObservationPage() {
     observation?.id ?? null
   );
   const deleteMedia = useDeleteMultimedia(observation?.player_id ?? "");
+  const { data: playerSources = [] } = usePlayerSources();
+  const { data: strengthsOptions = [] } = useStrengths();
+  const { data: weaknessesOptions = [] } = useWeaknesses();
   const [mediaModalOpen, setMediaModalOpen] = useState(false);
   const currentYear = useMemo(() => new Date().getFullYear(), []);
   const auditName =
@@ -114,7 +121,9 @@ export function EditObservationPage() {
       potential_now: 3,
       potential_future: 3,
       strengths: "",
+      strengths_notes: "",
       weaknesses: "",
+      weaknesses_notes: "",
       notes: "",
       photo_url: "",
     },
@@ -136,7 +145,9 @@ export function EditObservationPage() {
       potential_now: observation.potential_now ?? 3,
       potential_future: observation.potential_future ?? 3,
       strengths: observation.strengths ?? "",
+      strengths_notes: observation.strengths_notes ?? "",
       weaknesses: observation.weaknesses ?? "",
+      weaknesses_notes: observation.weaknesses_notes ?? "",
       notes: observation.notes ?? "",
       photo_url: observation.photo_url ?? "",
     });
@@ -229,7 +240,9 @@ export function EditObservationPage() {
           competition: values.competition?.trim() || null,
           overall_rating: values.overall_rating ?? null,
           strengths: values.strengths?.trim() || null,
+          strengths_notes: values.strengths_notes?.trim() || null,
           weaknesses: values.weaknesses?.trim() || null,
+          weaknesses_notes: values.weaknesses_notes?.trim() || null,
           photo_url: values.photo_url?.trim() || null,
           updated_by: user?.id ?? null,
           updated_by_name: auditName,
@@ -470,9 +483,32 @@ export function EditObservationPage() {
                   name="strengths"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Mocne strony</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="np. Szybkosc, technika, pozycjonowanie..." {...field} />
+                        <StrengthsWeaknessesTagField
+                          label="Mocne strony"
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          dictionaryOptions={(strengthsOptions as { id: string; name_pl: string }[]).map(
+                            (r) => ({ id: r.id, name_pl: String(r.name_pl) })
+                          )}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="strengths_notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Opis – mocne strony (dowolny tekst)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Dodatkowy opis mocnych stron, niezależny od tagów powyżej."
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          className="min-h-[72px]"
+                        />
                       </FormControl>
                     </FormItem>
                   )}
@@ -482,9 +518,32 @@ export function EditObservationPage() {
                   name="weaknesses"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Slabe strony</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="np. Gra glowa, sila fizyczna, koncentracja..." {...field} />
+                        <StrengthsWeaknessesTagField
+                          label="Słabe strony"
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          dictionaryOptions={(weaknessesOptions as { id: string; name_pl: string }[]).map(
+                            (r) => ({ id: r.id, name_pl: String(r.name_pl) })
+                          )}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="weaknesses_notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Opis – słabe strony (dowolny tekst)</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Dodatkowy opis słabych stron, niezależny od tagów powyżej."
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          className="min-h-[72px]"
+                        />
                       </FormControl>
                     </FormItem>
                   )}
@@ -542,11 +601,11 @@ export function EditObservationPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="scouting">Skauting</SelectItem>
-                            <SelectItem value="referral">Polecenie</SelectItem>
-                            <SelectItem value="application">Zgloszenie</SelectItem>
-                            <SelectItem value="trainer_report">Raport trenera</SelectItem>
-                            <SelectItem value="scout_report">Raport skauta</SelectItem>
+                            {(playerSources ?? []).map((s) => (
+                              <SelectItem key={s.id} value={String(s.source_code)}>
+                                {String(s.name_pl)}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                         <FormMessage />
