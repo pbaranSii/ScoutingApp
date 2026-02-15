@@ -20,7 +20,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
+import { usePlayerSources, useStrengths, useWeaknesses } from "@/features/dictionaries/hooks/useDictionaries";
+import { StrengthsWeaknessesTagField } from "./StrengthsWeaknessesTagField";
 import { toast } from "@/hooks/use-toast";
+import { MediaPreview, MediaUploadModal } from "@/features/multimedia";
+import { uploadMediaFile, addYoutubeLink } from "@/features/multimedia/api/multimedia.api";
+import { MAX_MEDIA_PER_OBSERVATION } from "@/features/multimedia/types";
 
 const wizardSchema = z.object({
   full_name: z
@@ -34,7 +39,9 @@ const wizardSchema = z.object({
   primary_position: z.string().min(1, "Wybierz pozycje"),
   overall_rating: z.coerce.number().min(1).max(10).multipleOf(0.5),
   strengths: z.string().optional(),
+  strengths_notes: z.string().optional(),
   weaknesses: z.string().optional(),
+  weaknesses_notes: z.string().optional(),
   notes: z.string().optional(),
   photo_url: z.string().optional(),
   rank: z.string().min(1, "Wybierz range"),
@@ -76,6 +83,9 @@ export function ObservationWizard({
 }: ObservationWizardProps) {
   const { user } = useAuthStore();
   const isOnline = useOnlineStatus();
+  const { data: playerSources = [] } = usePlayerSources();
+  const { data: strengthsOptions = [] } = useStrengths();
+  const { data: weaknessesOptions = [] } = useWeaknesses();
   const { addOfflineObservation } = useSync();
   const { mutateAsync: createObservation, isPending: isSaving } = useCreateObservation();
   const { mutateAsync: createPlayer } = useCreatePlayer();
@@ -83,6 +93,11 @@ export function ObservationWizard({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const currentYear = useMemo(() => new Date().getFullYear(), []);
   const navigate = useNavigate();
+  const [mediaModalOpen, setMediaModalOpen] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<{ file: File; id: string }[]>([]);
+  const [pendingYoutube, setPendingYoutube] = useState<
+    { url: string; videoId: string; thumbnailUrl: string }[]
+  >([]);
   const auditName =
     (user?.user_metadata as { full_name?: string })?.full_name ??
     user?.email ??
@@ -109,7 +124,9 @@ export function ObservationWizard({
       primary_position: "",
       overall_rating: 5,
       strengths: "",
+      strengths_notes: "",
       weaknesses: "",
+      weaknesses_notes: "",
       rank: "",
       potential_now: 3,
       potential_future: 3,
@@ -190,7 +207,9 @@ export function ObservationWizard({
             competition: values.competition?.trim(),
             overall_rating: values.overall_rating,
             strengths: values.strengths?.trim(),
+            strengths_notes: values.strengths_notes?.trim(),
             weaknesses: values.weaknesses?.trim(),
+            weaknesses_notes: values.weaknesses_notes?.trim(),
             photo_url: values.photo_url?.trim(),
             created_by: user.id,
             created_by_name: auditName,
@@ -236,7 +255,7 @@ export function ObservationWizard({
           playerId = player.id;
         }
 
-        await createObservation({
+        const observation = await createObservation({
           player_id: playerId,
           scout_id: user.id,
           source: values.source as ObservationSource,
@@ -248,7 +267,9 @@ export function ObservationWizard({
           competition: values.competition?.trim() || null,
           overall_rating: values.overall_rating,
           strengths: values.strengths?.trim() || null,
+          strengths_notes: values.strengths_notes?.trim() || null,
           weaknesses: values.weaknesses?.trim() || null,
+          weaknesses_notes: values.weaknesses_notes?.trim() || null,
           photo_url: values.photo_url?.trim() || null,
           created_by: user.id,
           created_by_name: auditName,
@@ -258,6 +279,35 @@ export function ObservationWizard({
           updated_by_role: auditRole,
           updated_at: nowIso,
         });
+        if (pendingFiles.length > 0 || pendingYoutube.length > 0) {
+          try {
+            for (const { file } of pendingFiles) {
+              await uploadMediaFile({
+                file,
+                playerId: observation.player_id,
+                observationId: observation.id,
+                createdBy: user.id,
+              });
+            }
+            for (const y of pendingYoutube) {
+              await addYoutubeLink({
+                playerId: observation.player_id,
+                observationId: observation.id,
+                youtubeUrl: y.url,
+                videoId: y.videoId,
+                createdBy: user.id,
+                thumbnailUrl: y.thumbnailUrl,
+              });
+            }
+          } catch (mediaErr) {
+            console.error("Multimedia upload failed:", mediaErr);
+            toast({
+              variant: "destructive",
+              title: "Obserwacja zapisana",
+              description: "Nie wszystkie multimedia zostaly dodane. Sprobuj dodac je w edycji.",
+            });
+          }
+        }
         toast({
           title: "Zapisano obserwacje",
           description: "Zmiany zostaly poprawnie zapisane.",
@@ -265,6 +315,8 @@ export function ObservationWizard({
       }
 
       form.reset();
+      setPendingFiles([]);
+      setPendingYoutube([]);
       localStorage.removeItem("scoutpro-observation-draft");
       goBack();
     } catch {
@@ -473,9 +525,32 @@ export function ObservationWizard({
               name="strengths"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Mocne strony</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="np. Szybkosc, technika, pozycjonowanie..." {...field} />
+                    <StrengthsWeaknessesTagField
+                      label="Mocne strony"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      dictionaryOptions={(strengthsOptions as { id: string; name_pl: string }[]).map(
+                        (r) => ({ id: r.id, name_pl: String(r.name_pl) })
+                      )}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="strengths_notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Opis – mocne strony (dowolny tekst)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Dodatkowy opis mocnych stron, niezależny od tagów powyżej."
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      className="min-h-[72px]"
+                    />
                   </FormControl>
                 </FormItem>
               )}
@@ -485,9 +560,32 @@ export function ObservationWizard({
               name="weaknesses"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Slabe strony</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="np. Gra glowa, sila fizyczna, koncentracja..." {...field} />
+                    <StrengthsWeaknessesTagField
+                      label="Słabe strony"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      dictionaryOptions={(weaknessesOptions as { id: string; name_pl: string }[]).map(
+                        (r) => ({ id: r.id, name_pl: String(r.name_pl) })
+                      )}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="weaknesses_notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Opis – słabe strony (dowolny tekst)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Dodatkowy opis słabych stron, niezależny od tagów powyżej."
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      className="min-h-[72px]"
+                    />
                   </FormControl>
                 </FormItem>
               )}
@@ -545,11 +643,11 @@ export function ObservationWizard({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="scouting">Skauting</SelectItem>
-                        <SelectItem value="referral">Polecenie</SelectItem>
-                        <SelectItem value="application">Zgloszenie</SelectItem>
-                        <SelectItem value="trainer_report">Raport trenera</SelectItem>
-                        <SelectItem value="scout_report">Raport skauta</SelectItem>
+                        {(playerSources ?? []).map((s) => (
+                          <SelectItem key={s.id} value={String(s.source_code)}>
+                            {String(s.name_pl)}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -589,6 +687,46 @@ export function ObservationWizard({
                 )}
               />
             </div>
+          </section>
+
+          <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-slate-700">Multimedia</h2>
+            <p className="text-sm text-slate-600">
+              Zdjęcia, wideo lub linki YouTube zostana dolaczone do obserwacji po jej zapisaniu.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => setMediaModalOpen(true)}
+            >
+              + Dodaj multimedia
+            </Button>
+            <MediaPreview
+              pendingFiles={pendingFiles}
+              pendingYoutube={pendingYoutube}
+              savedMedia={[]}
+              onRemovePending={(id) => setPendingFiles((prev) => prev.filter((p) => p.id !== id))}
+              onRemoveYoutube={(index) =>
+                setPendingYoutube((prev) => prev.filter((_, i) => i !== index))
+              }
+              onRemoveSaved={() => {}}
+            />
+            <MediaUploadModal
+              open={mediaModalOpen}
+              onOpenChange={setMediaModalOpen}
+              maxFiles={MAX_MEDIA_PER_OBSERVATION}
+              currentCount={pendingFiles.length + pendingYoutube.length}
+              onFilesSelected={(files) =>
+                setPendingFiles((prev) => [
+                  ...prev,
+                  ...files.map((file) => ({ file, id: uuidv4() })),
+                ])
+              }
+              onYoutubeAdd={({ url, videoId, thumbnailUrl }) =>
+                setPendingYoutube((prev) => [...prev, { url, videoId, thumbnailUrl }])
+              }
+            />
           </section>
 
           <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">

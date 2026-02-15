@@ -18,6 +18,8 @@ import { ObservationDetailPage } from "@/pages/ObservationDetailPage";
 import { EditObservationPage } from "@/pages/EditObservationPage";
 import { PipelinePage } from "@/pages/PipelinePage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { DictionaryListPage } from "@/pages/DictionaryListPage";
+import { DictionaryDetailPage } from "@/pages/DictionaryDetailPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 
 export default function App() {
@@ -45,6 +47,8 @@ export default function App() {
           <Route path="/observations/:id/edit" element={<EditObservationPage />} />
           <Route path="/pipeline" element={<PipelinePage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/dictionaries" element={<DictionaryListPage />} />
+          <Route path="/settings/dictionaries/:route" element={<DictionaryDetailPage />} />
         </Route>
       </Route>
 

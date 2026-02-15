@@ -66,15 +66,25 @@ serve(async (req) => {
     return jsonResponse({ error: "Forbidden" }, { status: 403 });
   }
 
-  let payload: CreateUserPayload;
+  let raw: unknown;
   try {
-    payload = await req.json();
+    raw = await req.json();
   } catch {
     return jsonResponse({ error: "Invalid JSON payload" }, { status: 400 });
   }
 
-  if (!payload.email || !payload.password) {
-    return jsonResponse({ error: "Email and password are required" }, { status: 400 });
+  const payload = (raw && typeof raw === "object" && (raw as { body?: CreateUserPayload }).body) ?? (raw as CreateUserPayload);
+  if (!payload || typeof payload !== "object") {
+    return jsonResponse({ error: "Invalid payload" }, { status: 400 });
+  }
+
+  const email = typeof payload.email === "string" ? payload.email.trim() : "";
+  const password = typeof payload.password === "string" ? payload.password : "";
+  if (!email || !password) {
+    return jsonResponse({ error: "Email i hasło są wymagane" }, { status: 400 });
+  }
+  if (password.length < 6) {
+    return jsonResponse({ error: "Hasło musi mieć co najmniej 6 znaków" }, { status: 400 });
   }
 
   const businessRole = payload.business_role ?? "scout";
@@ -83,8 +93,8 @@ serve(async (req) => {
   const isActive = businessRole !== "suspended";
 
   const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
-    email: payload.email,
-    password: payload.password,
+    email,
+    password,
     email_confirm: true,
     user_metadata: {
       first_name: payload.first_name ?? null,
@@ -95,13 +105,18 @@ serve(async (req) => {
   });
 
   if (createError || !created?.user) {
-    return jsonResponse({ error: createError?.message ?? "Failed to create user" }, { status: 400 });
+    const msg = createError?.message ?? "Nie udało się utworzyć użytkownika";
+    const translated =
+      msg.toLowerCase().includes("already") || msg.toLowerCase().includes("exists") || msg.toLowerCase().includes("registered")
+        ? "Użytkownik z tym adresem e-mail już istnieje."
+        : msg;
+    return jsonResponse({ error: translated }, { status: 400 });
   }
 
   const userId = created.user.id;
   const { error: insertError } = await supabaseAdmin.from("users").insert({
     id: userId,
-    email: payload.email,
+    email,
     full_name: fullName || null,
     role: resolvedRole,
     business_role: businessRole,
@@ -110,7 +125,12 @@ serve(async (req) => {
 
   if (insertError) {
     await supabaseAdmin.auth.admin.deleteUser(userId);
-    return jsonResponse({ error: insertError.message }, { status: 400 });
+    const msg = insertError.message;
+    const translated =
+      msg.toLowerCase().includes("duplicate") || msg.toLowerCase().includes("unique")
+        ? "Użytkownik z tym adresem e-mail już istnieje."
+        : msg;
+    return jsonResponse({ error: translated }, { status: 400 });
   }
 
   return jsonResponse({ id: userId });

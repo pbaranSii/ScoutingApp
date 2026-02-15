@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
-import { MoreHorizontal, Pencil, Key, UserX } from "lucide-react";
+import { MoreHorizontal, Pencil, Key, Trash2, UserX } from "lucide-react";
 import { BUSINESS_ROLE_LABELS, type BusinessRole, type UserProfile } from "../types";
 import {
   useCreateUser,
@@ -41,9 +41,10 @@ export function UserManagement() {
   const [editUser, setEditUser] = useState<UserProfile | null>(null);
   const [passwordUser, setPasswordUser] = useState<UserProfile | null>(null);
   const [passwordValue, setPasswordValue] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const roleOptions = useMemo(
-    () => Object.keys(BUSINESS_ROLE_LABELS) as BusinessRole[],
+    () => Object.keys(BUSINESS_ROLE_LABELS).filter((r) => r !== "suspended") as BusinessRole[],
     []
   );
 
@@ -71,7 +72,6 @@ export function UserManagement() {
     try {
       await updateUser.mutateAsync({
         user_id: userId,
-        email: values.email,
         first_name: values.first_name,
         last_name: values.last_name,
         business_role: values.business_role,
@@ -88,7 +88,7 @@ export function UserManagement() {
   };
 
   const handleToggleAccess = async (user: UserProfile) => {
-    const shouldSuspend = user.business_role !== "suspended" && user.is_active !== false;
+    const shouldSuspend = user.is_active !== false;
     const confirmed = window.confirm(
       shouldSuspend
         ? `Zawiesic dostep dla ${user.full_name ?? user.email}?`
@@ -98,7 +98,6 @@ export function UserManagement() {
     try {
       await updateUserStatus.mutateAsync({
         userId: user.id,
-        business_role: shouldSuspend ? "suspended" : "scout",
         is_active: !shouldSuspend,
       });
       toast({
@@ -113,8 +112,29 @@ export function UserManagement() {
     }
   };
 
+  const handleDeleteAccount = async (user: UserProfile) => {
+    const confirmed = window.confirm(
+      `Konto zostanie trwale dezaktywowane (usuniete z aplikacji). Uzytkownik ${user.full_name ?? user.email} nie bedzie mogl sie logowac. Dane pozostaja w systemie.\n\nKontynuowac?`
+    );
+    if (!confirmed) return;
+    try {
+      await updateUserStatus.mutateAsync({
+        userId: user.id,
+        is_active: false,
+      });
+      toast({ title: "Konto uzytkownika usuniete (dezaktywowane)" });
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : "Nie udalo sie usunac konta";
+      toast({ variant: "destructive", title: "Blad", description: message });
+    }
+  };
+
   const handlePasswordReset = async () => {
     if (!passwordUser) return;
+    setPasswordError(null);
     try {
       await setPassword.mutateAsync({ user_id: passwordUser.id, password: passwordValue });
       toast({ title: "Haslo zostalo zmienione" });
@@ -125,6 +145,7 @@ export function UserManagement() {
         error instanceof Error && error.message
           ? error.message
           : "Nie udalo sie zmienic hasla";
+      setPasswordError(message);
       toast({ variant: "destructive", title: "Blad", description: message });
     }
   };
@@ -149,7 +170,11 @@ export function UserManagement() {
           users.map((user) => {
             const businessRole = user.business_role as BusinessRole;
             const roleMeta = BUSINESS_ROLE_LABELS[businessRole];
-            const isSuspended = businessRole === "suspended" || !user.is_active;
+            const isSuspended = !user.is_active;
+            const displayRole =
+              businessRole === "suspended"
+                ? "Zawieszony"
+                : (roleMeta?.label ?? businessRole);
             return (
               <div
                 key={user.id}
@@ -163,7 +188,7 @@ export function UserManagement() {
                     <div className="text-sm text-slate-500">{user.email}</div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
-                        {roleMeta?.label ?? businessRole}
+                        {displayRole}
                       </Badge>
                       <Badge
                         className={
@@ -187,16 +212,17 @@ export function UserManagement() {
                       className="min-w-[10rem] rounded-md border border-slate-200 bg-white p-1 text-slate-900 shadow-lg"
                     >
                       <DropdownMenuItem
-                        onClick={() => setEditUser(user)}
+                        onSelect={() => setEditUser(user)}
                         className="cursor-pointer rounded-sm py-2 pl-3 pr-3 text-sm text-slate-700 hover:bg-slate-100 focus:bg-slate-100"
                       >
                         <Pencil className="mr-2 h-4 w-4" />
                         Edytuj
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => {
+                        onSelect={() => {
                           setPasswordUser(user);
                           setPasswordValue("");
+                          setPasswordError(null);
                         }}
                         className="cursor-pointer rounded-sm py-2 pl-3 pr-3 text-sm text-slate-700 hover:bg-slate-100 focus:bg-slate-100"
                       >
@@ -209,10 +235,17 @@ export function UserManagement() {
                             ? "cursor-pointer rounded-sm py-2 pl-3 pr-3 text-sm text-emerald-600 hover:bg-slate-100 focus:bg-slate-100"
                             : "cursor-pointer rounded-sm py-2 pl-3 pr-3 text-sm text-rose-600 hover:bg-slate-100 focus:bg-slate-100"
                         }
-                        onClick={() => handleToggleAccess(user)}
+                        onSelect={() => handleToggleAccess(user)}
                       >
                         <UserX className="mr-2 h-4 w-4" />
                         {isSuspended ? "Przywroc dostep" : "Zawies"}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="cursor-pointer rounded-sm py-2 pl-3 pr-3 text-sm text-rose-600 hover:bg-slate-100 focus:bg-slate-100"
+                        onSelect={() => handleDeleteAccount(user)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Usun konto
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -281,21 +314,22 @@ export function UserManagement() {
             >
               <h2 className="text-lg font-semibold text-slate-900">Edytuj uzytkownika</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Aktualizuj dane i role (informacyjna: Scout, Trener, Administrator itd.).
+                Aktualizuj imie, nazwisko i role. Zmiana roli wplywa na uprawnienia.
               </p>
               <div className="mt-4">
                 <UserForm
                   key={editUser.id}
                   defaultValues={{
                     ...splitFullName(editUser.full_name),
-                    email: editUser.email,
-                    business_role: (roleOptions.includes(editUser.business_role as BusinessRole)
+                    email: editUser.email ?? "",
+                    business_role: roleOptions.includes(editUser.business_role as BusinessRole)
                       ? (editUser.business_role as BusinessRole)
-                      : "scout"),
+                      : "scout",
                     password: "",
                   }}
                   submitLabel="Zapisz zmiany"
                   isSubmitting={updateUser.isPending}
+                  emailReadOnly={true}
                   onSubmit={(values) => handleUpdate(editUser.id, values)}
                 />
               </div>
@@ -323,19 +357,31 @@ export function UserManagement() {
               <p className="mt-1 text-sm text-slate-600">
                 Ustaw nowe haslo dla {passwordUser.full_name ?? passwordUser.email}.
               </p>
-              <div className="mt-4 space-y-4">
+              <div className="mt-4 space-y-4" onClick={(e) => e.stopPropagation()}>
                 <Input
                   type="password"
-                  placeholder="Nowe haslo"
+                  placeholder="Nowe haslo (min. 8 znakow)"
                   value={passwordValue}
-                  onChange={(event) => setPasswordValue(event.target.value)}
+                  onChange={(event) => {
+                    setPasswordValue(event.target.value);
+                    setPasswordError(null);
+                  }}
+                  aria-label="Nowe haslo"
                 />
+                {passwordError && (
+                  <p className="text-sm text-rose-600">{passwordError}</p>
+                )}
                 <Button
+                  type="button"
                   className="w-full"
-                  onClick={handlePasswordReset}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handlePasswordReset();
+                  }}
                   disabled={setPassword.isPending || passwordValue.length < 8}
                 >
-                  Zmien haslo
+                  {setPassword.isPending ? "Zapisywanie..." : "Zmień haslo"}
                 </Button>
               </div>
             </div>

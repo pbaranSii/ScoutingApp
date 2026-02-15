@@ -1,5 +1,5 @@
 import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDeleteObservation, useObservation } from "@/features/observations/hooks/useObservations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Pencil, Star, Trash2 } from "lucide-react";
 import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { toast } from "@/hooks/use-toast";
+import { MediaGallery, useMultimediaByObservation } from "@/features/multimedia";
+import { MULTIMEDIA_TABLE_MISSING_CODE } from "@/features/multimedia/api/multimedia.api";
+import { buildLegacyMediaItemsForObservation } from "@/features/multimedia/lib/legacyMedia";
 
 export function ObservationDetailPage() {
   const { id } = useParams();
@@ -19,6 +22,19 @@ export function ObservationDetailPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const { data: observation, isLoading } = useObservation(observationId);
+  const { data: savedMedia = [], isError: isMultimediaError, error: multimediaError } = useMultimediaByObservation(observationId);
+  const multimediaTableMissing =
+    isMultimediaError &&
+    multimediaError instanceof Error &&
+    (multimediaError as Error & { code?: string }).code === MULTIMEDIA_TABLE_MISSING_CODE;
+  const legacyMedia = useMemo(
+    () => (observation ? buildLegacyMediaItemsForObservation(observation) : []),
+    [observation]
+  );
+  const observationMedia = useMemo(
+    () => [...(savedMedia ?? []), ...legacyMedia],
+    [savedMedia, legacyMedia]
+  );
   const deleteObservation = useDeleteObservation();
   const canUseDom = typeof document !== "undefined";
 
@@ -218,17 +234,29 @@ export function ObservationDetailPage() {
         <CardHeader>
           <CardTitle className="text-base">Mocne strony</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-slate-600">
-          {observation.strengths ?? "Brak"}
+        <CardContent className="space-y-2 text-sm text-slate-600">
+          <div>{observation.strengths ?? "Brak tagów"}</div>
+          {observation.strengths_notes && (
+            <div className="rounded bg-slate-50 p-2 text-slate-600">
+              <span className="font-medium text-slate-700">Opis: </span>
+              {observation.strengths_notes}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Slabe strony</CardTitle>
+          <CardTitle className="text-base">Słabe strony</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-slate-600">
-          {observation.weaknesses ?? "Brak"}
+        <CardContent className="space-y-2 text-sm text-slate-600">
+          <div>{observation.weaknesses ?? "Brak tagów"}</div>
+          {observation.weaknesses_notes && (
+            <div className="rounded bg-slate-50 p-2 text-slate-600">
+              <span className="font-medium text-slate-700">Opis: </span>
+              {observation.weaknesses_notes}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -237,6 +265,23 @@ export function ObservationDetailPage() {
           <CardTitle className="text-base">Dodatkowe notatki</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-slate-600">{observation.notes ?? "Brak"}</CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Multimedia</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {multimediaTableMissing && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Multimedia nie są jeszcze skonfigurowane na bazie. Poniżej wyświetlane są zapisane wcześniej linki (np. zdjęcie z obserwacji).
+            </p>
+          )}
+          <MediaGallery
+            items={observationMedia}
+            emptyMessage="Brak multimediów do tej obserwacji."
+          />
+        </CardContent>
       </Card>
 
       <Card>

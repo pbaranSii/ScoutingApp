@@ -5,7 +5,7 @@ import {
   createUserDirect,
   fetchUserProfile,
   fetchUsers,
-  updateUserProfile,
+  updateUserAsAdmin,
   updateUserStatus,
 } from "../api/users.api";
 import type { BusinessRole } from "../types";
@@ -53,7 +53,8 @@ export function useUpdateUser() {
       business_role?: BusinessRole;
       is_active?: boolean | null;
     }) =>
-      updateUserProfile(input.user_id, {
+      updateUserAsAdmin({
+        user_id: input.user_id,
         email: input.email,
         first_name: input.first_name,
         last_name: input.last_name,

@@ -261,7 +261,9 @@ export type Database = {
           source: Database["public"]["Enums"]["observation_source"]
           status: string
           strengths: string | null
+          strengths_notes: string | null
           weaknesses: string | null
+          weaknesses_notes: string | null
           overall_rating: number | null
           updated_at: string | null
           updated_by: string | null
@@ -289,7 +291,9 @@ export type Database = {
           source?: Database["public"]["Enums"]["observation_source"]
           status?: string
           strengths?: string | null
+          strengths_notes?: string | null
           weaknesses?: string | null
+          weaknesses_notes?: string | null
           overall_rating?: number | null
           updated_at?: string | null
           updated_by?: string | null
@@ -317,7 +321,9 @@ export type Database = {
           source?: Database["public"]["Enums"]["observation_source"]
           status?: string
           strengths?: string | null
+          strengths_notes?: string | null
           weaknesses?: string | null
+          weaknesses_notes?: string | null
           overall_rating?: number | null
           updated_at?: string | null
           updated_by?: string | null
@@ -343,6 +349,91 @@ export type Database = {
           {
             foreignKeyName: "observations_scout_id_fkey"
             columns: ["scout_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      multimedia: {
+        Row: {
+          id: string
+          player_id: string
+          observation_id: string | null
+          file_name: string
+          file_type: Database["public"]["Enums"]["multimedia_file_type"]
+          file_size: number | null
+          file_format: string | null
+          storage_path: string | null
+          youtube_url: string | null
+          youtube_video_id: string | null
+          youtube_title: string | null
+          youtube_thumbnail_url: string | null
+          youtube_duration_seconds: number | null
+          created_by: string
+          created_at: string
+          updated_at: string
+          sync_status: Database["public"]["Enums"]["sync_status"]
+          sync_error_message: string | null
+        }
+        Insert: {
+          id?: string
+          player_id: string
+          observation_id?: string | null
+          file_name?: string
+          file_type: Database["public"]["Enums"]["multimedia_file_type"]
+          file_size?: number | null
+          file_format?: string | null
+          storage_path?: string | null
+          youtube_url?: string | null
+          youtube_video_id?: string | null
+          youtube_title?: string | null
+          youtube_thumbnail_url?: string | null
+          youtube_duration_seconds?: number | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+          sync_status?: Database["public"]["Enums"]["sync_status"]
+          sync_error_message?: string | null
+        }
+        Update: {
+          id?: string
+          player_id?: string
+          observation_id?: string | null
+          file_name?: string
+          file_type?: Database["public"]["Enums"]["multimedia_file_type"]
+          file_size?: number | null
+          file_format?: string | null
+          storage_path?: string | null
+          youtube_url?: string | null
+          youtube_video_id?: string | null
+          youtube_title?: string | null
+          youtube_thumbnail_url?: string | null
+          youtube_duration_seconds?: number | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+          sync_status?: Database["public"]["Enums"]["sync_status"]
+          sync_error_message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "multimedia_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "multimedia_observation_id_fkey"
+            columns: ["observation_id"]
+            isOneToOne: false
+            referencedRelation: "observations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "multimedia_created_by_fkey"
+            columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -611,6 +702,177 @@ export type Database = {
           },
         ]
       }
+      dict_preferred_foot: {
+        Row: {
+          id: string
+          foot_code: string
+          name_pl: string
+          name_en: string
+          display_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          foot_code: string
+          name_pl: string
+          name_en: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          foot_code?: string
+          name_pl?: string
+          name_en?: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dict_player_sources: {
+        Row: {
+          id: string
+          source_code: string
+          name_pl: string
+          name_en: string
+          description: string | null
+          display_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          source_code: string
+          name_pl: string
+          name_en: string
+          description?: string | null
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          source_code?: string
+          name_pl?: string
+          name_en?: string
+          description?: string | null
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dict_recruitment_decisions: {
+        Row: {
+          id: string
+          decision_code: string
+          name_pl: string
+          name_en: string
+          decision_category: string | null
+          display_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          decision_code: string
+          name_pl: string
+          name_en: string
+          decision_category?: string | null
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          decision_code?: string
+          name_pl?: string
+          name_en?: string
+          decision_category?: string | null
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dict_strengths: {
+        Row: {
+          id: string
+          code: string
+          name_pl: string
+          name_en: string
+          display_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          name_pl: string
+          name_en: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          name_pl?: string
+          name_en?: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dict_weaknesses: {
+        Row: {
+          id: string
+          code: string
+          name_pl: string
+          name_en: string
+          display_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          name_pl: string
+          name_en: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          name_pl?: string
+          name_en?: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       positions: {
         Row: {
           category: string | null
@@ -618,6 +880,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          display_order: number
         }
         Insert: {
           category?: string | null
@@ -625,6 +888,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          display_order?: number
         }
         Update: {
           category?: string | null
@@ -632,6 +896,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          display_order?: number
         }
         Relationships: []
       }
@@ -641,18 +906,24 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          display_order: number
+          code: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           is_active?: boolean
           name: string
+          display_order?: number
+          code?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           is_active?: boolean
           name?: string
+          display_order?: number
+          code?: string | null
         }
         Relationships: []
       }
@@ -706,6 +977,7 @@ export type Database = {
       contact_type: "parent" | "guardian" | "agent" | "other"
       dominant_foot: "left" | "right" | "both"
       match_type: "live" | "video"
+      multimedia_file_type: "image" | "video" | "youtube_link"
       observation_source:
         | "scouting"
         | "referral"
@@ -853,6 +1125,7 @@ export const Constants = {
       contact_type: ["parent", "guardian", "agent", "other"],
       dominant_foot: ["left", "right", "both"],
       match_type: ["live", "video"],
+      multimedia_file_type: ["image", "video", "youtube_link"],
       observation_source: [
         "scouting",
         "referral",

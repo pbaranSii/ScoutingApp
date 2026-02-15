@@ -25,7 +25,7 @@ function jsonResponse(body: unknown, init: ResponseInit = {}) {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   if (req.method !== "POST") {
@@ -65,17 +65,29 @@ serve(async (req) => {
 
   let payload: PasswordPayload;
   try {
-    payload = await req.json();
+    const raw = await req.json();
+    payload = (raw && typeof raw === "object" && (raw.body ?? raw)) as PasswordPayload;
   } catch {
     return jsonResponse({ error: "Invalid JSON payload" }, { status: 400 });
   }
 
-  if (!payload.user_id || !payload.password) {
+  if (!payload || typeof payload !== "object") {
+    return jsonResponse({ error: "Invalid payload" }, { status: 400 });
+  }
+
+  const userId = payload.user_id;
+  const password = typeof payload.password === "string" ? payload.password : "";
+
+  if (!userId || !password) {
     return jsonResponse({ error: "user_id and password are required" }, { status: 400 });
   }
 
-  const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(payload.user_id, {
-    password: payload.password,
+  if (password.length < 6) {
+    return jsonResponse({ error: "Password must be at least 6 characters" }, { status: 400 });
+  }
+
+  const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    password,
   });
 
   if (updateError) {

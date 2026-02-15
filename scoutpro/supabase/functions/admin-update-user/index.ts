@@ -29,7 +29,7 @@ function jsonResponse(body: unknown, init: ResponseInit = {}) {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   if (req.method !== "POST") {
@@ -67,14 +67,19 @@ serve(async (req) => {
     return jsonResponse({ error: "Forbidden" }, { status: 403 });
   }
 
-  let payload: UpdateUserPayload;
+  let raw: unknown;
   try {
-    payload = await req.json();
+    raw = await req.json();
   } catch {
     return jsonResponse({ error: "Invalid JSON payload" }, { status: 400 });
   }
 
-  if (!payload.user_id) {
+  const payload: UpdateUserPayload =
+    raw && typeof raw === "object" && "body" in raw && (raw as { body?: UpdateUserPayload }).body
+      ? (raw as { body: UpdateUserPayload }).body
+      : (raw as UpdateUserPayload);
+
+  if (!payload?.user_id) {
     return jsonResponse({ error: "user_id is required" }, { status: 400 });
   }
 
@@ -86,6 +91,22 @@ serve(async (req) => {
 
   if (existingError || !existingUser) {
     return jsonResponse({ error: "User not found" }, { status: 404 });
+  }
+
+  if (payload.email !== undefined && payload.email !== null && payload.email.trim() !== "") {
+    const newEmail = payload.email.trim();
+    const { data: existingByEmail } = await supabaseAdmin
+      .from("users")
+      .select("id")
+      .eq("email", newEmail)
+      .neq("id", payload.user_id)
+      .maybeSingle();
+    if (existingByEmail) {
+      return jsonResponse(
+        { error: "Użytkownik z tym adresem e-mail już istnieje." },
+        { status: 400 }
+      );
+    }
   }
 
   const fullName = `${payload.first_name ?? ""} ${payload.last_name ?? ""}`.trim();

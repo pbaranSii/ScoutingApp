@@ -22,6 +22,7 @@ export type Player = {
   guardian_phone?: string | null;
   guardian_email?: string | null;
   photo_urls?: string[] | null;
+  video_urls?: string[] | null;
   pipeline_status?: PipelineStatus | null;
   observation_count?: number | null;
   created_at?: string;
