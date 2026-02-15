@@ -234,17 +234,29 @@ export function ObservationDetailPage() {
         <CardHeader>
           <CardTitle className="text-base">Mocne strony</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-slate-600">
-          {observation.strengths ?? "Brak"}
+        <CardContent className="space-y-2 text-sm text-slate-600">
+          <div>{observation.strengths ?? "Brak tagów"}</div>
+          {observation.strengths_notes && (
+            <div className="rounded bg-slate-50 p-2 text-slate-600">
+              <span className="font-medium text-slate-700">Opis: </span>
+              {observation.strengths_notes}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Slabe strony</CardTitle>
+          <CardTitle className="text-base">Słabe strony</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm text-slate-600">
-          {observation.weaknesses ?? "Brak"}
+        <CardContent className="space-y-2 text-sm text-slate-600">
+          <div>{observation.weaknesses ?? "Brak tagów"}</div>
+          {observation.weaknesses_notes && (
+            <div className="rounded bg-slate-50 p-2 text-slate-600">
+              <span className="font-medium text-slate-700">Opis: </span>
+              {observation.weaknesses_notes}
+            </div>
+          )}
         </CardContent>
       </Card>
 

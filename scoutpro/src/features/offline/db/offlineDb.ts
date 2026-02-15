@@ -18,7 +18,9 @@ export type OfflineObservation = {
     rank?: string;
     notes?: string;
     strengths?: string;
+    strengths_notes?: string;
     weaknesses?: string;
+    weaknesses_notes?: string;
     overall_rating?: number;
     competition?: string;
     photo_url?: string;

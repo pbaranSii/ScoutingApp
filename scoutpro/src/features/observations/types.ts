@@ -10,7 +10,9 @@ export type Observation = {
   rank?: string | null;
   notes?: string | null;
   strengths?: string | null;
+  strengths_notes?: string | null;
   weaknesses?: string | null;
+  weaknesses_notes?: string | null;
   overall_rating?: number | null;
   competition?: string | null;
   photo_url?: string | null;
@@ -45,7 +47,9 @@ export type ObservationInput = {
   rank?: string | null;
   notes?: string | null;
   strengths?: string | null;
+  strengths_notes?: string | null;
   weaknesses?: string | null;
+  weaknesses_notes?: string | null;
   overall_rating?: number | null;
   competition?: string | null;
   photo_url?: string | null;
