@@ -171,7 +171,7 @@ export function DictionaryEntryForm({
               <SelectTrigger id="region_id">
                 <SelectValue placeholder="Wybierz województwo" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[90]">
                 <SelectItem value="_none">— Brak —</SelectItem>
                 {regions.map((r) => (
                   <SelectItem key={r.id} value={String(r.id)}>
