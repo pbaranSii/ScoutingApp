@@ -9,7 +9,8 @@ export type DictionaryId =
   | "clubs"
   | "categories"
   | "strengths"
-  | "weaknesses";
+  | "weaknesses"
+  | "team_roles";
 
 export interface DictionaryConfig {
   id: DictionaryId;
@@ -110,6 +111,18 @@ export const DICTIONARIES: DictionaryConfig[] = [
     orderColumn: "display_order",
     activeColumn: "is_active",
     route: "weaknesses",
+  },
+  {
+    id: "team_roles",
+    table: "dict_team_roles",
+    namePl: "Rola w drużynie",
+    nameEn: "Team role",
+    codeColumn: "code",
+    nameColumn: "name_pl",
+    nameEnColumn: "name_en",
+    orderColumn: "display_order",
+    activeColumn: "is_active",
+    route: "team-roles",
   },
 ];
 

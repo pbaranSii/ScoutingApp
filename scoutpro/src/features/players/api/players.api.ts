@@ -1,6 +1,101 @@
 import { supabase } from "@/lib/supabase";
 import type { PipelineHistoryEntry, PipelineStatus, Player, PlayerInput } from "../types";
 
+export type PlayerSearchItem = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  birth_year: number;
+  club?: { name: string } | null;
+  primary_position?: string | null;
+};
+
+/** Search players by name or club (min 2 chars), limit 20, for observation form. */
+export async function searchPlayers(query: string): Promise<PlayerSearchItem[]> {
+  const q = (query ?? "").trim();
+  if (q.length < 2) return [];
+  const searchTerm = `%${q}%`;
+  const { data, error } = await supabase
+    .from("players")
+    .select("id, first_name, last_name, birth_year, primary_position, club:clubs(name)")
+    .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm}`)
+    .order("last_name", { ascending: true })
+    .limit(20);
+  if (error) throw error;
+  return (data ?? []) as PlayerSearchItem[];
+}
+
+export type DuplicateCandidate = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  birth_year: number;
+  club?: { name: string } | null;
+  primary_position?: string | null;
+  score: number;
+};
+
+/** Check for potential duplicate players (strict + fuzzy). Returns candidates with score >= 40. */
+export async function checkDuplicatePlayers(candidate: {
+  first_name: string;
+  last_name: string;
+  birth_year: number;
+  current_club?: string | null;
+}): Promise<DuplicateCandidate[]> {
+  const fn = (candidate.first_name ?? "").trim().toLowerCase();
+  const ln = (candidate.last_name ?? "").trim().toLowerCase();
+  const by = candidate.birth_year;
+  const club = (candidate.current_club ?? "").trim().toLowerCase();
+  if (!fn || !ln || !by) return [];
+
+  const { data: strict, error: e1 } = await supabase
+    .from("players")
+    .select("id, first_name, last_name, birth_year, primary_position, club:clubs(name)")
+    .ilike("first_name", fn)
+    .ilike("last_name", ln)
+    .eq("birth_year", by)
+    .limit(10);
+  if (e1) throw e1;
+  const strictRows = (strict ?? []) as (DuplicateCandidate & { club?: { name: string } | null })[];
+  const withScore: DuplicateCandidate[] = strictRows.map((row) => {
+    let score = 80;
+    if (row.club?.name && club && row.club.name.toLowerCase().includes(club)) score += 15;
+    return {
+      ...row,
+      club: row.club,
+      score,
+    };
+  });
+
+  if (withScore.length >= 10) return withScore.slice(0, 10);
+
+  const { data: fuzzy } = await supabase
+    .from("players")
+    .select("id, first_name, last_name, birth_year, primary_position, club:clubs(name)")
+    .or(`first_name.ilike.%${fn}%,last_name.ilike.%${ln}%`)
+    .gte("birth_year", by - 1)
+    .lte("birth_year", by + 1)
+    .limit(20);
+  const fuzzyRows = (fuzzy ?? []) as (DuplicateCandidate & { club?: { name: string } | null })[];
+  const seen = new Set(withScore.map((r) => r.id));
+  for (const row of fuzzyRows) {
+    if (seen.has(row.id)) continue;
+    let score = 0;
+    if (row.first_name?.toLowerCase() === fn) score += 30;
+    else if (row.first_name?.toLowerCase().includes(fn)) score += 15;
+    if (row.last_name?.toLowerCase() === ln) score += 30;
+    else if (row.last_name?.toLowerCase().includes(ln)) score += 15;
+    if (row.birth_year === by) score += 20;
+    if (row.club?.name && club && row.club.name.toLowerCase().includes(club)) score += 15;
+    if (score >= 40) {
+      seen.add(row.id);
+      withScore.push({ ...row, club: row.club, score });
+    }
+  }
+  withScore.sort((a, b) => b.score - a.score);
+  return withScore.slice(0, 10);
+}
+
 export async function fetchPlayers(filters?: {
   search?: string;
   birthYear?: number;

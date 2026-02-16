@@ -200,7 +200,7 @@ export function DictionaryDetailPage() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      {hasActiveColumn && row[config.activeColumn as keyof DictionaryRow] && (
+                      {hasActiveColumn && Boolean(row[config.activeColumn as keyof DictionaryRow]) && (
                         <Button
                           variant="ghost"
                           size="sm"

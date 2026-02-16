@@ -249,19 +249,29 @@ export type Database = {
           created_by_role: string | null
           id: string
           is_offline_created: boolean
+          location: string | null
           match_id: string | null
+          match_result: string | null
+          mental_rating: number | null
+          motor_rating: number | null
           notes: string | null
           observation_date: string
+          positions: string[] | null
           player_id: string
           photo_url: string | null
           potential_future: number | null
           potential_now: number | null
           rank: string | null
+          recommendations: string | null
           scout_id: string
           source: Database["public"]["Enums"]["observation_source"]
+          speed_rating: number | null
           status: string
           strengths: string | null
           strengths_notes: string | null
+          tactical_rating: number | null
+          technical_rating: number | null
+          team_role: string | null
           weaknesses: string | null
           weaknesses_notes: string | null
           overall_rating: number | null
@@ -279,19 +289,29 @@ export type Database = {
           created_by_role?: string | null
           id?: string
           is_offline_created?: boolean
+          location?: string | null
           match_id?: string | null
+          match_result?: string | null
+          mental_rating?: number | null
+          motor_rating?: number | null
           notes?: string | null
           observation_date?: string
+          positions?: string[] | null
           player_id: string
           photo_url?: string | null
           potential_future?: number | null
           potential_now?: number | null
           rank?: string | null
+          recommendations?: string | null
           scout_id: string
           source?: Database["public"]["Enums"]["observation_source"]
+          speed_rating?: number | null
           status?: string
           strengths?: string | null
           strengths_notes?: string | null
+          tactical_rating?: number | null
+          technical_rating?: number | null
+          team_role?: string | null
           weaknesses?: string | null
           weaknesses_notes?: string | null
           overall_rating?: number | null
@@ -309,19 +329,29 @@ export type Database = {
           created_by_role?: string | null
           id?: string
           is_offline_created?: boolean
+          location?: string | null
           match_id?: string | null
+          match_result?: string | null
+          mental_rating?: number | null
+          motor_rating?: number | null
           notes?: string | null
           observation_date?: string
+          positions?: string[] | null
           player_id?: string
           photo_url?: string | null
           potential_future?: number | null
           potential_now?: number | null
           rank?: string | null
+          recommendations?: string | null
           scout_id?: string
           source?: Database["public"]["Enums"]["observation_source"]
+          speed_rating?: number | null
           status?: string
           strengths?: string | null
           strengths_notes?: string | null
+          tactical_rating?: number | null
+          technical_rating?: number | null
+          team_role?: string | null
           weaknesses?: string | null
           weaknesses_notes?: string | null
           overall_rating?: number | null
@@ -807,6 +837,39 @@ export type Database = {
         }
         Relationships: []
       }
+      dict_team_roles: {
+        Row: {
+          id: string
+          code: string
+          name_pl: string
+          name_en: string
+          display_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          name_pl: string
+          name_en: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          name_pl?: string
+          name_en?: string
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       dict_strengths: {
         Row: {
           id: string
@@ -984,6 +1047,9 @@ export type Database = {
         | "application"
         | "trainer_report"
         | "scout_report"
+        | "video_analysis"
+        | "tournament"
+        | "training_camp"
       pipeline_status:
         | "unassigned"
         | "observed"
@@ -1132,6 +1198,9 @@ export const Constants = {
         "application",
         "trainer_report",
         "scout_report",
+        "video_analysis",
+        "tournament",
+        "training_camp",
       ],
       pipeline_status: [
         "unassigned",

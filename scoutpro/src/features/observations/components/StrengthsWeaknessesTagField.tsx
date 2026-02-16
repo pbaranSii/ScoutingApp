@@ -42,19 +42,19 @@ export function StrengthsWeaknessesTagField({
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <FormLabel className="mb-0">{label}</FormLabel>
         <Button
           type="button"
           variant="outline"
           size="sm"
           onClick={() => setModalOpen(true)}
-          className="h-8"
+          className="h-8 ml-auto"
         >
           Dodaj tag
         </Button>
       </div>
-      {items.length > 0 ? (
+      {items.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {items.map((name) => (
             <span
@@ -73,8 +73,6 @@ export function StrengthsWeaknessesTagField({
             </span>
           ))}
         </div>
-      ) : (
-        <p className="text-sm text-slate-500">Brak wybranych tagów. Kliknij „Dodaj tag”, aby wybrać z listy.</p>
       )}
       <TagSelectModal
         open={modalOpen}

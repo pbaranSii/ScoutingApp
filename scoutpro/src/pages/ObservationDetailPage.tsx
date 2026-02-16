@@ -1,18 +1,25 @@
 import { useParams, Link, useLocation, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useDeleteObservation, useObservation } from "@/features/observations/hooks/useObservations";
+import {
+  fetchPlayerEvaluationsByObservation,
+  fetchEvaluationCriteriaByPositionCode,
+} from "@/features/observations/api/evaluationCriteria.api";
+import { usePlayerSources } from "@/features/dictionaries/hooks/useDictionaries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { formatPosition } from "@/features/players/positions";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Pencil, Star, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Plus, Star, Trash2, User } from "lucide-react";
 import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { toast } from "@/hooks/use-toast";
 import { MediaGallery, useMultimediaByObservation } from "@/features/multimedia";
 import { MULTIMEDIA_TABLE_MISSING_CODE } from "@/features/multimedia/api/multimedia.api";
 import { buildLegacyMediaItemsForObservation } from "@/features/multimedia/lib/legacyMedia";
+import { mapLegacyPosition } from "@/features/players/positions";
 
 export function ObservationDetailPage() {
   const { id } = useParams();
@@ -22,6 +29,30 @@ export function ObservationDetailPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const { data: observation, isLoading } = useObservation(observationId);
+  const { data: playerSources = [] } = usePlayerSources();
+  const primaryPositionCode =
+    observation?.positions?.[0] != null
+      ? mapLegacyPosition(observation.positions[0])
+      : observation?.player?.primary_position
+        ? mapLegacyPosition(observation.player.primary_position)
+        : "";
+  const { data: positionCriteria = [] } = useQuery({
+    queryKey: ["evaluation-criteria", primaryPositionCode],
+    queryFn: () => fetchEvaluationCriteriaByPositionCode(primaryPositionCode),
+    enabled: Boolean(primaryPositionCode) && Boolean(observationId),
+  });
+  const { data: positionEvaluations = [] } = useQuery({
+    queryKey: ["player-evaluations", observationId],
+    queryFn: () => fetchPlayerEvaluationsByObservation(observationId),
+    enabled: Boolean(observationId),
+  });
+  const criteriaById = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const c of positionCriteria) {
+      m[c.id] = c.name;
+    }
+    return m;
+  }, [positionCriteria]);
   const { data: savedMedia = [], isError: isMultimediaError, error: multimediaError } = useMultimediaByObservation(observationId);
   const multimediaTableMissing =
     isMultimediaError &&
@@ -48,15 +79,19 @@ export function ObservationDetailPage() {
 
   const dateLabel = observation.observation_date
     ? format(parseISO(observation.observation_date), "dd.MM.yyyy")
-    : "-";
+    : "—";
   const currentYear = new Date().getFullYear();
   const ageLabel = observation.player?.birth_year
     ? `${currentYear - observation.player.birth_year} lat`
-    : "-";
+    : "—";
   const positionLabel = formatPosition(observation.player?.primary_position ?? "");
   const statusLabel =
     ALL_PIPELINE_STATUSES.find((column) => column.id === (observation.player?.pipeline_status ?? "unassigned"))
       ?.label ?? "Nieprzypisany";
+  const sourceLabel =
+    (playerSources as { source_code?: string; name_pl?: string }[]).find(
+      (s) => s.source_code === observation.source
+    )?.name_pl ?? observation.source ?? "—";
   const rating = observation.overall_rating;
   const ratingClass =
     typeof rating === "number" && rating >= 8
@@ -88,16 +123,16 @@ export function ObservationDetailPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
         <Link to="/observations" className="inline-flex items-center gap-2 hover:text-slate-900">
           <ArrowLeft className="h-4 w-4" />
-          Powrot do listy
+          Powrót do listy
         </Link>
         <div className="flex flex-wrap gap-2">
-          <Button asChild className="gap-2 bg-red-600 hover:bg-red-700">
+          <Button asChild variant="outline" className="gap-2">
             <Link
               to={`/observations/${observation.id}/edit`}
               state={{ from: `${location.pathname}${location.search}` }}
             >
               <Pencil className="h-4 w-4" />
-              Edytuj obserwacje
+              Edytuj
             </Link>
           </Button>
           <Button
@@ -110,6 +145,18 @@ export function ObservationDetailPage() {
           >
             <Trash2 className="h-4 w-4" />
             Usuń
+          </Button>
+          <Button asChild variant="outline" className="gap-2">
+            <Link to={`/observations/new?playerId=${observation.player_id}`}>
+              <Plus className="h-4 w-4" />
+              Nowa obserwacja dla tego zawodnika
+            </Link>
+          </Button>
+          <Button asChild variant="outline" className="gap-2">
+            <Link to={`/players/${observation.player_id}`}>
+              <User className="h-4 w-4" />
+              Profil zawodnika
+            </Link>
           </Button>
         </div>
       </div>
@@ -211,60 +258,190 @@ export function ObservationDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Informacje podstawowe</CardTitle>
+          <CardTitle className="text-lg font-semibold text-slate-800">1. Dane zawodnika</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm text-slate-600">
-          <div>
-            <div className="text-sm font-medium text-slate-700">
-              {observation.player?.club?.name ?? "Brak klubu"}
+        <CardContent className="space-y-2 text-sm">
+          <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+            <div>
+              <span className="font-medium text-slate-700">Imię: </span>
+              <span className="text-slate-600">{observation.player?.first_name ?? "—"}</span>
             </div>
-            {observation.competition && (
-              <div className="text-xs text-slate-500">{observation.competition}</div>
+            <div>
+              <span className="font-medium text-slate-700">Nazwisko: </span>
+              <span className="text-slate-600">{observation.player?.last_name ?? "—"}</span>
+            </div>
+            <div>
+              <span className="font-medium text-slate-700">Rok urodzenia: </span>
+              <span className="text-slate-600">{observation.player?.birth_year ?? "—"}</span>
+            </div>
+            <div>
+              <span className="font-medium text-slate-700">Klub: </span>
+              <span className="text-slate-600">{observation.player?.club?.name ?? "—"}</span>
+            </div>
+            <div>
+              <span className="font-medium text-slate-700">Pozycja główna: </span>
+              <span className="text-slate-600">{positionLabel}</span>
+            </div>
+            <div>
+              <span className="font-medium text-slate-700">Status pipeline: </span>
+              <span className="text-slate-600">{statusLabel}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-slate-800">2. Dane obserwacji</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+            <div>
+              <span className="font-medium text-slate-700">Rozgrywki: </span>
+              <span className="text-slate-600">{observation.competition?.trim() || "—"}</span>
+            </div>
+            <div>
+              <span className="font-medium text-slate-700">Data meczu: </span>
+              <span className="text-slate-600">{dateLabel}</span>
+            </div>
+            <div>
+              <span className="font-medium text-slate-700">Wynik meczu: </span>
+              <span className="text-slate-600">{observation.match_result?.trim() || "—"}</span>
+            </div>
+            <div>
+              <span className="font-medium text-slate-700">Lokalizacja: </span>
+              <span className="text-slate-600">{observation.location?.trim() || "—"}</span>
+            </div>
+            <div>
+              <span className="font-medium text-slate-700">Źródło: </span>
+              <span className="text-slate-600">{sourceLabel}</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-slate-800">3. Pozycje</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <div>
+            <span className="font-medium text-slate-700">Pozycja główna: </span>
+            <span className="text-slate-600">
+              {observation.positions?.[0] ? formatPosition(observation.positions[0]) : positionLabel}
+            </span>
+          </div>
+          {observation.positions && observation.positions.length > 1 && (
+            <div className="flex flex-wrap gap-1">
+              <span className="font-medium text-slate-700">Dodatkowe: </span>
+              {observation.positions.slice(1).map((p) => (
+                <Badge key={p} variant="secondary" className="rounded-full">
+                  {formatPosition(p)}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-slate-800">4. Oceny ogólne</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
+            <div>
+              <span className="font-medium text-slate-700">Technika: </span>
+              <span className="text-slate-600">{observation.technical_rating ?? "—"}</span>
+            </div>
+            <div>
+              <span className="font-medium text-slate-700">Szybkość: </span>
+              <span className="text-slate-600">{observation.speed_rating ?? "—"}</span>
+            </div>
+            <div>
+              <span className="font-medium text-slate-700">Motoryka: </span>
+              <span className="text-slate-600">{observation.motor_rating ?? "—"}</span>
+            </div>
+            <div>
+              <span className="font-medium text-slate-700">Taktyka: </span>
+              <span className="text-slate-600">{observation.tactical_rating ?? "—"}</span>
+            </div>
+            <div>
+              <span className="font-medium text-slate-700">Mentalność: </span>
+              <span className="text-slate-600">{observation.mental_rating ?? "—"}</span>
+            </div>
+            <div>
+              <span className="font-medium text-slate-700">Potencjał teraz: </span>
+              <span className="text-slate-600">{observation.potential_now ?? "—"}</span>
+            </div>
+            <div>
+              <span className="font-medium text-slate-700">Potencjał przyszły: </span>
+              <span className="text-slate-600">{observation.potential_future ?? "—"}</span>
+            </div>
+          </div>
+          {typeof observation.overall_rating === "number" && (
+            <div className="mt-2">
+              <span className="font-medium text-slate-700">Ogólna ocena (1–10): </span>
+              <Badge className={`ml-1 ${ratingClass}`}>{observation.overall_rating}</Badge>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {positionEvaluations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-slate-800">
+              5. Oceny specyficzne dla pozycji
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-1 text-sm">
+              {positionEvaluations.map(({ criteria_id, score }) => (
+                <li key={criteria_id} className="flex justify-between gap-2">
+                  <span className="font-medium text-slate-700">
+                    {criteriaById[criteria_id] ?? criteria_id}
+                  </span>
+                  <span className="text-slate-600">{score}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-slate-800">6. Analiza i notatki</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm">
+          <div>
+            <span className="font-medium text-slate-700">Ranga: </span>
+            <span className="text-slate-600">{observation.rank ?? "—"}</span>
+          </div>
+          <div>
+            <span className="font-medium text-slate-700">Mocne strony: </span>
+            <span className="text-slate-600">{observation.strengths?.trim() || "Brak"}</span>
+            {observation.strengths_notes && (
+              <div className="mt-1 rounded bg-slate-50 p-2 text-slate-600">
+                {observation.strengths_notes}
+              </div>
             )}
           </div>
-          <div className="flex flex-wrap gap-4 text-xs text-slate-500">
-            <div>Data meczu: {dateLabel}</div>
-            <div>Pozycja: {positionLabel}</div>
-            <div>Status zawodnika: {statusLabel}</div>
+          <div>
+            <span className="font-medium text-slate-700">Słabe strony: </span>
+            <span className="text-slate-600">{observation.weaknesses?.trim() || "Brak"}</span>
+            {observation.weaknesses_notes && (
+              <div className="mt-1 rounded bg-slate-50 p-2 text-slate-600">
+                {observation.weaknesses_notes}
+              </div>
+            )}
+          </div>
+          <div>
+            <span className="font-medium text-slate-700">Dodatkowe notatki: </span>
+            <span className="text-slate-600">{observation.notes?.trim() || "Brak"}</span>
           </div>
         </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Mocne strony</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-slate-600">
-          <div>{observation.strengths ?? "Brak tagów"}</div>
-          {observation.strengths_notes && (
-            <div className="rounded bg-slate-50 p-2 text-slate-600">
-              <span className="font-medium text-slate-700">Opis: </span>
-              {observation.strengths_notes}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Słabe strony</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-slate-600">
-          <div>{observation.weaknesses ?? "Brak tagów"}</div>
-          {observation.weaknesses_notes && (
-            <div className="rounded bg-slate-50 p-2 text-slate-600">
-              <span className="font-medium text-slate-700">Opis: </span>
-              {observation.weaknesses_notes}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Dodatkowe notatki</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-slate-600">{observation.notes ?? "Brak"}</CardContent>
       </Card>
 
       <Card>

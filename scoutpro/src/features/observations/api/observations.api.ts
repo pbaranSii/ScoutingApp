@@ -1,5 +1,49 @@
 import { supabase } from "@/lib/supabase";
+import type { Database } from "@/types/database.types";
 import type { Observation, ObservationInput } from "../types";
+
+type ObservationInsert = Database["public"]["Tables"]["observations"]["Insert"];
+type ObservationUpdate = Database["public"]["Tables"]["observations"]["Update"];
+
+const VALID_OBSERVATION_SOURCE = new Set<string>([
+  "scouting",
+  "referral",
+  "application",
+  "trainer_report",
+  "scout_report",
+  "video_analysis",
+  "tournament",
+  "training_camp",
+]);
+const UPDATE_KEYS: (keyof ObservationUpdate)[] = [
+  "competition",
+  "location",
+  "match_result",
+  "mental_rating",
+  "motor_rating",
+  "notes",
+  "observation_date",
+  "positions",
+  "photo_url",
+  "potential_future",
+  "potential_now",
+  "rank",
+  "recommendations",
+  "source",
+  "speed_rating",
+  "strengths",
+  "strengths_notes",
+  "tactical_rating",
+  "technical_rating",
+  "team_role",
+  "weaknesses",
+  "weaknesses_notes",
+  "overall_rating",
+  "updated_at",
+  "updated_by",
+  "updated_by_name",
+  "updated_by_role",
+];
 
 export async function fetchObservations() {
   const { data, error } = await supabase
@@ -37,21 +81,133 @@ export async function fetchObservationById(id: string) {
   return data as Observation;
 }
 
+const BASE_OPTIONAL = [
+  "rank",
+  "notes",
+  "competition",
+  "overall_rating",
+  "potential_now",
+  "potential_future",
+  "strengths",
+  "weaknesses",
+  "photo_url",
+  "created_by",
+  "created_by_name",
+  "created_by_role",
+  "updated_by",
+  "updated_at",
+  "updated_by_name",
+  "updated_by_role",
+] as const;
+
+const EXTENDED_OPTIONAL = [
+  "match_result",
+  "location",
+  "positions",
+  "technical_rating",
+  "speed_rating",
+  "motor_rating",
+  "tactical_rating",
+  "mental_rating",
+  "strengths_notes",
+  "weaknesses_notes",
+  "team_role",
+  "recommendations",
+] as const;
+
+const PGRST204_COLUMN_REGEX = /Could not find the '([^']+)' column/;
+
+function buildObservationRow(
+  input: ObservationInput,
+  includeExtended: boolean
+): Record<string, unknown> {
+  const row: Record<string, unknown> = {
+    player_id: input.player_id,
+    scout_id: input.scout_id,
+    source: input.source,
+    observation_date: input.observation_date,
+    status: "active",
+  };
+  const keys = includeExtended
+    ? ([...BASE_OPTIONAL, ...EXTENDED_OPTIONAL] as const)
+    : BASE_OPTIONAL;
+  for (const key of keys) {
+    const v = input[key as keyof ObservationInput];
+    if (v === undefined) continue;
+    if (typeof v === "string" && v.trim() === "") {
+      row[key] = null;
+    } else {
+      row[key] = v;
+    }
+  }
+  return row;
+}
+
 export async function createObservation(input: ObservationInput) {
-  const { data, error } = await supabase
+  let payload = buildObservationRow(input, true) as Record<string, unknown>;
+  let { data, error } = await supabase
     .from("observations")
-    .insert(input)
-    .select(
-      "*, player:players(first_name,last_name,birth_year,primary_position,pipeline_status,club:clubs(name))"
-    )
+    .insert(payload as ObservationInsert)
+    .select("*")
     .single();
 
-  if (error) throw error;
+  while (error?.code === "PGRST204") {
+    const match = error.message?.match(PGRST204_COLUMN_REGEX);
+    if (!match) break;
+    const column = match[1];
+    const { [column]: _, ...rest } = payload;
+    payload = rest;
+    const next = await supabase
+      .from("observations")
+      .insert(payload as ObservationInsert)
+      .select("*")
+      .single();
+    data = next.data;
+    error = next.error;
+  }
+
+  if (error) {
+    console.error("createObservation error", error.message, error.details, error.hint, payload);
+    throw error;
+  }
   return data as Observation;
 }
 
+/** Build a payload safe for PATCH: only allowed keys, no undefined, valid enum for source. */
+function buildUpdatePayload(input: Partial<ObservationInput>): ObservationUpdate {
+  const payload: Record<string, unknown> = {};
+  for (const key of UPDATE_KEYS) {
+    const v = input[key as keyof ObservationInput];
+    if (v === undefined) continue;
+    if (key === "source") {
+      const s = typeof v === "string" ? v.trim() : v;
+      if (s && VALID_OBSERVATION_SOURCE.has(s)) {
+        payload[key] = s;
+      }
+      continue;
+    }
+    if (typeof v === "string" && v.trim() === "") {
+      payload[key] = null;
+    } else {
+      payload[key] = v;
+    }
+  }
+  return payload as ObservationUpdate;
+}
+
 export async function updateObservation(id: string, input: Partial<ObservationInput>) {
-  const { error } = await supabase.from("observations").update(input).eq("id", id);
+  let payload = buildUpdatePayload(input) as Record<string, unknown>;
+  let { error } = await supabase.from("observations").update(payload).eq("id", id);
+  while (error?.code === "PGRST204") {
+    const match = error.message?.match(PGRST204_COLUMN_REGEX);
+    if (!match) throw error;
+    const column = match[1];
+    const { [column]: _, ...rest } = payload;
+    payload = rest;
+    if (Object.keys(payload).length === 0) throw error;
+    const next = await supabase.from("observations").update(payload).eq("id", id);
+    error = next.error;
+  }
   if (error) throw error;
 }
 

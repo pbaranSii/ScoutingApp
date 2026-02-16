@@ -41,10 +41,12 @@ export default function App() {
           <Route path="/players/new" element={<NewPlayerPage />} />
           <Route path="/players/:id" element={<PlayerDetailPage />} />
           <Route path="/players/:id/edit" element={<EditPlayerPage />} />
-          <Route path="/observations" element={<ObservationsPage />} />
-          <Route path="/observations/new" element={<NewObservationPage />} />
-          <Route path="/observations/:id" element={<ObservationDetailPage />} />
-          <Route path="/observations/:id/edit" element={<EditObservationPage />} />
+          <Route path="/observations">
+            <Route index element={<ObservationsPage />} />
+            <Route path="new" element={<NewObservationPage />} />
+            <Route path=":id" element={<ObservationDetailPage />} />
+            <Route path=":id/edit" element={<EditObservationPage />} />
+          </Route>
           <Route path="/pipeline" element={<PipelinePage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/dictionaries" element={<DictionaryListPage />} />

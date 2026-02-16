@@ -14,7 +14,15 @@ export type Observation = {
   weaknesses?: string | null;
   weaknesses_notes?: string | null;
   overall_rating?: number | null;
+  technical_rating?: number | null;
+  speed_rating?: number | null;
+  motor_rating?: number | null;
+  tactical_rating?: number | null;
+  mental_rating?: number | null;
   competition?: string | null;
+  match_result?: string | null;
+  location?: string | null;
+  positions?: string[] | null;
   photo_url?: string | null;
   potential_now?: number | null;
   potential_future?: number | null;
@@ -27,6 +35,8 @@ export type Observation = {
   updated_by?: string | null;
   updated_by_name?: string | null;
   updated_by_role?: string | null;
+  team_role?: string | null;
+  recommendations?: string | null;
   player?: {
     first_name: string;
     last_name: string;
@@ -51,7 +61,15 @@ export type ObservationInput = {
   weaknesses?: string | null;
   weaknesses_notes?: string | null;
   overall_rating?: number | null;
+  technical_rating?: number | null;
+  speed_rating?: number | null;
+  motor_rating?: number | null;
+  tactical_rating?: number | null;
+  mental_rating?: number | null;
   competition?: string | null;
+  match_result?: string | null;
+  location?: string | null;
+  positions?: string[] | null;
   photo_url?: string | null;
   potential_now?: number | null;
   potential_future?: number | null;
@@ -63,4 +81,6 @@ export type ObservationInput = {
   updated_at?: string | null;
   updated_by_name?: string | null;
   updated_by_role?: string | null;
+  team_role?: string | null;
+  recommendations?: string | null;
 };

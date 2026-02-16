@@ -95,6 +95,12 @@ export function useRegions() {
   return useDictionaryEntries(config ?? null, { activeOnly: true });
 }
 
+/** Kategorie wiekowe – do wyboru w polu Rozgrywki w formularzu obserwacji. */
+export function useCategories() {
+  const config = getDictionaryById("categories");
+  return useDictionaryEntries(config ?? null);
+}
+
 /** Aktywne pozycje słownika Mocne strony – do tagów w formularzu obserwacji. */
 export function useStrengths() {
   const config = getDictionaryById("strengths");
@@ -104,5 +110,11 @@ export function useStrengths() {
 /** Aktywne pozycje słownika Słabe strony – do tagów w formularzu obserwacji. */
 export function useWeaknesses() {
   const config = getDictionaryById("weaknesses");
+  return useDictionaryEntries(config ?? null, { activeOnly: true });
+}
+
+/** Aktywne pozycje słownika Rola w drużynie – do formularza obserwacji. */
+export function useTeamRoles() {
+  const config = getDictionaryById("team_roles");
   return useDictionaryEntries(config ?? null, { activeOnly: true });
 }
