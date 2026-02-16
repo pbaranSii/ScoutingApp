@@ -180,7 +180,7 @@ function buildUpdatePayload(input: Partial<ObservationInput>): ObservationUpdate
     const v = input[key as keyof ObservationInput];
     if (v === undefined) continue;
     if (key === "source") {
-      const s = typeof v === "string" ? v.trim() : v;
+      const s = typeof v === "string" ? v.trim() : null;
       if (s && VALID_OBSERVATION_SOURCE.has(s)) {
         payload[key] = s;
       }
