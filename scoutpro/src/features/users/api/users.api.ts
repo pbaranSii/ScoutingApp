@@ -16,6 +16,17 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
   return data as UserProfile | null;
 }
 
+/** List users with business_role = scout (for pipeline/observation filters). */
+export async function fetchScouts(): Promise<UserProfile[]> {
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("business_role", "scout")
+    .order("full_name", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as UserProfile[];
+}
+
 /** Create user via Edge Function (auth.admin.createUser with email_confirm: true).
  * Konto jest aktywne od razu, bez potwierdzenia emailem. */
 export async function createUserDirect(input: {

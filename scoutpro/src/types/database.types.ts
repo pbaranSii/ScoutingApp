@@ -990,6 +990,108 @@ export type Database = {
         }
         Relationships: []
       }
+      task_players: {
+        Row: {
+          id: string
+          task_id: string
+          player_id: string
+        }
+        Insert: {
+          id?: string
+          task_id: string
+          player_id: string
+        }
+        Update: {
+          id?: string
+          task_id?: string
+          player_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_players_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_players_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          id: string
+          type: Database["public"]["Enums"]["task_type"]
+          description: string
+          assigned_to: string | null
+          deadline: string
+          created_by: string
+          created_at: string
+          updated_at: string
+          status: Database["public"]["Enums"]["task_status"]
+          location: string | null
+          meeting_date: string | null
+          inviter_info: string | null
+          observation_location: string | null
+          observation_date: string | null
+          observation_source: string | null
+        }
+        Insert: {
+          id?: string
+          type: Database["public"]["Enums"]["task_type"]
+          description: string
+          assigned_to?: string | null
+          deadline: string
+          created_by: string
+          created_at?: string
+          updated_at?: string
+          status?: Database["public"]["Enums"]["task_status"]
+          location?: string | null
+          meeting_date?: string | null
+          inviter_info?: string | null
+          observation_location?: string | null
+          observation_date?: string | null
+          observation_source?: string | null
+        }
+        Update: {
+          id?: string
+          type?: Database["public"]["Enums"]["task_type"]
+          description?: string
+          assigned_to?: string | null
+          deadline?: string
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+          status?: Database["public"]["Enums"]["task_status"]
+          location?: string | null
+          meeting_date?: string | null
+          inviter_info?: string | null
+          observation_location?: string | null
+          observation_date?: string | null
+          observation_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           avatar_url: string | null
@@ -1059,6 +1161,8 @@ export type Database = {
         | "signed"
         | "rejected"
       sync_status: "pending" | "synced" | "failed"
+      task_status: "pending" | "completed" | "cancelled"
+      task_type: "task" | "invitation" | "observation"
       user_business_role: "scout" | "coach" | "director" | "suspended" | "admin"
       user_role: "admin" | "user"
     }
@@ -1212,6 +1316,8 @@ export const Constants = {
         "rejected",
       ],
       sync_status: ["pending", "synced", "failed"],
+      task_status: ["pending", "completed", "cancelled"],
+      task_type: ["task", "invitation", "observation"],
       user_role: ["admin", "user"],
     },
   },

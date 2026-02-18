@@ -11,16 +11,13 @@ import {
   updatePlayer,
   updatePlayerStatusWithHistory,
 } from "../api/players.api";
+import type { PlayersFilters } from "../api/players.api";
 import type { PipelineStatus, Player, PlayerInput } from "../types";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { offlineDb } from "@/features/offline/db/offlineDb";
 import { useAuthStore } from "@/stores/authStore";
 
-export function usePlayers(filters?: {
-  search?: string;
-  birthYear?: number;
-  status?: PipelineStatus;
-}) {
+export function usePlayers(filters?: PlayersFilters) {
   const isOnline = useOnlineStatus();
   return useQuery({
     queryKey: ["players", filters],

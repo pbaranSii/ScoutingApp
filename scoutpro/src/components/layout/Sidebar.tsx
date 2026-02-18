@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, ClipboardList, KanbanSquare, Settings } from "lucide-react";
+import { LayoutDashboard, Users, ClipboardList, KanbanSquare, CheckSquare, Settings } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ const navItems = [
   { to: "/players", label: "Zawodnicy", icon: Users },
   { to: "/observations", label: "Obserwacje", icon: ClipboardList },
   { to: "/pipeline", label: "Pipeline", icon: KanbanSquare },
+  { to: "/tasks", label: "Zadania", icon: CheckSquare },
   { to: "/settings", label: "Ustawienia", icon: Settings },
 ];
 
