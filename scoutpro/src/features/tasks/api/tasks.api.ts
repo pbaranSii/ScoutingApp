@@ -1,5 +1,8 @@
 import { supabase } from "@/lib/supabase";
+import type { Database } from "@/types/database.types";
 import type { Task, TaskStatus, TaskType } from "../types";
+
+type TasksInsert = Database["public"]["Tables"]["tasks"]["Insert"];
 
 type TaskRow = {
   id: string;
@@ -126,7 +129,7 @@ export async function createTask(payload: CreateTaskPayload): Promise<Task> {
       : undefined) ||
     new Date().toISOString().slice(0, 10);
 
-  const insertRow: Record<string, unknown> = {
+  const insertRow: TasksInsert = {
     type,
     description,
     assigned_to: assigned_to || null,
@@ -143,8 +146,7 @@ export async function createTask(payload: CreateTaskPayload): Promise<Task> {
       observation_source: observation_source ?? null,
     }),
   };
-  // Only send status if payload has it; DB default is 'pending' when column exists
-  if (payload.status != null) insertRow.status = payload.status;
+  if (payload.status != null) insertRow.status = payload.status as TasksInsert["status"];
 
   const { data: taskData, error: taskError } = await supabase
     .from("tasks")
