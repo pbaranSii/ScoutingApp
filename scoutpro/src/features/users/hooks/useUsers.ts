@@ -4,6 +4,7 @@ import {
   adminSetUserPassword,
   createUserDirect,
   fetchUserProfile,
+  fetchScouts,
   fetchUsers,
   updateUserAsAdmin,
   updateUserStatus,
@@ -14,6 +15,13 @@ export function useUsers() {
   return useQuery({
     queryKey: ["users"],
     queryFn: fetchUsers,
+  });
+}
+
+export function useScouts() {
+  return useQuery({
+    queryKey: ["scouts"],
+    queryFn: fetchScouts,
   });
 }
 

@@ -17,6 +17,9 @@ import { NewObservationPage } from "@/pages/NewObservationPage";
 import { ObservationDetailPage } from "@/pages/ObservationDetailPage";
 import { EditObservationPage } from "@/pages/EditObservationPage";
 import { PipelinePage } from "@/pages/PipelinePage";
+import { TasksPage } from "@/pages/TasksPage";
+import { NewTaskPage } from "@/pages/NewTaskPage";
+import { EditTaskPage } from "@/pages/EditTaskPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { DictionaryListPage } from "@/pages/DictionaryListPage";
 import { DictionaryDetailPage } from "@/pages/DictionaryDetailPage";
@@ -48,6 +51,11 @@ export default function App() {
             <Route path=":id/edit" element={<EditObservationPage />} />
           </Route>
           <Route path="/pipeline" element={<PipelinePage />} />
+          <Route path="/tasks">
+            <Route index element={<TasksPage />} />
+            <Route path="new" element={<NewTaskPage />} />
+            <Route path=":id/edit" element={<EditTaskPage />} />
+          </Route>
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/dictionaries" element={<DictionaryListPage />} />
           <Route path="/settings/dictionaries/:route" element={<DictionaryDetailPage />} />

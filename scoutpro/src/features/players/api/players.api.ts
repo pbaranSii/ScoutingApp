@@ -10,6 +10,17 @@ export type PlayerSearchItem = {
   primary_position?: string | null;
 };
 
+/** List players for task observation form (id, name, position, club). Limit 500. */
+export async function fetchPlayersForTask(): Promise<PlayerSearchItem[]> {
+  const { data, error } = await supabase
+    .from("players")
+    .select("id, first_name, last_name, birth_year, primary_position, club:clubs(name)")
+    .order("last_name", { ascending: true })
+    .limit(500);
+  if (error) throw error;
+  return (data ?? []) as PlayerSearchItem[];
+}
+
 /** Search players by name or club (min 2 chars), limit 20, for observation form. */
 export async function searchPlayers(query: string): Promise<PlayerSearchItem[]> {
   const q = (query ?? "").trim();
@@ -96,11 +107,17 @@ export async function checkDuplicatePlayers(candidate: {
   return withScore.slice(0, 10);
 }
 
-export async function fetchPlayers(filters?: {
+export type PlayersFilters = {
   search?: string;
   birthYear?: number;
+  birthYears?: number[];
   status?: PipelineStatus;
-}) {
+  primary_position?: string;
+  clubIds?: string[];
+  scoutId?: string;
+};
+
+export async function fetchPlayers(filters?: PlayersFilters) {
   let query = supabase
     .from("players")
     .select("*, club:clubs(name), region:regions(name), observations:observations(count)")
@@ -109,13 +126,34 @@ export async function fetchPlayers(filters?: {
   if (filters?.birthYear) {
     query = query.eq("birth_year", filters.birthYear);
   }
+  if (filters?.birthYears && filters.birthYears.length > 0) {
+    query = query.in("birth_year", filters.birthYears);
+  }
   if (filters?.status) {
     query = query.eq("pipeline_status", filters.status);
+  }
+  if (filters?.primary_position) {
+    query = query.eq("primary_position", filters.primary_position);
+  }
+  if (filters?.clubIds && filters.clubIds.length > 0) {
+    query = query.in("club_id", filters.clubIds);
   }
   if (filters?.search) {
     query = query.or(
       `first_name.ilike.%${filters.search}%,last_name.ilike.%${filters.search}%`
     );
+  }
+
+  if (filters?.scoutId) {
+    const { data: obs } = await supabase
+      .from("observations")
+      .select("player_id")
+      .eq("scout_id", filters.scoutId);
+    const playerIds = [...new Set((obs ?? []).map((o) => o.player_id).filter(Boolean))] as string[];
+    if (playerIds.length === 0) {
+      return [];
+    }
+    query = query.in("id", playerIds);
   }
 
   const { data, error } = await query;
@@ -274,4 +312,28 @@ export async function fetchPipelineHistoryByPlayer(playerId: string) {
 
   if (error) throw error;
   return (data ?? []) as PipelineHistoryEntry[];
+}
+
+/** Max IDs per request to avoid 400 from URL length (PostgREST .in() in query string). */
+const BATCH_IN_QUERY_CHUNK = 80;
+
+/** Fetch pipeline_history entries for many players (for pipeline board status-since). Batched to avoid 400. */
+export async function fetchPipelineHistoryBatch(
+  playerIds: string[]
+): Promise<PipelineHistoryEntry[]> {
+  if (playerIds.length === 0) return [];
+  const deduped = [...new Set(playerIds)];
+  const all: PipelineHistoryEntry[] = [];
+  for (let i = 0; i < deduped.length; i += BATCH_IN_QUERY_CHUNK) {
+    const chunk = deduped.slice(i, i + BATCH_IN_QUERY_CHUNK);
+    const { data, error } = await supabase
+      .from("pipeline_history")
+      .select("*")
+      .in("player_id", chunk)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    all.push(...((data ?? []) as PipelineHistoryEntry[]));
+  }
+  all.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return all;
 }

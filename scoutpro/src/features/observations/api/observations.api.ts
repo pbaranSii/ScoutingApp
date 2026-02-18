@@ -68,6 +68,34 @@ export async function fetchObservationsByPlayer(playerId: string) {
   return (data ?? []) as Observation[];
 }
 
+/** Max IDs per request to avoid 400 from URL length (PostgREST .in() in query string). */
+const BATCH_IN_QUERY_CHUNK = 80;
+
+/** Fetch latest overall_rating per player (for pipeline cards). Returns playerId -> rating (1-10). Batched to avoid 400. */
+export async function fetchLatestObservationRatings(
+  playerIds: string[]
+): Promise<Record<string, number>> {
+  if (playerIds.length === 0) return {};
+  const deduped = [...new Set(playerIds)];
+  const map: Record<string, number> = {};
+  for (let i = 0; i < deduped.length; i += BATCH_IN_QUERY_CHUNK) {
+    const chunk = deduped.slice(i, i + BATCH_IN_QUERY_CHUNK);
+    const { data, error } = await supabase
+      .from("observations")
+      .select("player_id, overall_rating, created_at")
+      .in("player_id", chunk)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    const rows = (data ?? []) as { player_id: string; overall_rating: number | null }[];
+    for (const row of rows) {
+      if (row.player_id && !(row.player_id in map) && typeof row.overall_rating === "number") {
+        map[row.player_id] = row.overall_rating;
+      }
+    }
+  }
+  return map;
+}
+
 export async function fetchObservationById(id: string) {
   const { data, error } = await supabase
     .from("observations")

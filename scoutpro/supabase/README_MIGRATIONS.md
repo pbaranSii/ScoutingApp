@@ -1,5 +1,30 @@
 # Migracje Supabase – jak zastosować
 
+## Moduł „Zadania i zaproszenia” (tasks)
+
+Aby włączyć moduł zadań/zaproszeń/obserwacji planowanych:
+
+1. Wejdź na [supabase.com](https://supabase.com) → swój projekt.
+2. **SQL Editor** → **New query**.
+3. Skopiuj **całą zawartość** pliku:
+   - `supabase/migrations/20260217100000_tasks_module.sql`
+4. Wklej do zapytania i kliknij **Run** (Ctrl+Enter).
+5. **Obowiązkowo** odśwież cache schemy (inaczej API zwróci **404** dla `/rest/v1/tasks`):
+   - **Project Settings** (ikona zębatki) → **API** → przycisk **Reload schema cache**
+   - albo w **SQL Editor** uruchom: `NOTIFY pgrst, 'reload schema';`
+
+Powstają: enum `task_type`, tabele **`tasks`** i **`task_players`** (widoczne w Table Editor) oraz polityki RLS. Jeśli tych tabel nie ma w bazie, moduł „Zadania” nie zadziała – trzeba uruchomić tę migrację w **tym samym** projekcie Supabase, z którego korzysta aplikacja.
+
+### Błąd 404 (Not Found) na /rest/v1/tasks
+
+Jeśli w konsoli przeglądarki widzisz **GET …/rest/v1/tasks 404 (Not Found)**:
+
+- Tabela `tasks` jest w bazie, ale PostgREST używa starej cache schemy.
+- **Rozwiązanie:** w Supabase Dashboard → **Project Settings** → **API** → **Reload schema cache** (na dole strony). Alternatywnie w SQL Editor wykonaj: `NOTIFY pgrst, 'reload schema';`
+- Po odświeżeniu odśwież stronę aplikacji (F5).
+
+---
+
 ## Upewnienie się, że tabela `multimedia` i storage są w projekcie
 
 Jeśli w aplikacji **nie zapisują się pliki ani linki YouTube** z sekcji „6. Multimedia” w formularzu obserwacji, najpierw upewnij się, że w projekcie Supabase są:
@@ -50,3 +75,10 @@ select id from storage.buckets where id = 'scoutpro-media';
 - Drugie powinno zwrócić jeden wiersz z `id = 'scoutpro-media'`.
 
 Jeśli czegoś brakuje, uruchom migrację `20260216100000_ensure_multimedia_table_and_storage.sql` jak wyżej.
+
+---
+
+## Produkcja (Vercel + Supabase)
+
+- **Aplikacja:** Po pushu na branch `master` Vercel automatycznie buduje i wdraża produkcję. Użytkownicy z dostępem pozostają ci, którzy są zdefiniowani w projekcie produkcyjnym (Supabase Auth / ustawienia Vercel – nie zmieniamy ich przy deployu).
+- **Baza produkcyjna:** W **produkcyjnym** projekcie Supabase uruchom te same migracje co w dev (np. w SQL Editor skopiuj i wykonaj pliki z `supabase/migrations/` w kolejności dat, w szczególności `20260216100000_ensure_multimedia_table_and_storage.sql` oraz `20260215100000_observation_form_improvements.sql` jeśli tabela `observations` ma mieć nowe kolumny). Po wykonaniu: **Project Settings → API → Reload schema cache**.

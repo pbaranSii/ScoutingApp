@@ -9,10 +9,14 @@ import {
 import type { DragEndEvent, DragOverEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import type { Player } from "@/features/players/types";
-import { PIPELINE_BOARD_COLUMNS } from "../types";
+import type { PlayersFilters } from "@/features/players/api/players.api";
+import { PIPELINE_BOARD_COLUMNS, getStatusDotClass } from "../types";
+import type { PipelineStatus } from "../types";
+import { usePipelineEnrichment } from "../hooks/usePipelineEnrichment";
 import { PipelineColumn } from "./PipelineColumn";
 import { usePlayers, useUpdatePlayerStatus } from "@/features/players/hooks/usePlayers";
 import { toast } from "@/hooks/use-toast";
+import type { PipelineFiltersState } from "./PipelineFiltersPanel";
 
 type BoardColumnId = (typeof PIPELINE_BOARD_COLUMNS)[number]["id"];
 type ColumnState = Record<BoardColumnId, Player[]>;
@@ -34,13 +38,33 @@ function findColumnByPlayerId(playerId: string, columns: ColumnState): BoardColu
   )?.id;
 }
 
+function toPlayersFilters(filters: PipelineFiltersState): PlayersFilters {
+  const f: PlayersFilters = {};
+  if (filters.status) f.status = filters.status as PlayersFilters["status"];
+  if (filters.birthYear) f.birthYear = Number(filters.birthYear);
+  if (filters.scoutId) f.scoutId = filters.scoutId;
+  if (filters.position) f.primary_position = filters.position;
+  if (filters.clubId) f.clubIds = [filters.clubId];
+  return f;
+}
+
 type PipelineBoardProps = {
   search?: string;
+  filters?: PipelineFiltersState;
 };
 
-export function PipelineBoard({ search = "" }: PipelineBoardProps) {
+const DEFAULT_FILTERS: PipelineFiltersState = {
+  status: "",
+  birthYear: "",
+  scoutId: "",
+  position: "",
+  clubId: "",
+};
+
+export function PipelineBoard({ search = "", filters = DEFAULT_FILTERS }: PipelineBoardProps) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
-  const { data, isLoading } = usePlayers();
+  const playersFilters = toPlayersFilters(filters);
+  const { data, isLoading } = usePlayers(playersFilters);
   const players = data ?? EMPTY_PLAYERS;
   const { mutateAsync: updateStatus } = useUpdatePlayerStatus();
   const [columns, setColumns] = useState<ColumnState>(() => groupByStatus([]));
@@ -56,6 +80,7 @@ export function PipelineBoard({ search = "" }: PipelineBoardProps) {
   }, [players, search]);
 
   const initialColumns = useMemo(() => groupByStatus(filteredPlayers), [filteredPlayers]);
+  const { statusSince, latestRating } = usePipelineEnrichment(filteredPlayers);
 
   useEffect(() => {
     setColumns(initialColumns);
@@ -145,16 +170,45 @@ export function PipelineBoard({ search = "" }: PipelineBoardProps) {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="grid gap-4 lg:grid-cols-6">
-        {PIPELINE_BOARD_COLUMNS.map((column) => (
-          <div key={column.id} id={column.id}>
-            <PipelineColumn
-              id={column.id}
-              title={column.label}
-              players={columns[column.id] ?? []}
-            />
-          </div>
-        ))}
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {PIPELINE_BOARD_COLUMNS.map((column) => {
+            const count = (columns[column.id] ?? []).length;
+            const tabLabel = column.shortLabel ?? column.label;
+            return (
+              <button
+                key={column.id}
+                type="button"
+                onClick={() => {
+                  document.getElementById(column.id)?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
+              >
+                <span
+                  className={`h-2 w-2 shrink-0 rounded-full ${getStatusDotClass(column.id as PipelineStatus)}`}
+                  aria-hidden
+                />
+                <span>
+                  {tabLabel} ({count})
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="grid gap-4 lg:grid-cols-6">
+          {PIPELINE_BOARD_COLUMNS.map((column) => (
+            <div key={column.id} id={column.id}>
+              <PipelineColumn
+                id={column.id}
+                title={column.label}
+                players={columns[column.id] ?? []}
+                statusId={column.id as PipelineStatus}
+                statusSince={statusSince}
+                latestRating={latestRating}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </DndContext>
   );
