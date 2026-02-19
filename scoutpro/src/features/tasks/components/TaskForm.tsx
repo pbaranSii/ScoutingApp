@@ -106,7 +106,6 @@ export function TaskForm({
   initialData,
   users,
   players,
-  playersLoading: _playersLoading,
   onSubmit,
   isSubmitting,
   onCancel,

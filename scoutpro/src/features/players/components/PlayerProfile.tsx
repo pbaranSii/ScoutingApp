@@ -14,9 +14,11 @@ import { toast } from "@/hooks/use-toast";
 
 type PlayerProfileProps = {
   player: Player;
+  /** Additional action buttons rendered next to Edytuj/Usuń */
+  additionalActions?: React.ReactNode;
 };
 
-export function PlayerProfile({ player }: PlayerProfileProps) {
+export function PlayerProfile({ player, additionalActions }: PlayerProfileProps) {
   const navigate = useNavigate();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -74,6 +76,7 @@ export function PlayerProfile({ player }: PlayerProfileProps) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {additionalActions}
           <Button asChild className="gap-2 bg-red-600 hover:bg-red-700">
             <Link to={`/players/${player.id}/edit`}>
               <Pencil className="h-4 w-4" />

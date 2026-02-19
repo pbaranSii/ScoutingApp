@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { UserManagement } from "@/features/users/components/UserManagement";
 import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
-import { BookOpen } from "lucide-react";
+import { BarChart3, BookOpen } from "lucide-react";
 
 export function SettingsPage() {
   const { data: currentUser } = useCurrentUserProfile();
@@ -22,6 +22,12 @@ export function SettingsPage() {
               <Button variant="outline">
                 <BookOpen className="mr-2 h-4 w-4" />
                 Slowniki
+              </Button>
+            </Link>
+            <Link to="/admin/settings/analytics">
+              <Button variant="outline">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Analytics Settings
               </Button>
             </Link>
           </div>

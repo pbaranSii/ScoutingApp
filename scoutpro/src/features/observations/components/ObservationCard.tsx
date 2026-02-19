@@ -28,7 +28,7 @@ export function ObservationCard({ observation }: ObservationCardProps) {
   const hasMedia = Boolean(observation.photo_url?.trim());
 
   return (
-    <Link to={`/observations/${observation.id}`} className="block">
+    <Link to={`/observations/${observation.id}`} className="block relative">
       <Card className="border-slate-200">
         <CardContent className="p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">

@@ -9,6 +9,7 @@ import { format, parseISO } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Plus, Star } from "lucide-react";
+import { AddToFavoritesButton } from "@/features/favorites/components/AddToFavoritesButton";
 import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { supabase } from "@/lib/supabase";
 import {
@@ -29,10 +30,11 @@ export function PlayerDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
-  const { data, isLoading } = usePlayer(id ?? "");
-  const { data: observations = [], isLoading: isObsLoading } = useObservationsByPlayer(id ?? "");
-  const { data: history = [], isLoading: isHistoryLoading } = usePipelineHistory(id ?? "");
-  const { data: mediaItems = [], isError: isMultimediaError, error: multimediaError } = useMultimediaByPlayer(id ?? "");
+  const playerId = id ?? "";
+  const { data, isLoading } = usePlayer(playerId);
+  const { data: observations = [], isLoading: isObsLoading } = useObservationsByPlayer(playerId);
+  const { data: history = [], isLoading: isHistoryLoading } = usePipelineHistory(playerId);
+  const { data: mediaItems = [], isError: isMultimediaError, error: multimediaError } = useMultimediaByPlayer(playerId);
   const multimediaTableMissing =
     isMultimediaError &&
     multimediaError instanceof Error &&
@@ -96,7 +98,19 @@ export function PlayerDetailPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1100px] space-y-6">
-      <PlayerProfile player={data} />
+      <PlayerProfile
+        player={data}
+        additionalActions={
+          <AddToFavoritesButton
+            playerId={data.id}
+            playerName={`${data.first_name} ${data.last_name}`}
+            size="default"
+            variant="outline"
+            showCount
+            className="min-w-[4rem]"
+          />
+        }
+      />
 
       <Tabs defaultValue="observations">
         <TabsList className="rounded-full bg-slate-100">

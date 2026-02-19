@@ -82,3 +82,11 @@ Jeśli czegoś brakuje, uruchom migrację `20260216100000_ensure_multimedia_tabl
 
 - **Aplikacja:** Po pushu na branch `master` Vercel automatycznie buduje i wdraża produkcję. Użytkownicy z dostępem pozostają ci, którzy są zdefiniowani w projekcie produkcyjnym (Supabase Auth / ustawienia Vercel – nie zmieniamy ich przy deployu).
 - **Baza produkcyjna:** W **produkcyjnym** projekcie Supabase uruchom te same migracje co w dev (np. w SQL Editor skopiuj i wykonaj pliki z `supabase/migrations/` w kolejności dat, w szczególności `20260216100000_ensure_multimedia_table_and_storage.sql` oraz `20260215100000_observation_form_improvements.sql` jeśli tabela `observations` ma mieć nowe kolumny). Po wykonaniu: **Project Settings → API → Reload schema cache**.
+
+---
+
+## Moduł „Metryki i Lejka Rekrutacji” (Recruitment Analytics)
+
+Checklist wdrożenia migracji analityki (lokalnie i na prod), kolejność plików oraz rollback: **[DEPLOY_ANALYTICS.md](DEPLOY_ANALYTICS.md)**.
+
+Migracje do uruchomienia w kolejności: `20260218160000_recruitment_analytics_module.sql`, `20260218160001_...`, `20260218160100_...`, `20260218160110_...`. Po wdrożeniu obowiązkowo: **Reload schema cache** (Project Settings → API lub `NOTIFY pgrst, 'reload schema';`).

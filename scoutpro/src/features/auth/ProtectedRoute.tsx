@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
-import { useRef } from "react";
+import { useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
@@ -8,7 +8,12 @@ export function ProtectedRoute() {
   const location = useLocation();
   const { isLoading, session, logout } = useAuthStore();
   const { data: currentUser, isLoading: isUserLoading } = useCurrentUserProfile();
-  const hasLoggedOut = useRef(false);
+
+  useEffect(() => {
+    if (currentUser && !currentUser.is_active) {
+      void logout();
+    }
+  }, [currentUser, logout]);
 
   if (isLoading || (session && isUserLoading)) {
     return <LoadingSpinner />;
@@ -36,10 +41,6 @@ export function ProtectedRoute() {
   }
 
   if (currentUser && !currentUser.is_active) {
-    if (!hasLoggedOut.current) {
-      hasLoggedOut.current = true;
-      void logout();
-    }
     return <Navigate to="/login" replace state={{ from: location, suspended: true }} />;
   }
 

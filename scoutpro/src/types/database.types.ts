@@ -1103,6 +1103,7 @@ export type Database = {
           is_active: boolean
           last_login_at: string | null
           phone: string | null
+          region_id: string | null
           role: Database["public"]["Enums"]["user_role"]
         }
         Insert: {
@@ -1115,6 +1116,7 @@ export type Database = {
           is_active?: boolean
           last_login_at?: string | null
           phone?: string | null
+          region_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
         }
         Update: {
@@ -1127,7 +1129,89 @@ export type Database = {
           is_active?: boolean
           last_login_at?: string | null
           phone?: string | null
+          region_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: []
+      }
+      favorite_lists: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          owner_id: string
+          formation: string
+          region_id: string | null
+          last_used_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          owner_id: string
+          formation?: string
+          region_id?: string | null
+          last_used_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          owner_id?: string
+          formation?: string
+          region_id?: string | null
+          last_used_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      favorite_list_members: {
+        Row: {
+          id: string
+          list_id: string
+          player_id: string
+          added_by: string
+          added_at: string
+        }
+        Insert: {
+          id?: string
+          list_id: string
+          player_id: string
+          added_by: string
+          added_at?: string
+        }
+        Update: {
+          id?: string
+          list_id?: string
+          player_id?: string
+          added_by?: string
+          added_at?: string
+        }
+        Relationships: []
+      }
+      favorite_list_collaborators: {
+        Row: {
+          id: string
+          list_id: string
+          user_id: string
+          added_at: string
+        }
+        Insert: {
+          id?: string
+          list_id: string
+          user_id: string
+          added_at?: string
+        }
+        Update: {
+          id?: string
+          list_id?: string
+          user_id?: string
+          added_at?: string
         }
         Relationships: []
       }

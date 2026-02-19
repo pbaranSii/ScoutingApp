@@ -37,9 +37,13 @@ export async function fetchDictionaryEntries(
   const activeCol = config.activeColumn;
 
   const tableName = table as TableName;
+  const selectClause =
+    table === "clubs"
+      ? "*, region:regions(name)"
+      : "*";
   let q = supabase
     .from(tableName)
-    .select("*")
+    .select(selectClause)
     .order(nameCol, { ascending: true, nullsFirst: false });
 
   if (activeCol !== "id" && options?.activeOnly === true) {
@@ -51,7 +55,7 @@ export async function fetchDictionaryEntries(
 
   const { data, error } = await q;
   if (error) throw error;
-  const rows = (data ?? []) as DictionaryRow[];
+  const rows = (data ?? []) as unknown as DictionaryRow[];
   rows.sort((a, b) => {
     const na = String(a[nameCol] ?? "").toLowerCase();
     const nb = String(b[nameCol] ?? "").toLowerCase();

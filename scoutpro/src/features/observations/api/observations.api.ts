@@ -183,7 +183,8 @@ export async function createObservation(input: ObservationInput) {
     const match = error.message?.match(PGRST204_COLUMN_REGEX);
     if (!match) break;
     const column = match[1];
-    const { [column]: _, ...rest } = payload;
+    const { [column]: removed, ...rest } = payload;
+    void removed;
     payload = rest;
     const next = await supabase
       .from("observations")
@@ -230,7 +231,8 @@ export async function updateObservation(id: string, input: Partial<ObservationIn
     const match = error.message?.match(PGRST204_COLUMN_REGEX);
     if (!match) throw error;
     const column = match[1];
-    const { [column]: _, ...rest } = payload;
+    const { [column]: removed, ...rest } = payload;
+    void removed;
     payload = rest;
     if (Object.keys(payload).length === 0) throw error;
     const next = await supabase.from("observations").update(payload).eq("id", id);

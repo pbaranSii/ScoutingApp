@@ -20,6 +20,7 @@ import { MediaGallery, useMultimediaByObservation } from "@/features/multimedia"
 import { MULTIMEDIA_TABLE_MISSING_CODE } from "@/features/multimedia/api/multimedia.api";
 import { buildLegacyMediaItemsForObservation } from "@/features/multimedia/lib/legacyMedia";
 import { mapLegacyPosition } from "@/features/players/positions";
+import { AddToFavoritesButton } from "@/features/favorites/components/AddToFavoritesButton";
 
 export function ObservationDetailPage() {
   const { id } = useParams();
@@ -126,6 +127,19 @@ export function ObservationDetailPage() {
           Powrót do listy
         </Link>
         <div className="flex flex-wrap gap-2">
+          {observation.player_id && (
+            <AddToFavoritesButton
+              playerId={observation.player_id}
+              playerName={
+                observation.player
+                  ? `${observation.player.first_name ?? ""} ${observation.player.last_name ?? ""}`.trim() || "Zawodnik"
+                  : "Zawodnik"
+              }
+              variant="outline"
+              size="default"
+              className="gap-2"
+            />
+          )}
           <Button asChild variant="outline" className="gap-2">
             <Link
               to={`/observations/${observation.id}/edit`}

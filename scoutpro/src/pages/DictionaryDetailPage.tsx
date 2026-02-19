@@ -109,6 +109,7 @@ export function DictionaryDetailPage() {
   const showCodeColumn = codeCol !== "id";
   const nameCol = config.nameColumn;
   const nameEnCol = config.nameEnColumn;
+  const isClubsDictionary = config.table === "clubs";
 
   return (
     <div className="mx-auto w-full max-w-[960px] space-y-5">
@@ -167,6 +168,12 @@ export function DictionaryDetailPage() {
                 {nameEnCol && (
                   <th className="px-3 py-2 text-left font-medium text-slate-700">Nazwa (EN)</th>
                 )}
+                {isClubsDictionary && (
+                  <>
+                    <th className="px-3 py-2 text-left font-medium text-slate-700">Województwo</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-700">Miasto</th>
+                  </>
+                )}
                 {hasActiveColumn && (
                   <th className="px-3 py-2 text-left font-medium text-slate-700">Status</th>
                 )}
@@ -182,6 +189,14 @@ export function DictionaryDetailPage() {
                   <td className="px-3 py-2 font-medium">{String(row[nameCol] ?? "")}</td>
                   {nameEnCol && (
                     <td className="px-3 py-2 text-slate-600">{String(row[nameEnCol] ?? "")}</td>
+                  )}
+                  {isClubsDictionary && (
+                    <>
+                      <td className="px-3 py-2 text-slate-600">
+                        {String((row.region as { name?: string } | null)?.name ?? (row.regions as { name?: string } | null)?.name ?? "")}
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">{String(row.city ?? "")}</td>
+                    </>
                   )}
                   {hasActiveColumn && (
                     <td className="px-3 py-2">

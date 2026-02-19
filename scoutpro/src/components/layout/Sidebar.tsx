@@ -1,22 +1,37 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, ClipboardList, KanbanSquare, CheckSquare, Settings } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  ClipboardList,
+  KanbanSquare,
+  CheckSquare,
+  Settings,
+  BarChart3,
+  Heart,
+} from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
+import { canViewAnalytics } from "@/features/users/types";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
-
-const navItems = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/players", label: "Zawodnicy", icon: Users },
-  { to: "/observations", label: "Obserwacje", icon: ClipboardList },
-  { to: "/pipeline", label: "Pipeline", icon: KanbanSquare },
-  { to: "/tasks", label: "Zadania", icon: CheckSquare },
-  { to: "/settings", label: "Ustawienia", icon: Settings },
-];
 
 export function Sidebar() {
   const { user, logout } = useAuthStore();
   const { data: profile } = useCurrentUserProfile();
+  const showAnalytics = canViewAnalytics(profile?.business_role);
+
+  const navItems = [
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/players", label: "Zawodnicy", icon: Users },
+    { to: "/observations", label: "Obserwacje", icon: ClipboardList },
+    { to: "/favorites", label: "Ulubione", icon: Heart },
+    { to: "/pipeline", label: "Pipeline", icon: KanbanSquare },
+    { to: "/tasks", label: "Zadania", icon: CheckSquare },
+    ...(showAnalytics
+      ? [{ to: "/analytics/recruitment-pipeline", label: "Analytics", icon: BarChart3 }]
+      : []),
+    { to: "/settings", label: "Ustawienia", icon: Settings },
+  ];
 
   return (
     <aside className="hidden h-full w-60 flex-shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">

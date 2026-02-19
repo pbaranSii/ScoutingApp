@@ -17,13 +17,18 @@ import { NewObservationPage } from "@/pages/NewObservationPage";
 import { ObservationDetailPage } from "@/pages/ObservationDetailPage";
 import { EditObservationPage } from "@/pages/EditObservationPage";
 import { PipelinePage } from "@/pages/PipelinePage";
+import { RecruitmentAnalyticsPage } from "@/pages/RecruitmentAnalyticsPage";
 import { TasksPage } from "@/pages/TasksPage";
 import { NewTaskPage } from "@/pages/NewTaskPage";
 import { EditTaskPage } from "@/pages/EditTaskPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { AdminAnalyticsSettingsPage } from "@/pages/AdminAnalyticsSettingsPage";
 import { DictionaryListPage } from "@/pages/DictionaryListPage";
 import { DictionaryDetailPage } from "@/pages/DictionaryDetailPage";
+import { FavoriteListsPage } from "@/pages/FavoriteListsPage";
+import { FavoriteListDetailPage } from "@/pages/FavoriteListDetailPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import { AnalyticsRoute } from "@/features/auth/AnalyticsRoute";
 
 export default function App() {
   useAuth();
@@ -51,12 +56,21 @@ export default function App() {
             <Route path=":id/edit" element={<EditObservationPage />} />
           </Route>
           <Route path="/pipeline" element={<PipelinePage />} />
+          <Route element={<AnalyticsRoute />}>
+            <Route
+              path="/analytics/recruitment-pipeline"
+              element={<RecruitmentAnalyticsPage />}
+            />
+          </Route>
           <Route path="/tasks">
             <Route index element={<TasksPage />} />
             <Route path="new" element={<NewTaskPage />} />
             <Route path=":id/edit" element={<EditTaskPage />} />
           </Route>
+          <Route path="/favorites" element={<FavoriteListsPage />} />
+          <Route path="/favorites/:id" element={<FavoriteListDetailPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/admin/settings/analytics" element={<AdminAnalyticsSettingsPage />} />
           <Route path="/settings/dictionaries" element={<DictionaryListPage />} />
           <Route path="/settings/dictionaries/:route" element={<DictionaryDetailPage />} />
         </Route>

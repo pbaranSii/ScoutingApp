@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,10 +33,10 @@ export function MediaLightbox({
   onDelete,
 }: MediaLightboxProps) {
   const [index, setIndex] = useState(Math.min(initialIndex, Math.max(0, items.length - 1)));
-
-  useEffect(() => {
-    setIndex(Math.min(initialIndex, Math.max(0, items.length - 1)));
-  }, [initialIndex, items.length]);
+  const safeIndex = useMemo(
+    () => Math.min(index, Math.max(0, items.length - 1)),
+    [index, items.length]
+  );
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -51,7 +51,7 @@ export function MediaLightbox({
 
   if (!open || items.length === 0) return null;
 
-  const item = items[index];
+  const item = items[safeIndex];
 
   const goPrev = () => setIndex((i) => (i <= 0 ? items.length - 1 : i - 1));
   const goNext = () => setIndex((i) => (i >= items.length - 1 ? 0 : i + 1));
@@ -136,7 +136,7 @@ export function MediaLightbox({
           <ChevronLeft className="h-8 w-8" />
         </Button>
         <span className="text-sm">
-          {index + 1} / {items.length}
+          {safeIndex + 1} / {items.length}
         </span>
         <div className="flex gap-1">
           {deleteId && onDelete && (
