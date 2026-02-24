@@ -11,7 +11,7 @@ export function EditPlayerPage() {
   const { data: player, isLoading } = usePlayer(playerId);
 
   if (isLoading) {
-    return <p className="text-sm text-slate-500">Ladowanie...</p>;
+    return <p className="text-sm text-slate-500">Ładowanie...</p>;
   }
 
   if (!player) {
@@ -39,7 +39,7 @@ export function EditPlayerPage() {
     <div className="mx-auto w-full max-w-[960px] space-y-4">
       <PageHeader
         title="Edytuj zawodnika"
-        subtitle="Zmien dane zawodnika i zapisz aktualizacje."
+        subtitle="Zmień dane zawodnika i zapisz aktualizacje."
         actions={
           <Button variant="outline" type="button" onClick={() => navigate(`/players/${player.id}`)}>
             Wroc do profilu

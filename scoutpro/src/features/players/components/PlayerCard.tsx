@@ -5,6 +5,7 @@ import type { Player } from "../types";
 import { ALL_PIPELINE_STATUSES, getStatusBadgeClass } from "@/features/pipeline/types";
 import { formatPosition } from "@/features/players/positions";
 import { AddToFavoritesButton } from "@/features/favorites/components/AddToFavoritesButton";
+import { AssignToDemandButton } from "@/features/demands/components/AssignToDemandButton";
 import { Calendar, MapPin } from "lucide-react";
 
 const formatObservations = (count?: number | null) => {
@@ -51,7 +52,14 @@ export function PlayerCard({ player, latestRating }: PlayerCardProps) {
               <Badge className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${statusStyle}`}>
                 {statusLabel}
               </Badge>
-              <div onClick={(e) => e.preventDefault()}>
+              <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>
+                <AssignToDemandButton
+                  playerId={player.id}
+                  playerName={`${player.first_name} ${player.last_name}`}
+                  size="icon"
+                  variant="outline"
+                  className="h-8 w-8"
+                />
                 <AddToFavoritesButton
                   playerId={player.id}
                   playerName={`${player.first_name} ${player.last_name}`}

@@ -27,7 +27,7 @@ export function ProtectedRoute() {
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 p-4 text-center">
         <p className="text-muted-foreground">
-          Brak rekordu uzytkownika w systemie. Skontaktuj sie z administratorem.
+          Brak rekordu użytkownika w systemie. Skontaktuj się z administratorem.
         </p>
         <button
           type="button"

@@ -1215,6 +1215,96 @@ export type Database = {
         }
         Relationships: []
       }
+      player_demands: {
+        Row: {
+          id: string
+          club_id: string
+          season: string
+          league_ids: string[]
+          position: string
+          quantity_needed: number
+          priority: string
+          age_min: number | null
+          age_max: number | null
+          preferred_foot: string | null
+          style_notes: string | null
+          notes: string | null
+          status: string
+          filled_by_player_id: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          club_id: string
+          season: string
+          league_ids?: string[]
+          position: string
+          quantity_needed?: number
+          priority?: string
+          age_min?: number | null
+          age_max?: number | null
+          preferred_foot?: string | null
+          style_notes?: string | null
+          notes?: string | null
+          status?: string
+          filled_by_player_id?: string | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          club_id?: string
+          season?: string
+          league_ids?: string[]
+          position?: string
+          quantity_needed?: number
+          priority?: string
+          age_min?: number | null
+          age_max?: number | null
+          preferred_foot?: string | null
+          style_notes?: string | null
+          notes?: string | null
+          status?: string
+          filled_by_player_id?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      player_demand_candidates: {
+        Row: {
+          id: string
+          demand_id: string
+          player_id: string
+          assignment_type: string
+          accepted: boolean
+          assigned_by: string
+          assigned_at: string
+        }
+        Insert: {
+          id?: string
+          demand_id: string
+          player_id: string
+          assignment_type?: string
+          accepted?: boolean
+          assigned_by: string
+          assigned_at?: string
+        }
+        Update: {
+          id?: string
+          demand_id?: string
+          player_id?: string
+          assignment_type?: string
+          accepted?: boolean
+          assigned_by?: string
+          assigned_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

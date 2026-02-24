@@ -22,13 +22,23 @@ import { TasksPage } from "@/pages/TasksPage";
 import { NewTaskPage } from "@/pages/NewTaskPage";
 import { EditTaskPage } from "@/pages/EditTaskPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { SettingsUsersPage } from "@/pages/SettingsUsersPage";
 import { AdminAnalyticsSettingsPage } from "@/pages/AdminAnalyticsSettingsPage";
 import { DictionaryListPage } from "@/pages/DictionaryListPage";
 import { DictionaryDetailPage } from "@/pages/DictionaryDetailPage";
 import { FavoriteListsPage } from "@/pages/FavoriteListsPage";
 import { FavoriteListDetailPage } from "@/pages/FavoriteListDetailPage";
+import { DemandsPage } from "@/pages/DemandsPage";
+import { DemandDetailPage } from "@/pages/DemandDetailPage";
+import { NewDemandPage } from "@/pages/NewDemandPage";
+import { EditDemandPage } from "@/pages/EditDemandPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { AnalyticsRoute } from "@/features/auth/AnalyticsRoute";
+import { AdminRoute } from "@/features/auth/AdminRoute";
+import { UsageStatisticsPage } from "@/pages/UsageStatisticsPage";
+import { AdminSurveyResultsPage } from "@/pages/AdminSurveyResultsPage";
+import { SurveySatisfactionPage } from "@/pages/SurveySatisfactionPage";
+import { SurveyThankYouPage } from "@/pages/SurveyThankYouPage";
 
 export default function App() {
   useAuth();
@@ -69,7 +79,18 @@ export default function App() {
           </Route>
           <Route path="/favorites" element={<FavoriteListsPage />} />
           <Route path="/favorites/:id" element={<FavoriteListDetailPage />} />
+          <Route path="/demands" element={<DemandsPage />} />
+          <Route path="/demands/new" element={<NewDemandPage />} />
+          <Route path="/demands/:id" element={<DemandDetailPage />} />
+          <Route path="/demands/:id/edit" element={<EditDemandPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route element={<AdminRoute />}>
+            <Route path="/settings/users" element={<SettingsUsersPage />} />
+            <Route path="/settings/admin/usage-statistics" element={<UsageStatisticsPage />} />
+            <Route path="/settings/admin/user-satisfaction" element={<AdminSurveyResultsPage />} />
+          </Route>
+          <Route path="/survey/satisfaction" element={<SurveySatisfactionPage />} />
+          <Route path="/survey/thank-you" element={<SurveyThankYouPage />} />
           <Route path="/admin/settings/analytics" element={<AdminAnalyticsSettingsPage />} />
           <Route path="/settings/dictionaries" element={<DictionaryListPage />} />
           <Route path="/settings/dictionaries/:route" element={<DictionaryDetailPage />} />

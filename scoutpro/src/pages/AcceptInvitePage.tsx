@@ -11,9 +11,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 
 const schema = z
   .object({
-    full_name: z.string().min(2, "Podaj imie i nazwisko"),
-    password: z.string().min(6, "Haslo musi miec min. 6 znakow"),
-    confirmPassword: z.string().min(6, "Powtorz haslo"),
+    full_name: z.string().min(2, "Podaj imię i nazwisko"),
+    password: z.string().min(6, "Hasło musi mieć min. 6 znaków"),
+    confirmPassword: z.string().min(6, "Powtórz hasło"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Hasla musza byc takie same",
@@ -65,7 +65,7 @@ export function AcceptInvitePage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Ustaw haslo</CardTitle>
+            <CardTitle>Ustaw hasło</CardTitle>
           </CardHeader>
           <CardContent>
             <Form {...form}>
@@ -75,7 +75,7 @@ export function AcceptInvitePage() {
                   name="full_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Imie i nazwisko</FormLabel>
+                      <FormLabel>Imię i nazwisko</FormLabel>
                       <FormControl>
                         <Input placeholder="Jan Nowak" {...field} />
                       </FormControl>
@@ -88,7 +88,7 @@ export function AcceptInvitePage() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Haslo</FormLabel>
+                      <FormLabel>Hasło</FormLabel>
                       <FormControl>
                         <Input type="password" placeholder="••••••••" {...field} />
                       </FormControl>
@@ -101,7 +101,7 @@ export function AcceptInvitePage() {
                   name="confirmPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Powtorz haslo</FormLabel>
+                      <FormLabel>Powtórz hasło</FormLabel>
                       <FormControl>
                         <Input type="password" placeholder="••••••••" {...field} />
                       </FormControl>
@@ -111,7 +111,7 @@ export function AcceptInvitePage() {
                 />
                 {status === "success" && (
                   <p className="text-sm text-green-600">
-                    Konto aktywowane. Mozesz sie zalogowac.
+                    Konto aktywowane. Możesz się zalogować.
                   </p>
                 )}
                 {status === "error" && (

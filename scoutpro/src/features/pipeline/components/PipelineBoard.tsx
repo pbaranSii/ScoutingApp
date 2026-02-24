@@ -147,20 +147,20 @@ export function PipelineBoard({ search = "", filters = DEFAULT_FILTERS }: Pipeli
       if (result?.historyError) {
         toast({
           title: "Status zapisany",
-          description: "Nie udalo sie zapisac wpisu w historii Pipeline.",
+          description: "Nie udało się zapisać wpisu w historii Pipeline.",
         });
       }
     } catch {
       setColumns(initialColumns);
       toast({
-        title: "Nie udalo sie zapisac zmiany",
+        title: "Nie udało się zapisać zmiany",
         description: "Sprobuj ponownie za chwile.",
       });
     }
   };
 
   if (isLoading) {
-    return <p className="text-sm text-slate-500">Ladowanie...</p>;
+    return <p className="text-sm text-slate-500">Ładowanie...</p>;
   }
 
   return (

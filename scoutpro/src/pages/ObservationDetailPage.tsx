@@ -71,7 +71,7 @@ export function ObservationDetailPage() {
   const canUseDom = typeof document !== "undefined";
 
   if (isLoading) {
-    return <p className="text-sm text-slate-500">Ladowanie...</p>;
+    return <p className="text-sm text-slate-500">Ładowanie...</p>;
   }
 
   if (!observation) {
@@ -110,7 +110,7 @@ export function ObservationDetailPage() {
   const updatedByLabel = observation.updated_by_name ?? "Brak";
   const roleLabels: Record<string, string> = {
     admin: "Admin",
-    user: "Uzytkownik",
+    user: "Użytkownik",
   };
   const createdByRole = observation.created_by_role
     ? roleLabels[observation.created_by_role] ?? observation.created_by_role
@@ -224,11 +224,11 @@ export function ObservationDetailPage() {
                       const message =
                         error instanceof Error && error.message
                           ? error.message
-                          : "Nie udalo sie usunac obserwacji";
+                          : "Nie udało się usunąć obserwacji";
                       setDeleteError(message);
                       toast({
                         variant: "destructive",
-                        title: "Nie udalo sie usunac",
+                        title: "Nie udało się usunąć",
                         description: message,
                       });
                       console.error("Delete observation failed:", error);

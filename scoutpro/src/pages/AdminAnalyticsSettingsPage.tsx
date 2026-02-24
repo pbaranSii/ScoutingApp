@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAnalyticsSettings, useSaveAnalyticsSettings } from "@/features/analytics/hooks/useAnalyticsSettings";
 import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 import { toast } from "@/hooks/use-toast";
+import { ArrowLeft } from "lucide-react";
 
 type SettingField = {
   key: string;
@@ -72,6 +74,12 @@ export function AdminAnalyticsSettingsPage() {
 
   return (
     <div className="space-y-6">
+      <Link to="/settings">
+        <Button variant="ghost" size="sm" className="-ml-2 mb-2">
+          <ArrowLeft className="mr-1 h-4 w-4" />
+          Wstecz
+        </Button>
+      </Link>
       <PageHeader title="Analytics Settings" subtitle="Ustawienia celów, limitów i sezonu dla Recruitment Analytics." />
 
       {settingsQuery.isLoading && (

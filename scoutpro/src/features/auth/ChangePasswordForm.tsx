@@ -10,8 +10,8 @@ import { toast } from "@/hooks/use-toast";
 
 const schema = z
   .object({
-    password: z.string().min(8, "Haslo musi miec co najmniej 8 znakow"),
-    confirmPassword: z.string().min(8, "Powtorz haslo"),
+    password: z.string().min(8, "Hasło musi mieć co najmniej 8 znaków"),
+    confirmPassword: z.string().min(8, "Powtórz hasło"),
   })
   .refine((values) => values.password === values.confirmPassword, {
     message: "Hasla musza byc takie same",
@@ -37,13 +37,13 @@ export function ChangePasswordForm({ onSuccess }: ChangePasswordFormProps) {
     if (error) {
       toast({
         variant: "destructive",
-        title: "Nie udalo sie zmienic hasla",
+        title: "Nie udało się zmienić hasła",
         description: error.message,
       });
       setIsSubmitting(false);
       return;
     }
-    toast({ title: "Haslo zostalo zmienione" });
+    toast({ title: "Hasło zostało zmienione" });
     form.reset();
     setIsSubmitting(false);
     onSuccess?.();
@@ -57,9 +57,9 @@ export function ChangePasswordForm({ onSuccess }: ChangePasswordFormProps) {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nowe haslo</FormLabel>
+              <FormLabel>Nowe hasło</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="Min. 8 znakow" {...field} />
+                <Input type="password" placeholder="Min. 8 znaków" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -70,16 +70,16 @@ export function ChangePasswordForm({ onSuccess }: ChangePasswordFormProps) {
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Powtorz haslo</FormLabel>
+              <FormLabel>Powtórz hasło</FormLabel>
               <FormControl>
-                <Input type="password" placeholder="Powtorz haslo" {...field} />
+                <Input type="password" placeholder="Powtórz hasło" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         <Button type="submit" className="w-full" disabled={isSubmitting}>
-          Zmien haslo
+          Zmień hasło
         </Button>
       </form>
     </Form>

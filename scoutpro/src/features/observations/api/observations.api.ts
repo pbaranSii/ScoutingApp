@@ -246,7 +246,7 @@ export async function deleteObservation(id: string) {
   if (error) throw error;
   if (!data || data.length === 0) {
     throw new Error(
-      "Nie udalo sie usunac obserwacji. Sprawdz uprawnienia lub czy rekord nadal istnieje."
+      "Nie udało się usunąć obserwacji. Sprawdź uprawnienia lub czy rekord nadal istnieje."
     );
   }
 }

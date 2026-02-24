@@ -36,7 +36,7 @@ export function NewObservationPage() {
   const { data: player, isLoading } = usePlayer(playerId);
 
   if (playerId && isLoading) {
-    return <p className="text-sm text-slate-500">Ladowanie...</p>;
+    return <p className="text-sm text-slate-500">Ładowanie...</p>;
   }
 
   if (playerId && !player) {

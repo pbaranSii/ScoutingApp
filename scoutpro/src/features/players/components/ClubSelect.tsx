@@ -46,10 +46,10 @@ export function ClubSelect({ value, onChange, placeholder, disabled }: ClubSelec
         <div className="absolute z-20 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg">
           <div className="max-h-56 overflow-auto py-1 text-sm">
             {isLoading && (
-              <div className="px-3 py-2 text-slate-500">Ladowanie klubow...</div>
+              <div className="px-3 py-2 text-slate-500">Ładowanie klubów...</div>
             )}
             {isError && (
-              <div className="px-3 py-2 text-red-600">Nie udalo sie pobrac klubow.</div>
+              <div className="px-3 py-2 text-red-600">Nie udało się pobrać klubów.</div>
             )}
             {!isLoading && !isError && filtered.length === 0 && (
               <div className="px-3 py-2 text-slate-500">Brak wynikow.</div>

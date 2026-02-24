@@ -20,7 +20,7 @@ export function PipelineSummary() {
         <CardTitle className="text-base">Pipeline</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 px-6 text-sm">
-        {isLoading && <p className="text-sm text-slate-500">Ladowanie...</p>}
+        {isLoading && <p className="text-sm text-slate-500">Ładowanie...</p>}
         {!isLoading &&
           PIPELINE_BOARD_COLUMNS.map((column) => (
             <div key={column.id} className="flex items-center justify-between">

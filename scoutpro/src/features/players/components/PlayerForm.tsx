@@ -29,7 +29,7 @@ const optionalNumber = z.preprocess(
 );
 
 const playerSchema = z.object({
-  first_name: z.string().min(2, "Podaj imie"),
+  first_name: z.string().min(2, "Podaj imię"),
   last_name: z.string().min(2, "Podaj nazwisko"),
   birth_year: z.coerce.number().int().min(2000).max(2030),
   nationality: optionalText,
@@ -219,12 +219,12 @@ export function PlayerForm({
         onCreated?.();
       }
     } catch (error) {
-      const message = extractErrorMessage(error, "Nie udalo sie zapisac zawodnika");
+      const message = extractErrorMessage(error, "Nie udało się zapisać zawodnika");
       console.error("Save player failed:", error);
       setSubmitError(message);
       toast({
         variant: "destructive",
-        title: "Nie udalo sie zapisac",
+        title: "Nie udało się zapisać",
         description: message,
       });
     }
@@ -244,7 +244,7 @@ export function PlayerForm({
                 name="first_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Imie *</FormLabel>
+                    <FormLabel>Imię *</FormLabel>
                     <FormControl>
                       <Input placeholder="Jan" {...field} />
                     </FormControl>

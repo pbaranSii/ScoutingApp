@@ -11,7 +11,7 @@ export function RecentObservations() {
         <CardTitle className="text-base">Ostatnie obserwacje</CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        {isLoading && <p className="text-sm text-slate-500">Ladowanie...</p>}
+        {isLoading && <p className="text-sm text-slate-500">Ładowanie...</p>}
         {!isLoading && data.length === 0 && (
           <p className="text-sm text-slate-500">Brak obserwacji.</p>
         )}

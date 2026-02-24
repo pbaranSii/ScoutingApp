@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Plus, Star } from "lucide-react";
 import { AddToFavoritesButton } from "@/features/favorites/components/AddToFavoritesButton";
+import { AssignToDemandButton } from "@/features/demands/components/AssignToDemandButton";
+import { usePlayerDemandsForPlayer } from "@/features/demands/hooks/usePlayerDemandsForPlayer";
 import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { supabase } from "@/lib/supabase";
 import {
@@ -34,6 +36,7 @@ export function PlayerDetailPage() {
   const { data, isLoading } = usePlayer(playerId);
   const { data: observations = [], isLoading: isObsLoading } = useObservationsByPlayer(playerId);
   const { data: history = [], isLoading: isHistoryLoading } = usePipelineHistory(playerId);
+  const { data: playerDemands = [] } = usePlayerDemandsForPlayer(playerId);
   const { data: mediaItems = [], isError: isMultimediaError, error: multimediaError } = useMultimediaByPlayer(playerId);
   const multimediaTableMissing =
     isMultimediaError &&
@@ -89,7 +92,7 @@ export function PlayerDetailPage() {
   }, [userIds]);
 
   if (isLoading) {
-    return <p className="text-sm text-slate-500">Ladowanie...</p>;
+    return <p className="text-sm text-slate-500">Ładowanie...</p>;
   }
 
   if (!data) {
@@ -101,7 +104,15 @@ export function PlayerDetailPage() {
       <PlayerProfile
         player={data}
         additionalActions={
-          <AddToFavoritesButton
+          <div className="flex flex-wrap items-center gap-2">
+            <AssignToDemandButton
+              playerId={data.id}
+              playerName={`${data.first_name} ${data.last_name}`}
+              size="default"
+              variant="outline"
+              label="Zapotrzebowanie"
+            />
+            <AddToFavoritesButton
             playerId={data.id}
             playerName={`${data.first_name} ${data.last_name}`}
             size="default"
@@ -109,8 +120,59 @@ export function PlayerDetailPage() {
             showCount
             className="min-w-[4rem]"
           />
+          </div>
         }
       />
+
+      {playerDemands.length > 0 && (
+        <Card>
+          <CardContent className="p-5 space-y-3">
+            <div className="font-semibold text-slate-900">Zapotrzebowania</div>
+            <p className="text-sm text-slate-600">
+              Zawodnik jest przypisany do {playerDemands.length} zapotrzebowań:
+            </p>
+            <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+              {playerDemands.map((d) => (
+                <li key={d.id}>
+                  <Link
+                    to={`/demands/${d.id}`}
+                    className="text-primary hover:underline"
+                  >
+                    {d.position} · {d.season}
+                    {d.club?.name ? ` (${d.club.name})` : ""}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <AssignToDemandButton
+              playerId={data.id}
+              playerName={`${data.first_name} ${data.last_name}`}
+              variant="outline"
+              size="sm"
+              label="Przypisz do innego zapotrzebowania"
+            />
+          </CardContent>
+        </Card>
+      )}
+      {playerDemands.length === 0 && (
+        <Card>
+          <CardContent className="p-5 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="font-semibold text-slate-900">Zapotrzebowania</div>
+              <p className="text-sm text-slate-600 mt-0.5">
+                Przypisz tego zawodnika do zapotrzebowania na pozycję.
+              </p>
+            </div>
+            <AssignToDemandButton
+              playerId={data.id}
+              playerName={`${data.first_name} ${data.last_name}`}
+              variant="outline"
+              size="sm"
+              label="Przypisz do zapotrzebowania"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="observations">
         <TabsList className="rounded-full bg-slate-100">
@@ -149,7 +211,7 @@ export function PlayerDetailPage() {
               </Link>
             </Button>
           </div>
-          {isObsLoading && <p className="text-sm text-slate-500">Ladowanie...</p>}
+          {isObsLoading && <p className="text-sm text-slate-500">Ładowanie...</p>}
           {!isObsLoading && observations.length === 0 && (
             <p className="text-sm text-slate-500">Brak obserwacji.</p>
           )}
@@ -300,7 +362,7 @@ export function PlayerDetailPage() {
           <Card>
             <CardContent className="space-y-4 p-5 text-sm text-slate-600">
               <div className="font-semibold text-slate-900">Historia zmian statusu</div>
-              {isHistoryLoading && <div>Ladowanie historii...</div>}
+              {isHistoryLoading && <div>Ładowanie historii...</div>}
               {!isHistoryLoading && history.length === 0 && (
                 <div>Brak historii zmian statusu.</div>
               )}

@@ -24,7 +24,7 @@ const baseSchema = z.object({
 });
 
 const createSchema = baseSchema.extend({
-  first_name: z.string().min(1, "Podaj imie"),
+  first_name: z.string().min(1, "Podaj imię"),
   last_name: z.string().min(1, "Podaj nazwisko"),
 });
 
@@ -39,7 +39,7 @@ type UserFormProps = {
   submitLabel: string;
   includePassword?: boolean;
   isSubmitting?: boolean;
-  /** Gdy true, pole email jest tylko do odczytu (np. przy edycji uzytkownika). */
+  /** Gdy true, pole email jest tylko do odczytu (np. przy edycji użytkownika). */
   emailReadOnly?: boolean;
 };
 
@@ -54,7 +54,7 @@ export function UserForm({
   const schema = useMemo(() => {
     if (includePassword) {
       return createSchema.extend({
-        password: z.string().min(8, "Haslo musi miec co najmniej 8 znakow"),
+        password: z.string().min(8, "Hasło musi mieć co najmniej 8 znaków"),
       });
     }
     return baseSchema;
@@ -78,7 +78,7 @@ export function UserForm({
             name="first_name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Imie</FormLabel>
+                <FormLabel>Imię</FormLabel>
                 <FormControl>
                   <Input placeholder="Jan" {...field} />
                 </FormControl>
@@ -110,14 +110,14 @@ export function UserForm({
               <FormControl>
                 <Input
                   type="email"
-                  placeholder="uzytkownik@scoutpro.pl"
+                  placeholder="użytkownik@scoutpro.pl"
                   {...field}
                   readOnly={emailReadOnly}
                   className={emailReadOnly ? "bg-slate-50 cursor-not-allowed" : ""}
                 />
               </FormControl>
               {emailReadOnly && (
-                <p className="text-xs text-slate-500">Adres email nie moze byc zmieniony.</p>
+                <p className="text-xs text-slate-500">Adres email nie może być zmieniony.</p>
               )}
               <FormMessage />
             </FormItem>
@@ -131,7 +131,7 @@ export function UserForm({
             <FormItem>
               <FormLabel>Rola</FormLabel>
               <p className="text-xs text-slate-500 mb-1">
-                Okresla funkcje i uprawnienia uzytkownika (Scout, Trener, Dyrektor, Administrator).
+                Określa funkcję i uprawnienia użytkownika (Scout, Trener, Dyrektor, Administrator).
               </p>
               <Select
                 onValueChange={field.onChange}
@@ -165,9 +165,9 @@ export function UserForm({
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Haslo</FormLabel>
+                <FormLabel>Hasło</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="Min. 8 znakow" {...field} />
+                  <Input type="password" placeholder="Min. 8 znaków" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

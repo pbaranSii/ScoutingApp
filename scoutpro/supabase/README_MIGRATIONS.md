@@ -90,3 +90,9 @@ Jeśli czegoś brakuje, uruchom migrację `20260216100000_ensure_multimedia_tabl
 Checklist wdrożenia migracji analityki (lokalnie i na prod), kolejność plików oraz rollback: **[DEPLOY_ANALYTICS.md](DEPLOY_ANALYTICS.md)**.
 
 Migracje do uruchomienia w kolejności: `20260218160000_recruitment_analytics_module.sql`, `20260218160001_...`, `20260218160100_...`, `20260218160110_...`. Po wdrożeniu obowiązkowo: **Reload schema cache** (Project Settings → API lub `NOTIFY pgrst, 'reload schema';`).
+
+---
+
+## Moduł „Statystyki użytkowników i Ankieta satysfakcji”
+
+Jeśli w projekcie brak tabel **`user_sessions`** i **`user_surveys`**, zastosuj migrację ręcznie według instrukcji: **[APPLY_ADMIN_STATS_SURVEY.md](APPLY_ADMIN_STATS_SURVEY.md)**.

@@ -165,7 +165,7 @@ export async function adminSetUserPassword(input: { user_id: string; password: s
   }
   if (!res.ok) {
     const msg =
-      body?.error ?? body?.message ?? `Blad ${res.status}. Zaloguj sie ponownie i sprobuj jeszcze raz.`;
+      body?.error ?? body?.message ?? `Błąd ${res.status}. Zaloguj się ponownie i spróbuj jeszcze raz.`;
     throw new Error(msg);
   }
   return body as { status: string };

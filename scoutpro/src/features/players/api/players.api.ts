@@ -229,7 +229,7 @@ export async function deletePlayer(id: string) {
   if (error) throw error;
   if (!data || data.length === 0) {
     throw new Error(
-      "Nie udalo sie usunac zawodnika. Sprawdz uprawnienia lub czy rekord nadal istnieje."
+      "Nie udało się usunąć zawodnika. Sprawdź uprawnienia lub czy rekord nadal istnieje."
     );
   }
 }
@@ -295,7 +295,7 @@ export async function updatePlayerStatusWithHistory(input: {
         changed_by: input.changed_by,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Nie udalo sie zapisac historii.";
+      const message = err instanceof Error ? err.message : "Nie udało się zapisać historii.";
       console.warn("Pipeline history insert blocked:", err);
       historyError = message;
     }

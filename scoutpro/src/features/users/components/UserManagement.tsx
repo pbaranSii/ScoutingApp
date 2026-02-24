@@ -57,14 +57,14 @@ export function UserManagement() {
         last_name: values.last_name,
         business_role: values.business_role,
       });
-      toast({ title: "Utworzono uzytkownika" });
+      toast({ title: "Utworzono użytkownika" });
       setIsCreateOpen(false);
     } catch (error) {
       const message =
         error instanceof Error && error.message
           ? error.message
-          : "Nie udalo sie utworzyc uzytkownika";
-      toast({ variant: "destructive", title: "Blad", description: message });
+          : "Nie udało się utworzyć użytkownika";
+      toast({ variant: "destructive", title: "Błąd", description: message });
     }
   };
 
@@ -76,14 +76,14 @@ export function UserManagement() {
         last_name: values.last_name,
         business_role: values.business_role,
       });
-      toast({ title: "Zaktualizowano uzytkownika" });
+      toast({ title: "Zaktualizowano użytkownika" });
       setEditUser(null);
     } catch (error) {
       const message =
         error instanceof Error && error.message
           ? error.message
-          : "Nie udalo sie zapisac zmian";
-      toast({ variant: "destructive", title: "Blad", description: message });
+          : "Nie udało się zapisać zmian";
+      toast({ variant: "destructive", title: "Błąd", description: message });
     }
   };
 
@@ -91,8 +91,8 @@ export function UserManagement() {
     const shouldSuspend = user.is_active !== false;
     const confirmed = window.confirm(
       shouldSuspend
-        ? `Zawiesic dostep dla ${user.full_name ?? user.email}?`
-        : `Przywrocic dostep dla ${user.full_name ?? user.email}?`
+        ? `Zawiesić dostęp dla ${user.full_name ?? user.email}?`
+        : `Przywrócić dostęp dla ${user.full_name ?? user.email}?`
     );
     if (!confirmed) return;
     try {
@@ -101,20 +101,20 @@ export function UserManagement() {
         is_active: !shouldSuspend,
       });
       toast({
-        title: shouldSuspend ? "Dostep zawieszony" : "Dostep przywrocony",
+        title: shouldSuspend ? "Dostęp zawieszony" : "Dostęp przywrócony",
       });
     } catch (error) {
       const message =
         error instanceof Error && error.message
           ? error.message
-          : "Nie udalo sie zmienic dostepu";
-      toast({ variant: "destructive", title: "Blad", description: message });
+          : "Nie udało się zmienić dostępu";
+      toast({ variant: "destructive", title: "Błąd", description: message });
     }
   };
 
   const handleDeleteAccount = async (user: UserProfile) => {
     const confirmed = window.confirm(
-      `Konto zostanie trwale dezaktywowane (usuniete z aplikacji). Uzytkownik ${user.full_name ?? user.email} nie bedzie mogl sie logowac. Dane pozostaja w systemie.\n\nKontynuowac?`
+      `Konto zostanie trwale dezaktywowane (usunięte z aplikacji). Użytkownik ${user.full_name ?? user.email} nie będzie mógł się logować. Dane pozostają w systemie.\n\nKontynuować?`
     );
     if (!confirmed) return;
     try {
@@ -122,13 +122,13 @@ export function UserManagement() {
         userId: user.id,
         is_active: false,
       });
-      toast({ title: "Konto uzytkownika usuniete (dezaktywowane)" });
+      toast({ title: "Konto użytkownika usunięte (dezaktywowane)" });
     } catch (error) {
       const message =
         error instanceof Error && error.message
           ? error.message
-          : "Nie udalo sie usunac konta";
-      toast({ variant: "destructive", title: "Blad", description: message });
+          : "Nie udało się usunąć konta";
+      toast({ variant: "destructive", title: "Błąd", description: message });
     }
   };
 
@@ -137,32 +137,32 @@ export function UserManagement() {
     setPasswordError(null);
     try {
       await setPassword.mutateAsync({ user_id: passwordUser.id, password: passwordValue });
-      toast({ title: "Haslo zostalo zmienione" });
+      toast({ title: "Hasło zostało zmienione" });
       setPasswordValue("");
       setPasswordUser(null);
     } catch (error) {
       const message =
         error instanceof Error && error.message
           ? error.message
-          : "Nie udalo sie zmienic hasla";
+          : "Nie udało się zmienić hasła";
       setPasswordError(message);
-      toast({ variant: "destructive", title: "Blad", description: message });
+      toast({ variant: "destructive", title: "Błąd", description: message });
     }
   };
 
   if (isLoading) {
-    return <p className="text-sm text-slate-500">Ladowanie uzytkownikow...</p>;
+    return <p className="text-sm text-slate-500">Ładowanie użytkowników...</p>;
   }
 
   return (
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <CardTitle>Uzytkownicy</CardTitle>
-          <p className="text-sm text-slate-500">Zarzadzaj dostepem i danymi uzytkownikow.</p>
+          <CardTitle>Użytkownicy</CardTitle>
+          <p className="text-sm text-slate-500">Zarządzaj dostępem i danymi użytkowników.</p>
         </div>
         <Button variant="outline" onClick={() => setIsCreateOpen(true)}>
-          Dodaj uzytkownika
+          Dodaj użytkownika
         </Button>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -197,7 +197,7 @@ export function UserManagement() {
                             : "rounded-full bg-emerald-100 px-2 text-xs text-emerald-700 hover:bg-emerald-100"
                         }
                       >
-                        {isSuspended ? "Brak dostepu" : "Aktywny"}
+                        {isSuspended ? "Brak dostępu" : "Aktywny"}
                       </Badge>
                     </div>
                   </div>
@@ -227,7 +227,7 @@ export function UserManagement() {
                         className="cursor-pointer rounded-sm py-2 pl-3 pr-3 text-sm text-slate-700 hover:bg-slate-100 focus:bg-slate-100"
                       >
                         <Key className="mr-2 h-4 w-4" />
-                        Zmien haslo
+                        Zmień hasło
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className={
@@ -238,14 +238,14 @@ export function UserManagement() {
                         onSelect={() => handleToggleAccess(user)}
                       >
                         <UserX className="mr-2 h-4 w-4" />
-                        {isSuspended ? "Przywroc dostep" : "Zawies"}
+                        {isSuspended ? "Przywróć dostęp" : "Zawieś"}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="cursor-pointer rounded-sm py-2 pl-3 pr-3 text-sm text-rose-600 hover:bg-slate-100 focus:bg-slate-100"
                         onSelect={() => handleDeleteAccount(user)}
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Usun konto
+                        Usuń konto
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -254,7 +254,7 @@ export function UserManagement() {
             );
           })
         ) : (
-          <p className="text-sm text-slate-500">Brak uzytkownikow do wyswietlenia.</p>
+          <p className="text-sm text-slate-500">Brak użytkowników do wyświetlenia.</p>
         )}
       </CardContent>
 
@@ -273,9 +273,9 @@ export function UserManagement() {
               role="dialog"
               aria-modal="true"
             >
-              <h2 className="text-lg font-semibold text-slate-900">Dodaj uzytkownika</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Dodaj użytkownika</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Utworz nowe konto z haslem. Rola jest zapisywana w celach informacyjnych (domyslnie Scout).
+                Utwórz nowe konto z hasłem. Rola jest zapisywana w celach informacyjnych (domyślnie Scout).
               </p>
               <div className="mt-4">
                 <UserForm
@@ -312,9 +312,9 @@ export function UserManagement() {
               role="dialog"
               aria-modal="true"
             >
-              <h2 className="text-lg font-semibold text-slate-900">Edytuj uzytkownika</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Edytuj użytkownika</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Aktualizuj imie, nazwisko i role. Zmiana roli wplywa na uprawnienia.
+                Aktualizuj imię, nazwisko i rolę. Zmiana roli wpływa na uprawnienia.
               </p>
               <div className="mt-4">
                 <UserForm
@@ -353,20 +353,20 @@ export function UserManagement() {
               role="dialog"
               aria-modal="true"
             >
-              <h2 className="text-lg font-semibold text-slate-900">Zmien haslo</h2>
+              <h2 className="text-lg font-semibold text-slate-900">Zmień hasło</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Ustaw nowe haslo dla {passwordUser.full_name ?? passwordUser.email}.
+                Ustaw nowe hasło dla {passwordUser.full_name ?? passwordUser.email}.
               </p>
               <div className="mt-4 space-y-4" onClick={(e) => e.stopPropagation()}>
                 <Input
                   type="password"
-                  placeholder="Nowe haslo (min. 8 znakow)"
+                  placeholder="Nowe hasło (min. 8 znaków)"
                   value={passwordValue}
                   onChange={(event) => {
                     setPasswordValue(event.target.value);
                     setPasswordError(null);
                   }}
-                  aria-label="Nowe haslo"
+                  aria-label="Nowe hasło"
                 />
                 {passwordError && (
                   <p className="text-sm text-rose-600">{passwordError}</p>
@@ -381,7 +381,7 @@ export function UserManagement() {
                   }}
                   disabled={setPassword.isPending || passwordValue.length < 8}
                 >
-                  {setPassword.isPending ? "Zapisywanie..." : "Zmień haslo"}
+                  {setPassword.isPending ? "Zapisywanie..." : "Zmień hasło"}
                 </Button>
               </div>
             </div>

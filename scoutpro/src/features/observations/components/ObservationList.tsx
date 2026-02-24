@@ -8,7 +8,7 @@ type ObservationListProps = {
 
 export function ObservationList({ observations, isLoading }: ObservationListProps) {
   if (isLoading) {
-    return <p className="text-sm text-slate-500">Ladowanie...</p>;
+    return <p className="text-sm text-slate-500">Ładowanie...</p>;
   }
 
   if (!observations.length) {

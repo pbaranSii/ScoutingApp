@@ -1,39 +1,89 @@
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
-import { Button } from "@/components/ui/button";
-import { UserManagement } from "@/features/users/components/UserManagement";
+import { Card, CardContent } from "@/components/ui/card";
 import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
-import { BarChart3, BookOpen } from "lucide-react";
+import {
+  BarChart3,
+  BarChart2,
+  BookOpen,
+  ChevronRight,
+  Star,
+  Users,
+} from "lucide-react";
+
+const SETTING_ITEMS = [
+  {
+    to: "/settings/users",
+    label: "Użytkownicy",
+    description: "Zarządzaj dostępem i danymi użytkowników.",
+    icon: Users,
+    adminOnly: true,
+  },
+  {
+    to: "/settings/dictionaries",
+    label: "Słowniki",
+    description: "Zarządzaj słownikami używanymi w formularzach.",
+    icon: BookOpen,
+    adminOnly: false,
+  },
+  {
+    to: "/admin/settings/analytics",
+    label: "Analytics Settings",
+    description: "Cele, limity i sezon dla Recruitment Analytics.",
+    icon: BarChart3,
+    adminOnly: true,
+  },
+  {
+    to: "/settings/admin/usage-statistics",
+    label: "Statystyki użytkowników",
+    description: "Monitoruj aktywność i wykorzystanie systemu.",
+    icon: BarChart2,
+    adminOnly: true,
+  },
+  {
+    to: "/settings/admin/user-satisfaction",
+    label: "Ankiety satysfakcji",
+    description: "Przeglądaj opinie użytkowników.",
+    icon: Star,
+    adminOnly: true,
+  },
+] as const;
 
 export function SettingsPage() {
   const { data: currentUser } = useCurrentUserProfile();
   const isAdmin = currentUser?.role === "admin";
 
+  const items = SETTING_ITEMS.filter((item) => !item.adminOnly || isAdmin);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Ustawienia"
-        subtitle="Zarzadzaj uzytkownikami i slownikami aplikacji."
+        subtitle="Wybierz funkcję do zarządzania aplikacją."
       />
-      {isAdmin && (
-        <>
-          <div className="flex flex-wrap items-center gap-3">
-            <Link to="/settings/dictionaries">
-              <Button variant="outline">
-                <BookOpen className="mr-2 h-4 w-4" />
-                Slowniki
-              </Button>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link key={item.to} to={item.to}>
+              <Card className="transition-colors hover:bg-slate-50">
+                <CardContent className="flex flex-row items-center justify-between p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-slate-100 p-2">
+                      <Icon className="h-5 w-5 text-slate-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-900">{item.label}</p>
+                      <p className="text-sm text-slate-500">{item.description}</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-slate-400" />
+                </CardContent>
+              </Card>
             </Link>
-            <Link to="/admin/settings/analytics">
-              <Button variant="outline">
-                <BarChart3 className="mr-2 h-4 w-4" />
-                Analytics Settings
-              </Button>
-            </Link>
-          </div>
-          <UserManagement />
-        </>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }

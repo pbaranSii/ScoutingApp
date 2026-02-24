@@ -151,7 +151,7 @@ export function useSync() {
           });
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : "Nieznany blad";
+            error instanceof Error ? error.message : "Nieznany błąd";
           await offlineDb.offlineObservations.update(obs.localId, {
             syncStatus: "failed",
             syncAttempts: obs.syncAttempts + 1,

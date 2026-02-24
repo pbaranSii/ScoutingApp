@@ -8,6 +8,7 @@ import {
   Settings,
   BarChart3,
   Heart,
+  Target,
 } from "lucide-react";
 import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 import { canViewAnalytics } from "@/features/users/types";
@@ -21,6 +22,7 @@ export function MobileNav() {
     { to: "/players", label: "Zawodnicy", icon: Users },
     { to: "/observations", label: "Obserwacje", icon: ClipboardList },
     { to: "/favorites", label: "Ulubione", icon: Heart },
+    { to: "/demands", label: "Zapotrz.", icon: Target },
     { to: "/pipeline", label: "Pipeline", icon: KanbanSquare },
     { to: "/tasks", label: "Zadania", icon: CheckSquare },
     ...(showAnalytics

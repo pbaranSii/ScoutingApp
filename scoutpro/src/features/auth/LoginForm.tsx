@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 
 const loginSchema = z.object({
   email: z.string().email("Podaj poprawny email"),
-  password: z.string().min(6, "Haslo musi miec min. 6 znakow"),
+  password: z.string().min(6, "Hasło musi mieć min. 6 znaków"),
   remember: z.boolean().default(true),
 });
 
@@ -40,7 +40,7 @@ export function LoginForm() {
         "/dashboard";
       navigate(from, { replace: true });
     } catch {
-      setSubmitError("Nieprawidlowy email lub haslo");
+      setSubmitError("Nieprawidłowy email lub hasło");
     }
   };
 
@@ -66,7 +66,7 @@ export function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Haslo</FormLabel>
+              <FormLabel>Hasło</FormLabel>
               <FormControl>
                 <Input type="password" placeholder="••••••••" {...field} />
               </FormControl>

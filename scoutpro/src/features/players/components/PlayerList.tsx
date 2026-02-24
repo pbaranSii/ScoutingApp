@@ -24,7 +24,7 @@ export function PlayerList({ players, isLoading }: PlayerListProps) {
   });
 
   if (isLoading) {
-    return <p className="text-sm text-slate-500">Ladowanie...</p>;
+    return <p className="text-sm text-slate-500">Ładowanie...</p>;
   }
 
   if (!players.length) {

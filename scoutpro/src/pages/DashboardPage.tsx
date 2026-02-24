@@ -76,7 +76,7 @@ export function DashboardPage() {
             <Button asChild variant="outline" className="w-full justify-start gap-2">
               <Link to="/pipeline">
                 <Eye className="h-4 w-4" />
-                Zarzadzaj pipeline
+                Zarządzaj pipeline
               </Link>
             </Button>
           </CardContent>

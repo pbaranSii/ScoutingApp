@@ -72,7 +72,7 @@ export function ObservationsPage() {
     <div className="space-y-4">
       <PageHeader
         title="Obserwacje"
-        subtitle="Zarzadzaj i przegladaj raporty scoutingowe"
+        subtitle="Zarządzaj i przeglądaj raporty scoutingowe"
         actions={
           <Button asChild className="gap-2 bg-red-600 hover:bg-red-700">
             <Link to="/observations/new">
@@ -84,7 +84,7 @@ export function ObservationsPage() {
       />
       {isError && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error instanceof Error ? error.message : "Nie udalo sie pobrac obserwacji."}
+          {error instanceof Error ? error.message : "Nie udało się pobrać obserwacji."}
         </div>
       )}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

@@ -115,7 +115,7 @@ export function PlayerProfile({ player, additionalActions }: PlayerProfileProps)
               <div className="space-y-2">
                 <h2 className="text-lg font-semibold text-slate-900">Usun zawodnika?</h2>
                 <p className="text-sm text-slate-600">
-                  Ta operacja jest nieodwracalna. Wraz z zawodnikiem zostana usuniete jego obserwacje.
+                  Ta operacja jest nieodwracalna. Wraz z zawodnikiem zostaną usunięte jego obserwacje.
                 </p>
               </div>
               {deleteError && <p className="mt-3 text-sm text-red-600">{deleteError}</p>}
@@ -144,7 +144,7 @@ export function PlayerProfile({ player, additionalActions }: PlayerProfileProps)
                       await deletePlayer.mutateAsync(player.id);
                       toast({
                         title: "Usunieto zawodnika",
-                        description: "Zawodnik i jego obserwacje zostaly trwale usuniete.",
+                        description: "Zawodnik i jego obserwacje zostały trwale usunięte.",
                       });
                       setIsDeleteOpen(false);
                       navigate("/players");
@@ -157,11 +157,11 @@ export function PlayerProfile({ player, additionalActions }: PlayerProfileProps)
                         rawMessage.includes("pipeline_history");
                       const message = isForeignKeyIssue
                         ? "Nie mozna usunac zawodnika z powodu powiazanych obserwacji."
-                        : rawMessage || "Nie udalo sie usunac zawodnika";
+                        : rawMessage || "Nie udało się usunąć zawodnika";
                       setDeleteError(message);
                       toast({
                         variant: "destructive",
-                        title: "Nie udalo sie usunac",
+                        title: "Nie udało się usunąć",
                         description: message,
                       });
                       console.error("Delete player failed:", error);

@@ -162,7 +162,7 @@ export function ObservationWizard({
   const auditName =
     (user?.user_metadata as { full_name?: string })?.full_name ??
     user?.email ??
-    "Uzytkownik";
+    "Użytkownik";
   const auditRole =
     (user?.user_metadata as { role?: string })?.role ?? "user";
   const shouldUpdatePlayer = Boolean(prefillPlayer?.id) && !lockPlayerFields;
@@ -370,7 +370,7 @@ export function ObservationWizard({
 
   const onSubmit = async (values: WizardFormValues) => {
     if (!user) {
-      setSubmitError("Brak zalogowanego uzytkownika");
+      setSubmitError("Brak zalogowanego użytkownika");
       return;
     }
     setSubmitError(null);
@@ -467,10 +467,10 @@ export function ObservationWizard({
         });
         navigate(cancelHref);
       } catch {
-        setSubmitError("Nie udalo sie zapisac zmian");
+        setSubmitError("Nie udało się zapisać zmian");
         toast({
           variant: "destructive",
-          title: "Nie udalo sie zapisac",
+          title: "Nie udało się zapisać",
           description: "Sprobuj ponownie za chwile.",
         });
       }
@@ -690,10 +690,10 @@ export function ObservationWizard({
       localStorage.removeItem("scoutpro-observation-draft");
       goBack();
     } catch {
-      setSubmitError("Nie udalo sie zapisac obserwacji");
+      setSubmitError("Nie udało się zapisać obserwacji");
       toast({
         variant: "destructive",
-        title: "Nie udalo sie zapisac",
+        title: "Nie udało się zapisać",
         description: "Sprobuj ponownie za chwile.",
       });
     }
@@ -1347,7 +1347,7 @@ export function ObservationWizard({
               </Button>
             </div>
             <Button type="submit" disabled={isSaving}>
-              {isSaving ? "Zapisywanie..." : isEditMode ? "Zapisz zmiany" : "Zapisz obserwacje"}
+              {isSaving ? "Zapisywanie..." : isEditMode ? "Zapisz zmiany" : "Zapisz obserwację"}
             </Button>
           </div>
         </form>
