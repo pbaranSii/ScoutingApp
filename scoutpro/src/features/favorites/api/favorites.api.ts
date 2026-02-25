@@ -9,7 +9,7 @@ export async function fetchFavoriteLists(filter: FavoriteListFilter = "mine"): P
 
   let query = supabase
     .from("favorite_lists")
-    .select("id, name, description, owner_id, formation, region_id, last_used_at, created_at, updated_at")
+    .select("id, name, description, owner_id, formation, formation_id, region_id, last_used_at, created_at, updated_at, slot_assignments")
     .order("last_used_at", { ascending: false, nullsFirst: false });
 
   if (filter === "mine") {
@@ -49,7 +49,7 @@ export async function fetchFavoriteLists(filter: FavoriteListFilter = "mine"): P
 export async function fetchFavoriteListById(id: string): Promise<FavoriteList | null> {
   const { data, error } = await supabase
     .from("favorite_lists")
-    .select("id, name, description, owner_id, formation, region_id, last_used_at, created_at, updated_at")
+    .select("id, name, description, owner_id, formation, formation_id, region_id, last_used_at, created_at, updated_at, slot_assignments")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -65,6 +65,7 @@ export async function createFavoriteList(input: {
   name: string;
   description?: string | null;
   formation?: string;
+  formation_id?: string | null;
   region_id?: string | null;
 }): Promise<FavoriteList> {
   const { data: authUser } = await supabase.auth.getUser();
@@ -83,6 +84,7 @@ export async function createFavoriteList(input: {
       name: input.name.trim().slice(0, 100),
       description: input.description?.trim().slice(0, 500) || null,
       formation: input.formation ?? "4-4-2",
+      formation_id: input.formation_id ?? null,
       region_id: input.region_id || null,
       owner_id: uid.id,
     })
@@ -94,13 +96,22 @@ export async function createFavoriteList(input: {
 
 export async function updateFavoriteList(
   id: string,
-  input: { name?: string; description?: string | null; formation?: string; region_id?: string | null }
+  input: {
+    name?: string;
+    description?: string | null;
+    formation?: string;
+    formation_id?: string | null;
+    region_id?: string | null;
+    slot_assignments?: Record<string, string> | null;
+  }
 ): Promise<FavoriteList> {
   const payload: Record<string, unknown> = {};
   if (input.name !== undefined) payload.name = input.name.trim().slice(0, 100);
   if (input.description !== undefined) payload.description = input.description?.trim().slice(0, 500) || null;
   if (input.formation !== undefined) payload.formation = input.formation;
+  if (input.formation_id !== undefined) payload.formation_id = input.formation_id ?? null;
   if (input.region_id !== undefined) payload.region_id = input.region_id || null;
+  if (input.slot_assignments !== undefined) payload.slot_assignments = input.slot_assignments ?? {};
 
   const { data, error } = await supabase.from("favorite_lists").update(payload).eq("id", id).select().single();
   if (error) throw error;

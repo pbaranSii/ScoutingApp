@@ -1,4 +1,4 @@
-/** Formation code stored in favorite_lists.formation */
+/** Formation code stored in favorite_lists.formation (legacy fallback) */
 export type FormationCode = "4-4-2" | "4-3-3" | "3-5-2" | "4-2-3-1" | "5-3-2";
 
 export interface FavoriteList {
@@ -6,13 +6,19 @@ export interface FavoriteList {
   name: string;
   description: string | null;
   owner_id: string;
-  formation: FormationCode;
+  formation: string;
+  formation_id?: string | null;
   region_id: string | null;
   last_used_at: string | null;
   created_at: string;
   updated_at: string;
   owner?: { id: string; full_name: string | null; avatar_url?: string | null } | null;
   region?: { id: string; name: string } | null;
+  /** From join formations(id, name, code) */
+  formations?: { id: string; name: string; code: string } | null;
+  formation_ref?: { id: string; name: string; code: string } | null;
+  /** Ręczne przypisania slot -> player_id (slotKey: f_<formation_id>_index lub l_<formation>_index). */
+  slot_assignments?: Record<string, string> | null;
   players_count?: number;
   average_rating?: number | null;
   is_collaborator?: boolean;
@@ -48,6 +54,9 @@ export interface PitchPositionSlot {
   label: string;
   count: number;
   playerIds: string[];
+  /** When using formation from DB (formation_id); 0–100 */
+  x?: number;
+  y?: number;
 }
 
 export const FORMATION_OPTIONS: { value: FormationCode; label: string }[] = [

@@ -5,32 +5,59 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRegions } from "@/features/dictionaries/hooks/useDictionaries";
-import { FORMATION_OPTIONS } from "../types";
-import type { FavoriteList, FormationCode } from "../types";
+import { FormationSelector, type FormationSelection } from "@/features/favorites/components/FormationSelector";
+import { useDefaultFormation } from "@/features/tactical/hooks/useFormations";
+import type { FavoriteList } from "../types";
 
 type EditListDialogProps = {
   open: boolean;
   list: FavoriteList | null;
   onClose: () => void;
-  onSubmit: (input: { name?: string; description?: string | null; formation?: string; region_id?: string | null }) => Promise<void>;
+  onSubmit: (input: {
+    name?: string;
+    description?: string | null;
+    formation?: string;
+    formation_id?: string | null;
+    region_id?: string | null;
+  }) => Promise<void>;
   isSubmitting: boolean;
 };
 
 export function EditListDialog({ open, list, onClose, onSubmit, isSubmitting }: EditListDialogProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [formation, setFormation] = useState<FormationCode>("4-4-2");
+  const [formationSelection, setFormationSelection] = useState<FormationSelection>({
+    formation_id: null,
+    formation: "4-4-2",
+  });
   const [regionId, setRegionId] = useState<string>("");
   const { data: regions = [] } = useRegions();
+  const { data: defaultFormation } = useDefaultFormation();
 
   useEffect(() => {
     if (list) {
       setName(list.name);
       setDescription(list.description ?? "");
-      setFormation((list.formation as FormationCode) || "4-4-2");
+      const hasFormationId = list.formation_id != null && list.formation_id !== "";
+      if (hasFormationId) {
+        setFormationSelection({
+          formation_id: list.formation_id,
+          formation: list.formation || "4-4-2",
+        });
+      } else if (defaultFormation) {
+        setFormationSelection({
+          formation_id: defaultFormation.id,
+          formation: defaultFormation.code,
+        });
+      } else {
+        setFormationSelection({
+          formation_id: null,
+          formation: list.formation || "4-4-2",
+        });
+      }
       setRegionId(list.region_id ?? "");
     }
-  }, [list]);
+  }, [list, defaultFormation]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +65,8 @@ export function EditListDialog({ open, list, onClose, onSubmit, isSubmitting }: 
     await onSubmit({
       name: name.trim(),
       description: description.trim() || null,
-      formation,
+      formation: formationSelection.formation,
+      formation_id: formationSelection.formation_id,
       region_id: regionId || null,
     });
     onClose();
@@ -72,19 +100,8 @@ export function EditListDialog({ open, list, onClose, onSubmit, isSubmitting }: 
               />
             </div>
             <div>
-              <Label>Formacja</Label>
-              <Select value={formation} onValueChange={(v) => setFormation(v as FormationCode)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FORMATION_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Schemat taktyczny</Label>
+              <FormationSelector value={formationSelection} onChange={setFormationSelection} />
             </div>
             <div>
               <Label>Udostępnij regionowi</Label>

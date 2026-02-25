@@ -1,5 +1,6 @@
 import { useParams, Link } from "react-router-dom";
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Badge } from "@/components/ui/badge";
@@ -11,9 +12,11 @@ import {
   useUpdatePlayerDemand,
   useRemoveCandidate,
 } from "@/features/demands/hooks";
+import { fetchLeagues } from "@/features/demands/api/demands.api";
 import { DEMAND_PRIORITY_LABELS, DEMAND_STATUS_LABELS } from "@/features/demands/types";
 import { formatPosition } from "@/features/players/positions";
 import { DemandSuggestionsTab } from "@/features/demands/components/DemandSuggestionsTab";
+import { DemandPreviewCard } from "@/features/demands/components/DemandPreviewCard";
 import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -32,6 +35,7 @@ export function DemandDetailPage() {
   const [statusSelectOpen, setStatusSelectOpen] = useState(false);
   const { data: demand, isLoading: demandLoading } = usePlayerDemand(id ?? null);
   const { data: candidates = [], isLoading: candidatesLoading } = useDemandCandidates(id ?? null);
+  const { data: leagues = [] } = useQuery({ queryKey: ["leagues"], queryFn: fetchLeagues });
   const updateDemand = useUpdatePlayerDemand();
   const removeCandidate = useRemoveCandidate(id ?? null);
   const { data: profile } = useCurrentUserProfile();
@@ -79,7 +83,7 @@ export function DemandDetailPage() {
   }
   if (!demand) {
     return (
-      <div className="space-y-4">
+      <div className="mx-auto w-full max-w-[960px] space-y-4 min-h-[400px]">
         <p className="text-slate-600">Nie znaleziono zapotrzebowania.</p>
         <Button asChild variant="outline">
           <Link to="/demands">Wróć do listy</Link>
@@ -98,7 +102,7 @@ export function DemandDetailPage() {
     demand.priority === "critical" ? "destructive" : demand.priority === "high" ? "default" : "secondary";
 
   return (
-    <div className="space-y-4">
+    <div className="mx-auto w-full max-w-[960px] space-y-4 min-h-[400px]">
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
         <Link to="/demands" className="inline-flex items-center gap-2 hover:text-slate-900">
           <ArrowLeft className="h-4 w-4" />
@@ -150,12 +154,16 @@ export function DemandDetailPage() {
           </div>
         }
       />
-
-      <Tabs defaultValue="candidates" className="space-y-4">
+      <div className="h-px bg-slate-200" />
+      <Tabs defaultValue="preview" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="preview">Podgląd</TabsTrigger>
           <TabsTrigger value="candidates">Kandydaci ({candidates.length})</TabsTrigger>
           <TabsTrigger value="suggestions">Sugestie</TabsTrigger>
         </TabsList>
+        <TabsContent value="preview" className="space-y-3">
+          <DemandPreviewCard demand={demand} leagues={leagues} />
+        </TabsContent>
         <TabsContent value="candidates" className="space-y-3">
           <h3 className="font-semibold text-slate-900">Przypisani kandydaci</h3>
           {candidatesLoading ? (

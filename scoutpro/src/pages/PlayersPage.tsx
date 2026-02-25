@@ -5,14 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
+import { Pagination } from "@/components/common/Pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { POSITION_OPTIONS } from "@/features/players/positions";
 import { SlidersHorizontal } from "lucide-react";
 
+const PAGE_SIZE = 100;
+
 export function PlayersPage() {
   const [search, setSearch] = useState("");
-  const { data = [], isLoading } = usePlayers({ search });
+  const [page, setPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState({
     position: "",
@@ -21,16 +24,22 @@ export function PlayersPage() {
   });
   const hasActiveFilters = filters.position || filters.status || filters.birthYear;
 
+  const { data = [], total = 0, isLoading } = usePlayers({
+    search: search || undefined,
+    page,
+    pageSize: PAGE_SIZE,
+    primary_position: filters.position || undefined,
+    status: filters.status || undefined,
+    birthYear: filters.birthYear ? Number(filters.birthYear) : undefined,
+  });
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, filters.position, filters.status, filters.birthYear]);
+
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-  }, []);
-
-  const filteredPlayers = data.filter((player) => {
-    if (filters.position && player.primary_position !== filters.position) return false;
-    if (filters.status && player.pipeline_status !== filters.status) return false;
-    if (filters.birthYear && String(player.birth_year) !== String(filters.birthYear)) return false;
-    return true;
-  });
+  }, [page]);
 
   return (
     <div className="space-y-4">
@@ -124,7 +133,15 @@ export function PlayersPage() {
         </div>
       )}
 
-      <PlayerList players={filteredPlayers} isLoading={isLoading} />
+      <PlayerList players={data} isLoading={isLoading} />
+      {total > 0 && (
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={total}
+          onPageChange={setPage}
+        />
+      )}
     </div>
   );
 }

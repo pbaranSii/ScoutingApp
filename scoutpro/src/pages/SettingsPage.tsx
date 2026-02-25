@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Star,
   Users,
+  LayoutGrid,
 } from "lucide-react";
 
 const SETTING_ITEMS = [
@@ -45,6 +46,13 @@ const SETTING_ITEMS = [
     label: "Ankiety satysfakcji",
     description: "Przeglądaj opinie użytkowników.",
     icon: Star,
+    adminOnly: true,
+  },
+  {
+    to: "/settings/tactical/formations",
+    label: "Schematy taktyczne",
+    description: "Słownik pozycji i schematy taktyczne (formacje).",
+    icon: LayoutGrid,
     adminOnly: true,
   },
 ] as const;

@@ -963,6 +963,179 @@ export type Database = {
         }
         Relationships: []
       }
+      position_dictionary: {
+        Row: {
+          id: string
+          position_number: number
+          position_code: string
+          position_name_pl: string
+          description: string | null
+          is_active: boolean
+          display_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          position_number: number
+          position_code: string
+          position_name_pl: string
+          description?: string | null
+          is_active?: boolean
+          display_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          position_number?: number
+          position_code?: string
+          position_name_pl?: string
+          description?: string | null
+          is_active?: boolean
+          display_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      formations: {
+        Row: {
+          id: string
+          name: string
+          code: string
+          description: string | null
+          is_default: boolean
+          is_system: boolean
+          created_by: string | null
+          version: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          code: string
+          description?: string | null
+          is_default?: boolean
+          is_system?: boolean
+          created_by?: string | null
+          version?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          code?: string
+          description?: string | null
+          is_default?: boolean
+          is_system?: boolean
+          created_by?: string | null
+          version?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tactical_slots: {
+        Row: {
+          id: string
+          formation_id: string
+          position_id: string
+          slot_label: string | null
+          x: number
+          y: number
+          side: string
+          depth: string
+          is_required: boolean
+          role_hint: string | null
+          display_order: number
+        }
+        Insert: {
+          id?: string
+          formation_id: string
+          position_id: string
+          slot_label?: string | null
+          x: number
+          y: number
+          side?: string
+          depth?: string
+          is_required?: boolean
+          role_hint?: string | null
+          display_order?: number
+        }
+        Update: {
+          id?: string
+          formation_id?: string
+          position_id?: string
+          slot_label?: string | null
+          x?: number
+          y?: number
+          side?: string
+          depth?: string
+          is_required?: boolean
+          role_hint?: string | null
+          display_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tactical_slots_formation_id_fkey"
+            columns: ["formation_id"]
+            isOneToOne: false
+            referencedRelation: "formations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tactical_slots_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "position_dictionary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_position_mapping: {
+        Row: {
+          player_id: string
+          position_id: string
+          is_primary: boolean
+        }
+        Insert: {
+          player_id: string
+          position_id: string
+          is_primary?: boolean
+        }
+        Update: {
+          player_id?: string
+          position_id?: string
+          is_primary?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_position_mapping_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_position_mapping_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "position_dictionary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       regions: {
         Row: {
           created_at: string
@@ -1141,6 +1314,7 @@ export type Database = {
           description: string | null
           owner_id: string
           formation: string
+          formation_id: string | null
           region_id: string | null
           last_used_at: string | null
           created_at: string
@@ -1152,6 +1326,7 @@ export type Database = {
           description?: string | null
           owner_id: string
           formation?: string
+          formation_id?: string | null
           region_id?: string | null
           last_used_at?: string | null
           created_at?: string
@@ -1163,12 +1338,21 @@ export type Database = {
           description?: string | null
           owner_id?: string
           formation?: string
+          formation_id?: string | null
           region_id?: string | null
           last_used_at?: string | null
           created_at?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "favorite_lists_formation_id_fkey"
+            columns: ["formation_id"]
+            isOneToOne: false
+            referencedRelation: "formations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       favorite_list_members: {
         Row: {

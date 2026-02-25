@@ -1,17 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRegions } from "@/features/dictionaries/hooks/useDictionaries";
-import { FORMATION_OPTIONS, MAX_FAVORITE_LISTS_PER_USER } from "../types";
-import type { FormationCode } from "../types";
+import { FormationSelector, type FormationSelection } from "@/features/favorites/components/FormationSelector";
+import { useDefaultFormation } from "@/features/tactical/hooks/useFormations";
+import { MAX_FAVORITE_LISTS_PER_USER } from "../types";
 
 type CreateListDialogProps = {
   open: boolean;
   onClose: () => void;
-  onSubmit: (input: { name: string; description?: string | null; formation?: string; region_id?: string | null }) => Promise<void>;
+  onSubmit: (input: {
+    name: string;
+    description?: string | null;
+    formation?: string;
+    formation_id?: string | null;
+    region_id?: string | null;
+  }) => Promise<void>;
   isSubmitting: boolean;
   currentListCount: number;
 };
@@ -25,9 +32,19 @@ export function CreateListDialog({
 }: CreateListDialogProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [formation, setFormation] = useState<FormationCode>("4-4-2");
+  const [formationSelection, setFormationSelection] = useState<FormationSelection>({
+    formation_id: null,
+    formation: "4-4-2",
+  });
   const [regionId, setRegionId] = useState<string>("");
   const { data: regions = [] } = useRegions();
+  const { data: defaultFormation } = useDefaultFormation();
+
+  useEffect(() => {
+    if (open && defaultFormation && !formationSelection.formation_id) {
+      setFormationSelection({ formation_id: defaultFormation.id, formation: defaultFormation.code });
+    }
+  }, [open, defaultFormation]);
 
   const canCreate = currentListCount < MAX_FAVORITE_LISTS_PER_USER;
 
@@ -38,12 +55,13 @@ export function CreateListDialog({
     await onSubmit({
       name: trimmedName,
       description: description.trim() || null,
-      formation,
+      formation: formationSelection.formation,
+      formation_id: formationSelection.formation_id,
       region_id: regionId || null,
     });
     setName("");
     setDescription("");
-    setFormation("4-4-2");
+    setFormationSelection({ formation_id: null, formation: "4-4-2" });
     setRegionId("");
     onClose();
   };
@@ -54,7 +72,7 @@ export function CreateListDialog({
         <DialogHeader>
           <DialogTitle>Utwórz nową listę</DialogTitle>
           <DialogDescription className="sr-only">
-            Formularz tworzenia nowej listy ulubionych zawodników. Podaj nazwę, opcjonalnie opis i formację.
+            Formularz tworzenia nowej listy ulubionych zawodników. Podaj nazwę, opcjonalnie opis i schemat taktyczny.
           </DialogDescription>
         </DialogHeader>
         {!canCreate ? (
@@ -85,19 +103,8 @@ export function CreateListDialog({
               />
             </div>
             <div>
-              <Label>Formacja</Label>
-              <Select value={formation} onValueChange={(v) => setFormation(v as FormationCode)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {FORMATION_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Schemat taktyczny</Label>
+              <FormationSelector value={formationSelection} onChange={setFormationSelection} />
             </div>
             <div>
               <Label>Udostępnij regionowi (opcjonalnie)</Label>

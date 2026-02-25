@@ -1,16 +1,23 @@
 import { useObservations } from "@/features/observations/hooks/useObservations";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { ObservationList } from "@/features/observations/components/ObservationList";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/common/PageHeader";
+import { Pagination } from "@/components/common/Pagination";
 import { Plus, Search, SlidersHorizontal } from "lucide-react";
 import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+const PAGE_SIZE = 100;
+
 export function ObservationsPage() {
-  const { data = [], isLoading, isError, error } = useObservations();
+  const [page, setPage] = useState(1);
+  const { data = [], total = 0, isLoading, isError, error } = useObservations({
+    page,
+    pageSize: PAGE_SIZE,
+  });
   const [search, setSearch] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState({
@@ -67,6 +74,14 @@ export function ObservationsPage() {
       return true;
     });
   }, [filtered, filters]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, filters.source, filters.rank, filters.position, filters.ratingMin, filters.ratingMax]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [page]);
 
   return (
     <div className="space-y-4">
@@ -197,6 +212,14 @@ export function ObservationsPage() {
         </div>
       )}
       <ObservationList observations={filteredWithFilters} isLoading={isLoading} />
+      {total > 0 && (
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={total}
+          onPageChange={setPage}
+        />
+      )}
     </div>
   );
 }

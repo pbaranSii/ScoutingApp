@@ -2,13 +2,15 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import type { FavoriteList } from "../types";
 import type { FavoriteListMember } from "../types";
-import type { SlotCount } from "./formations";
 import { format, parseISO } from "date-fns";
+
+/** Slot for export (positionCode, count; playerIds optional). */
+type SlotForExport = { positionCode: string; count: number; playerIds?: string[] };
 
 export function exportFavoriteListToExcel(
   list: FavoriteList,
   members: (FavoriteListMember & { player?: { overall_rating?: number | null } })[],
-  slots: SlotCount[],
+  slots: SlotForExport[],
   averageRating: number | null
 ) {
   const wb = XLSX.utils.book_new();
@@ -20,7 +22,7 @@ export function exportFavoriteListToExcel(
     ["Data utworzenia", list.created_at ? format(parseISO(list.created_at), "yyyy-MM-dd HH:mm") : ""],
     ["Liczba zawodników", (list as { players_count?: number }).players_count ?? members.length],
     ["Średnia ocena", averageRating != null ? String(averageRating) : ""],
-    ["Formacja", list.formation],
+    ["Formacja", list.formations?.name ?? list.formation ?? ""],
   ];
   const wsInfo = XLSX.utils.aoa_to_sheet(infoRows);
   XLSX.utils.book_append_sheet(wb, wsInfo, "Informacje o liście");
@@ -87,7 +89,7 @@ export function exportFavoriteListToPdf(
   y += 16;
   if (averageRating != null) pdf.text(`Średnia ocena: ${averageRating}/10`, margin, y);
   y += 16;
-  pdf.text(`Formacja: ${list.formation}`, margin, y);
+  pdf.text(`Formacja: ${list.formations?.name ?? list.formation ?? "—"}`, margin, y);
   y += 24;
 
   pdf.setFontSize(12);

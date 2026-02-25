@@ -115,12 +115,25 @@ export type PlayersFilters = {
   primary_position?: string;
   clubIds?: string[];
   scoutId?: string;
+  page?: number;
+  pageSize?: number;
 };
 
-export async function fetchPlayers(filters?: PlayersFilters) {
+export type FetchPlayersResult = {
+  data: (Player & { observation_count: number })[];
+  total: number;
+};
+
+export async function fetchPlayers(filters?: PlayersFilters): Promise<FetchPlayersResult["data"] | FetchPlayersResult> {
+  const usePagination = filters?.page != null || filters?.pageSize != null;
+  const page = usePagination ? (filters?.page ?? 1) : 1;
+  const pageSize = usePagination ? (filters?.pageSize ?? 100) : 100;
+
   let query = supabase
     .from("players")
-    .select("*, club:clubs(name), region:regions(name), observations:observations(count)")
+    .select("*, club:clubs(name), region:regions(name), observations:observations(count)", {
+      count: usePagination ? "exact" : undefined,
+    })
     .order("created_at", { ascending: false });
 
   if (filters?.birthYear) {
@@ -151,14 +164,21 @@ export async function fetchPlayers(filters?: PlayersFilters) {
       .eq("scout_id", filters.scoutId);
     const playerIds = [...new Set((obs ?? []).map((o) => o.player_id).filter(Boolean))] as string[];
     if (playerIds.length === 0) {
-      return [];
+      return usePagination ? { data: [], total: 0 } : [];
     }
     query = query.in("id", playerIds);
   }
 
-  const { data, error } = await query;
+  if (usePagination) {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    query = query.range(from, to);
+  }
+
+  const { data, error, count } = await query;
   if (error) throw error;
-  return (data ?? []).map((player) => {
+
+  const mapped = (data ?? []).map((player) => {
     const { observations, ...rest } = player as Player & { observations?: { count: number }[] };
     const observation_count =
       Array.isArray(observations) && observations.length > 0 ? observations[0]?.count ?? 0 : 0;
@@ -167,6 +187,11 @@ export async function fetchPlayers(filters?: PlayersFilters) {
       observation_count,
     };
   });
+
+  if (usePagination) {
+    return { data: mapped, total: count ?? mapped.length };
+  }
+  return mapped as (Player & { observation_count: number })[];
 }
 
 export async function fetchPlayerById(id: string) {

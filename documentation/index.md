@@ -1,14 +1,19 @@
-## Spis tresci dokumentacji
+## Spis treści dokumentacji
 
 - [Wizja produktu](product-vision.md)
 - [Wymagania funkcjonalne](functional-requirements.md)
 - [Model danych](data-model.md)
 - [Architektura](architecture.md)
-- [API](api-spec.md)
+- [Moduły](04-modules.md)
+- [Kontrakty API](06-api-contracts.md) · [API (skrót)](api-spec.md)
+- [Przepływy biznesowe](07-business-flows.md)
 - [UI/UX](ui-ux.md)
 - [Offline](offline.md)
 - [Deployment](deployment.md)
 - [Dev -> Prod i operacje](operations-dev-prod.md)
+- [Runbooki](runbooks/) – [wdrożenie DEV→PROD](runbooks/deploy-dev-to-prod.md), [migracje](runbooks/apply-migrations.md)
+- [ADR (Architecture Decision Records)](adr/README.md)
+- [Change Management](CHANGE-MANAGEMENT.md)
 - [Formularze obserwacji](observation-forms.md)
-- [Zarzadzanie uzytkownikami](user-management.md)
+- [Zarządzanie użytkownikami](user-management.md)
 - [Historia zmian](change-log.md)

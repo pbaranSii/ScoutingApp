@@ -27,7 +27,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
+import {
+  PositionDictionarySelect,
+  getPositionOptionsFromDictionary,
+  getPositionLabelFromDictionary,
+  codeForLookup,
+} from "@/features/players/components/PositionDictionarySelect";
+import { usePositionDictionary } from "@/features/tactical/hooks/usePositionDictionary";
+import { mapLegacyPosition } from "@/features/players/positions";
 import { checkDuplicatePlayers } from "@/features/players/api/players.api";
 import type { DuplicateCandidate } from "@/features/players/api/players.api";
 import type { PlayerSearchItem } from "@/features/players/api/players.api";
@@ -214,6 +221,16 @@ export function ObservationWizard({
   });
 
   const primaryPosition = form.watch("primary_position");
+  const { data: positions = [] } = usePositionDictionary(true);
+  const positionOptions = useMemo(() => {
+    const all = getPositionOptionsFromDictionary(positions);
+    const seen = new Set<string>();
+    return all.filter((opt) => {
+      if (opt.value === primaryPosition || seen.has(opt.value)) return false;
+      seen.add(opt.value);
+      return true;
+    });
+  }, [positions, primaryPosition]);
   const { data: positionCriteria = [] } = useQuery({
     queryKey: ["evaluation-criteria", primaryPosition],
     queryFn: () => fetchEvaluationCriteriaByPositionCode(primaryPosition || ""),
@@ -379,9 +396,11 @@ export function ObservationWizard({
       try {
         const nowIso = new Date().toISOString();
         const positions = [
-          values.primary_position,
-          ...(values.additional_positions ?? []).filter((p) => p !== values.primary_position),
-        ];
+          codeForLookup(values.primary_position) || values.primary_position,
+          ...(values.additional_positions ?? [])
+            .filter((p) => p !== values.primary_position)
+            .map((p) => codeForLookup(p) || p),
+        ].filter(Boolean);
         const sum =
           (values.technical_rating ?? 3) +
           (values.speed_rating ?? 3) +
@@ -594,9 +613,11 @@ export function ObservationWizard({
         }
 
         const positions = [
-          values.primary_position,
-          ...(values.additional_positions ?? []).filter((p) => p !== values.primary_position),
-        ];
+          codeForLookup(values.primary_position) || values.primary_position,
+          ...(values.additional_positions ?? [])
+            .filter((p) => p !== values.primary_position)
+            .map((p) => codeForLookup(p) || p),
+        ].filter(Boolean);
         const sum =
           (values.technical_rating ?? 3) +
           (values.speed_rating ?? 3) +
@@ -1010,24 +1031,15 @@ export function ObservationWizard({
                     Pozycja główna <span className="text-red-600">*</span>
                   </FormLabel>
                   <div className="flex items-center gap-2">
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      disabled={lockPlayerFields && Boolean(field.value)}
-                    >
-                      <FormControl>
-                        <SelectTrigger ref={field.ref} className="flex-1">
-                          <SelectValue placeholder="Wybierz pozycję" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {POSITION_OPTIONS.map((option) => (
-                          <SelectItem key={option.code} value={option.code}>
-                            {option.label} ({option.code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <PositionDictionarySelect
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Wybierz pozycję"
+                        disabled={lockPlayerFields && Boolean(field.value)}
+                        className="flex-1"
+                      />
+                    </FormControl>
                     <PositionPickerDialog
                       value={field.value}
                       onSelect={field.onChange}
@@ -1045,17 +1057,17 @@ export function ObservationWizard({
                 <FormItem>
                   <FormLabel>Dodatkowe pozycje</FormLabel>
                   <div className="flex flex-wrap gap-2">
-                    {POSITION_OPTIONS.filter((opt) => opt.code !== form.watch("primary_position")).map((option) => {
-                      const selected = (field.value ?? []).includes(option.code);
+                    {positionOptions.map((option) => {
+                      const selected = (field.value ?? []).includes(option.value);
                       return (
                         <button
-                          key={option.code}
+                          key={option.value}
                           type="button"
                           onClick={() => {
                             if (selected) {
-                              field.onChange((field.value ?? []).filter((c) => c !== option.code));
+                              field.onChange((field.value ?? []).filter((c) => c !== option.value));
                             } else {
-                              field.onChange([...(field.value ?? []), option.code]);
+                              field.onChange([...(field.value ?? []), option.value]);
                             }
                           }}
                           className={`rounded-full px-3 py-1.5 text-sm transition ${
@@ -1064,7 +1076,7 @@ export function ObservationWizard({
                               : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                           }`}
                         >
-                          {option.code}
+                          {option.label}
                         </button>
                       );
                     })}
@@ -1142,7 +1154,7 @@ export function ObservationWizard({
               <>
                 <h3 className="text-sm font-semibold text-slate-700 pt-4">5. Oceny specyficzne dla pozycji</h3>
                 <p className="text-xs text-slate-500">
-                  Oceny dla pozycji: {POSITION_OPTIONS.find((p) => p.code === primaryPosition)?.label ?? primaryPosition}
+                  Oceny dla pozycji: {getPositionLabelFromDictionary(positions, primaryPosition)}
                 </p>
                 <div className="space-y-3">
                   {(positionCriteria as EvaluationCriterion[]).map((c) => (

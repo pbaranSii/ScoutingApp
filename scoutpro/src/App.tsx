@@ -39,6 +39,9 @@ import { UsageStatisticsPage } from "@/pages/UsageStatisticsPage";
 import { AdminSurveyResultsPage } from "@/pages/AdminSurveyResultsPage";
 import { SurveySatisfactionPage } from "@/pages/SurveySatisfactionPage";
 import { SurveyThankYouPage } from "@/pages/SurveyThankYouPage";
+import { TacticalFormationsListPage } from "@/pages/TacticalFormationsListPage";
+import { TacticalPositionDictionaryPage } from "@/pages/TacticalPositionDictionaryPage";
+import { FormationEditorPage } from "@/pages/FormationEditorPage";
 
 export default function App() {
   useAuth();
@@ -88,6 +91,10 @@ export default function App() {
             <Route path="/settings/users" element={<SettingsUsersPage />} />
             <Route path="/settings/admin/usage-statistics" element={<UsageStatisticsPage />} />
             <Route path="/settings/admin/user-satisfaction" element={<AdminSurveyResultsPage />} />
+            <Route path="/settings/tactical/formations" element={<TacticalFormationsListPage />} />
+            <Route path="/settings/tactical/formations/new" element={<FormationEditorPage />} />
+            <Route path="/settings/tactical/formations/:id" element={<FormationEditorPage />} />
+            <Route path="/settings/tactical/positions" element={<TacticalPositionDictionaryPage />} />
           </Route>
           <Route path="/survey/satisfaction" element={<SurveySatisfactionPage />} />
           <Route path="/survey/thank-you" element={<SurveyThankYouPage />} />

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -63,7 +63,10 @@ const DEFAULT_FILTERS: PipelineFiltersState = {
 
 export function PipelineBoard({ search = "", filters = DEFAULT_FILTERS }: PipelineBoardProps) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
-  const playersFilters = toPlayersFilters(filters);
+  const playersFilters = useMemo(
+    () => toPlayersFilters(filters),
+    [filters.status, filters.birthYear, filters.scoutId, filters.position, filters.clubId]
+  );
   const { data, isLoading } = usePlayers(playersFilters);
   const players = data ?? EMPTY_PLAYERS;
   const { mutateAsync: updateStatus } = useUpdatePlayerStatus();
@@ -82,9 +85,17 @@ export function PipelineBoard({ search = "", filters = DEFAULT_FILTERS }: Pipeli
   const initialColumns = useMemo(() => groupByStatus(filteredPlayers), [filteredPlayers]);
   const { statusSince, latestRating } = usePipelineEnrichment(filteredPlayers);
 
+  // Stable key so useEffect only runs when the actual player list (by id) changes, not when object reference changes
+  const filteredPlayersKey = useMemo(
+    () => filteredPlayers.map((p) => p.id).sort().join(","),
+    [filteredPlayers]
+  );
+  const filteredPlayersRef = useRef(filteredPlayers);
+  filteredPlayersRef.current = filteredPlayers;
+
   useEffect(() => {
-    setColumns(initialColumns);
-  }, [initialColumns]);
+    setColumns(groupByStatus(filteredPlayersRef.current));
+  }, [filteredPlayersKey]);
 
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;

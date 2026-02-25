@@ -45,12 +45,35 @@ const UPDATE_KEYS: (keyof ObservationUpdate)[] = [
   "updated_by_role",
 ];
 
-export async function fetchObservations() {
-  const { data, error } = await supabase
+export type FetchObservationsResult = {
+  data: Observation[];
+  total: number;
+};
+
+export async function fetchObservations(options?: {
+  page?: number;
+  pageSize?: number;
+}): Promise<Observation[] | FetchObservationsResult> {
+  const usePagination = options?.page != null || options?.pageSize != null;
+  const page = usePagination ? (options?.page ?? 1) : 1;
+  const pageSize = usePagination ? (options?.pageSize ?? 100) : 100;
+
+  const query = supabase
     .from("observations")
-    .select("*, player:players(first_name,last_name,birth_year,primary_position,pipeline_status,club:clubs(name))")
+    .select("*, player:players(first_name,last_name,birth_year,primary_position,pipeline_status,club:clubs(name))", {
+      count: usePagination ? "exact" : undefined,
+    })
     .order("created_at", { ascending: false });
 
+  if (usePagination) {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+    const { data, error, count } = await query.range(from, to);
+    if (error) throw error;
+    return { data: (data ?? []) as Observation[], total: count ?? 0 };
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as Observation[];
 }

@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useCreatePipelineHistory, useCreatePlayer, useUpdatePlayer } from "../hooks/usePlayers";
 import type { DominantFoot, PipelineStatus } from "../types";
 import { ClubSelect } from "./ClubSelect";
+import { PositionDictionarySelect } from "./PositionDictionarySelect";
 import { PositionPickerDialog } from "@/features/players/components/PositionPickerDialog";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
-import { POSITION_OPTIONS, mapLegacyPosition } from "@/features/players/positions";
+import { mapLegacyPosition } from "@/features/players/positions";
+import { codeForLookup } from "@/features/players/components/PositionDictionarySelect";
 import { useAuthStore } from "@/stores/authStore";
 import { toast } from "@/hooks/use-toast";
 
@@ -164,7 +166,7 @@ export function PlayerForm({
         birth_year: values.birth_year,
         club_id: clubId ?? null,
         nationality: toNullable(values.nationality),
-        primary_position: toNullable(values.primary_position),
+        primary_position: toNullable(codeForLookup(values.primary_position) || values.primary_position?.trim()),
         dominant_foot: dominantFoot,
         pipeline_status: pipelineStatus ?? "unassigned",
         height_cm: toNullableNumber(values.height_cm),
@@ -307,20 +309,12 @@ export function PlayerForm({
                   <FormItem>
                     <FormLabel>Pozycja</FormLabel>
                     <div className="flex items-center gap-2">
-                      <Select value={field.value ?? ""} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Wybierz pozycje" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {POSITION_OPTIONS.map((option) => (
-                            <SelectItem key={option.code} value={option.code}>
-                              {option.label} ({option.code})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <PositionDictionarySelect
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        placeholder="Wybierz pozycję"
+                        className="flex-1"
+                      />
                       <PositionPickerDialog value={field.value} onSelect={field.onChange} />
                     </div>
                     <FormMessage />
