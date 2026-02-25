@@ -24,17 +24,20 @@ create index if not exists user_sessions_started_at_idx on public.user_sessions 
 
 alter table public.user_sessions enable row level security;
 
--- Users can insert/update own sessions only
+-- Users can insert/update own sessions only (drop if exists so migration is idempotent)
+drop policy if exists "Users can insert own sessions" on public.user_sessions;
 create policy "Users can insert own sessions"
   on public.user_sessions for insert to authenticated
   with check (user_id = auth.uid());
 
+drop policy if exists "Users can update own sessions" on public.user_sessions;
 create policy "Users can update own sessions"
   on public.user_sessions for update to authenticated
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
 -- Admins can select all (for usage stats)
+drop policy if exists "Admins can select all sessions" on public.user_sessions;
 create policy "Admins can select all sessions"
   on public.user_sessions for select to authenticated
   using (public.is_admin());
@@ -59,10 +62,12 @@ create index if not exists user_surveys_survey_type_idx on public.user_surveys (
 
 alter table public.user_surveys enable row level security;
 
+drop policy if exists "Users can insert own surveys" on public.user_surveys;
 create policy "Users can insert own surveys"
   on public.user_surveys for insert to authenticated
   with check (user_id = auth.uid());
 
+drop policy if exists "Admins can select all surveys" on public.user_surveys;
 create policy "Admins can select all surveys"
   on public.user_surveys for select to authenticated
   using (public.is_admin());

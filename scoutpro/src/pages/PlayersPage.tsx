@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Pagination } from "@/components/common/Pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
+import { ALL_PIPELINE_STATUSES, type PipelineStatus } from "@/features/pipeline/types";
 import { POSITION_OPTIONS } from "@/features/players/positions";
 import { SlidersHorizontal } from "lucide-react";
 
@@ -29,7 +29,7 @@ export function PlayersPage() {
     page,
     pageSize: PAGE_SIZE,
     primary_position: filters.position || undefined,
-    status: filters.status || undefined,
+    status: (filters.status || undefined) as PipelineStatus | undefined,
     birthYear: filters.birthYear ? Number(filters.birthYear) : undefined,
   });
 

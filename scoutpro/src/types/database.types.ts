@@ -1319,6 +1319,7 @@ export type Database = {
           last_used_at: string | null
           created_at: string
           updated_at: string
+          slot_assignments: Json
         }
         Insert: {
           id?: string
@@ -1331,6 +1332,7 @@ export type Database = {
           last_used_at?: string | null
           created_at?: string
           updated_at?: string
+          slot_assignments?: Json
         }
         Update: {
           id?: string
@@ -1343,6 +1345,7 @@ export type Database = {
           last_used_at?: string | null
           created_at?: string
           updated_at?: string
+          slot_assignments?: Json
         }
         Relationships: [
           {

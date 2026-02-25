@@ -1,7 +1,6 @@
 import React from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFormations, useDefaultFormation } from "@/features/tactical/hooks/useFormations";
-import type { FormationCode } from "../types";
 
 export type FormationSelection = {
   formation_id: string | null;

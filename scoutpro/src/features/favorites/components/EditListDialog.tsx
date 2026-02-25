@@ -30,7 +30,7 @@ export function EditListDialog({ open, list, onClose, onSubmit, isSubmitting }: 
     formation_id: null,
     formation: "4-4-2",
   });
-  const [regionId, setRegionId] = useState<string>("");
+  const [regionId, setRegionId] = useState<string | null>(null);
   const { data: regions = [] } = useRegions();
   const { data: defaultFormation } = useDefaultFormation();
 
@@ -41,7 +41,7 @@ export function EditListDialog({ open, list, onClose, onSubmit, isSubmitting }: 
       const hasFormationId = list.formation_id != null && list.formation_id !== "";
       if (hasFormationId) {
         setFormationSelection({
-          formation_id: list.formation_id,
+          formation_id: list.formation_id ?? null,
           formation: list.formation || "4-4-2",
         });
       } else if (defaultFormation) {
@@ -55,7 +55,7 @@ export function EditListDialog({ open, list, onClose, onSubmit, isSubmitting }: 
           formation: list.formation || "4-4-2",
         });
       }
-      setRegionId(list.region_id ?? "");
+      setRegionId(list.region_id ?? null);
     }
   }, [list, defaultFormation]);
 
@@ -67,7 +67,7 @@ export function EditListDialog({ open, list, onClose, onSubmit, isSubmitting }: 
       description: description.trim() || null,
       formation: formationSelection.formation,
       formation_id: formationSelection.formation_id,
-      region_id: regionId || null,
+      region_id: regionId ?? null,
     });
     onClose();
   };
@@ -105,7 +105,7 @@ export function EditListDialog({ open, list, onClose, onSubmit, isSubmitting }: 
             </div>
             <div>
               <Label>Udostępnij regionowi</Label>
-              <Select value={regionId || "none"} onValueChange={(v) => setRegionId(v === "none" ? "" : v)}>
+              <Select value={regionId ?? "none"} onValueChange={(v) => setRegionId(v === "none" ? null : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Wybierz województwo" />
                 </SelectTrigger>
