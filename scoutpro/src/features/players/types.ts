@@ -8,6 +8,8 @@ export type Player = {
   first_name: string;
   last_name: string;
   birth_year: number;
+  birth_date?: string | null;
+  body_build?: string | null;
   club_id?: string | null;
   club?: { name: string } | null;
   region_id?: string | null;
@@ -21,6 +23,13 @@ export type Player = {
   guardian_name?: string | null;
   guardian_phone?: string | null;
   guardian_email?: string | null;
+  agent_name?: string | null;
+  agent_phone?: string | null;
+  agent_email?: string | null;
+  transfermarkt_url?: string | null;
+  facebook_url?: string | null;
+  instagram_url?: string | null;
+  other_social_url?: string | null;
   photo_urls?: string[] | null;
   video_urls?: string[] | null;
   pipeline_status?: PipelineStatus | null;

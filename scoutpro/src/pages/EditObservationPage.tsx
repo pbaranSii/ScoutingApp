@@ -29,9 +29,7 @@ export function EditObservationPage() {
       player_id: observation.player_id,
       first_name: observation.player?.first_name ?? "",
       last_name: observation.player?.last_name ?? "",
-      age: observation.player?.birth_year
-        ? currentYear - observation.player.birth_year
-        : 16,
+      age: observation.player?.birth_year ?? currentYear - 16,
       club_name: observation.player?.club?.name ?? "",
       competition: observation.competition ?? "",
       match_date: observation.observation_date
@@ -50,13 +48,14 @@ export function EditObservationPage() {
       potential_future: observation.potential_future ?? 3,
       overall_rating: observation.overall_rating ?? undefined,
       strengths: observation.strengths ?? "",
-      strengths_notes: observation.strengths_notes ?? "",
       weaknesses: observation.weaknesses ?? "",
-      weaknesses_notes: observation.weaknesses_notes ?? "",
-      notes: observation.notes ?? "",
       photo_url: observation.photo_url ?? "",
       rank: observation.rank ?? "B",
       source: observation.source ?? "scouting",
+      form_type: observation.form_type ?? "simplified",
+      summary: observation.summary ?? "",
+      recommendation: observation.recommendation ?? undefined,
+      match_performance_rating: observation.match_performance_rating ?? undefined,
     };
   }, [observation, currentYear]);
 

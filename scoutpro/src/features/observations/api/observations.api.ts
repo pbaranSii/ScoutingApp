@@ -19,20 +19,34 @@ const UPDATE_KEYS: (keyof ObservationUpdate)[] = [
   "competition",
   "location",
   "match_result",
+  "match_observation_id",
+  "match_performance_rating",
+  "mental_description",
   "mental_rating",
   "motor_rating",
+  "motor_speed_rating",
+  "motor_endurance_rating",
+  "motor_jump_rating",
+  "motor_agility_rating",
+  "motor_acceleration_rating",
+  "motor_strength_rating",
+  "motor_description",
   "notes",
+  "observation_category",
   "observation_date",
+  "form_type",
   "positions",
   "photo_url",
   "potential_future",
   "potential_now",
   "rank",
+  "recommendation",
   "recommendations",
   "source",
   "speed_rating",
   "strengths",
   "strengths_notes",
+  "summary",
   "tactical_rating",
   "technical_rating",
   "team_role",
@@ -85,6 +99,19 @@ export async function fetchObservationsByPlayer(playerId: string) {
       "*, player:players(first_name,last_name,birth_year,primary_position,pipeline_status,club:clubs(name))"
     )
     .eq("player_id", playerId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data ?? []) as Observation[];
+}
+
+export async function fetchObservationsByMatchObservation(matchObservationId: string) {
+  const { data, error } = await supabase
+    .from("observations")
+    .select(
+      "*, player:players(first_name,last_name,birth_year,primary_position,pipeline_status,club:clubs(name))"
+    )
+    .eq("match_observation_id", matchObservationId)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -164,6 +191,20 @@ const EXTENDED_OPTIONAL = [
   "weaknesses_notes",
   "team_role",
   "recommendations",
+  "match_observation_id",
+  "observation_category",
+  "form_type",
+  "match_performance_rating",
+  "recommendation",
+  "summary",
+  "mental_description",
+  "motor_speed_rating",
+  "motor_endurance_rating",
+  "motor_jump_rating",
+  "motor_agility_rating",
+  "motor_acceleration_rating",
+  "motor_strength_rating",
+  "motor_description",
 ] as const;
 
 const PGRST204_COLUMN_REGEX = /Could not find the '([^']+)' column/;

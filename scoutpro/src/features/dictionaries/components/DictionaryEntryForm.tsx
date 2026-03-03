@@ -60,6 +60,9 @@ export function DictionaryEntryForm({
   const [maxBirthYear, setMaxBirthYear] = useState<string>(
     config.table === "categories" ? String(initial?.max_birth_year ?? "") : ""
   );
+  const [defaultFormType, setDefaultFormType] = useState<string>(
+    config.table === "categories" ? String(initial?.default_form_type ?? "simplified") : "simplified"
+  );
   const [category, setCategory] = useState(
     config.table === "positions" ? String(initial?.category ?? "") : ""
   );
@@ -86,6 +89,7 @@ export function DictionaryEntryForm({
     if (config.table === "categories") {
       payload.min_birth_year = minBirthYear !== "" ? Number(minBirthYear) : null;
       payload.max_birth_year = maxBirthYear !== "" ? Number(maxBirthYear) : null;
+      payload.default_form_type = defaultFormType === "extended" ? "extended" : "simplified";
     }
     if (config.table === "positions") payload.category = category.trim() || null;
     await onSubmit(payload);
@@ -202,6 +206,21 @@ export function DictionaryEntryForm({
               value={maxBirthYear}
               onChange={(e) => setMaxBirthYear(e.target.value)}
             />
+          </div>
+          <div>
+            <Label htmlFor="default_form_type">Domyślny typ formularza</Label>
+            <Select
+              value={defaultFormType}
+              onValueChange={setDefaultFormType}
+            >
+              <SelectTrigger id="default_form_type">
+                <SelectValue placeholder="Wybierz typ" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="simplified">Uproszczony</SelectItem>
+                <SelectItem value="extended">Rozszerzony</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </>
       )}

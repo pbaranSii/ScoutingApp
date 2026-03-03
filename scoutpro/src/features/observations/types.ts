@@ -1,6 +1,9 @@
 import type { Database } from "@/types/database.types";
 
 export type ObservationSource = Database["public"]["Enums"]["observation_source"];
+export type ObservationCategoryType = Database["public"]["Enums"]["observation_category_type"];
+export type FormType = Database["public"]["Enums"]["form_type"];
+export type RecommendationType = Database["public"]["Enums"]["recommendation_type"];
 
 export type Observation = {
   id: string;
@@ -19,6 +22,12 @@ export type Observation = {
   motor_rating?: number | null;
   tactical_rating?: number | null;
   mental_rating?: number | null;
+  motor_speed_rating?: number | null;
+  motor_endurance_rating?: number | null;
+  motor_jump_rating?: number | null;
+  motor_agility_rating?: number | null;
+  motor_acceleration_rating?: number | null;
+  motor_strength_rating?: number | null;
   competition?: string | null;
   match_result?: string | null;
   location?: string | null;
@@ -37,6 +46,14 @@ export type Observation = {
   updated_by_role?: string | null;
   team_role?: string | null;
   recommendations?: string | null;
+  match_observation_id?: string | null;
+  observation_category?: ObservationCategoryType | null;
+  form_type?: FormType | null;
+  match_performance_rating?: number | null;
+  recommendation?: RecommendationType | null;
+  summary?: string | null;
+  mental_description?: string | null;
+  motor_description?: string | null;
   player?: {
     first_name: string;
     last_name: string;
@@ -66,6 +83,12 @@ export type ObservationInput = {
   motor_rating?: number | null;
   tactical_rating?: number | null;
   mental_rating?: number | null;
+  motor_speed_rating?: number | null;
+  motor_endurance_rating?: number | null;
+  motor_jump_rating?: number | null;
+  motor_agility_rating?: number | null;
+  motor_acceleration_rating?: number | null;
+  motor_strength_rating?: number | null;
   competition?: string | null;
   match_result?: string | null;
   location?: string | null;
@@ -83,4 +106,33 @@ export type ObservationInput = {
   updated_by_role?: string | null;
   team_role?: string | null;
   recommendations?: string | null;
+  match_observation_id?: string | null;
+  observation_category?: ObservationCategoryType | null;
+  form_type?: FormType | null;
+  match_performance_rating?: number | null;
+  recommendation?: RecommendationType | null;
+  summary?: string | null;
+  mental_description?: string | null;
+  motor_description?: string | null;
+};
+
+/** One player slot in match observation flow (before save). */
+export type MatchPlayerSlot = {
+  id: string;
+  player_id?: string;
+  first_name: string;
+  last_name: string;
+  birth_year: number;
+  /** Optional ISO date string (yyyy-MM-dd). */
+  birth_date?: string | null;
+  club_name?: string;
+  primary_position: string;
+  overall_rating: number;
+  match_performance_rating: number;
+  recommendation: RecommendationType;
+  summary: string;
+  strengths?: string;
+  weaknesses?: string;
+  potential_now?: number;
+  potential_future?: number;
 };

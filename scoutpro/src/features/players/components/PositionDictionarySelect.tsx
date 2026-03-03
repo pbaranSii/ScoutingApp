@@ -89,9 +89,10 @@ export function PositionDictionarySelect({
   );
 }
 
-/** Option type for multi-select (additional positions): value = position_code. */
+/** Option type for multi-select (additional positions): value = position_code, id = unique key. */
 export function getPositionOptionsFromDictionary(positions: PositionDictionaryRow[]) {
   return positions.map((p) => ({
+    id: p.id,
     value: p.position_code,
     label:
       p.position_number > 0

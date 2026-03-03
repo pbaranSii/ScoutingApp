@@ -1,8 +1,8 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { YouTubeInput } from "./YouTubeInput";
-import { Camera, ImagePlus, Link2, X } from "lucide-react";
+import { Camera, Film, ImagePlus, Link2, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -68,8 +68,31 @@ export function MediaUploadModal({
   onObservationIdChange,
 }: MediaUploadModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  type PendingItem = { file: File; previewUrl: string | null };
+  const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
 
   const remaining = Math.max(0, maxFiles - currentCount);
+  const pendingRef = useRef<PendingItem[]>([]);
+  pendingRef.current = pendingItems;
+
+  useEffect(() => {
+    return () => {
+      pendingRef.current.forEach((p) => {
+        if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      setPendingItems((prev) => {
+        prev.forEach((p) => {
+          if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
+        });
+        return [];
+      });
+    }
+  }, [open]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawFiles = e.target.files;
@@ -105,8 +128,32 @@ export function MediaUploadModal({
       alert(msg);
     }
     if (valid.length > 0) {
-      const toAdd = valid.slice(0, remaining);
-      onFilesSelected(toAdd);
+      const toAdd = valid.slice(0, remaining - pendingItems.length).map((file) => ({
+        file,
+        previewUrl: getFileKind(file) === "image" ? URL.createObjectURL(file) : null,
+      }));
+      setPendingItems((prev) => [...prev, ...toAdd].slice(0, remaining));
+    }
+  };
+
+  const removePending = (index: number) => {
+    setPendingItems((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      const removed = prev[index];
+      if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+      return next;
+    });
+  };
+
+  const confirmAddFiles = () => {
+    if (pendingItems.length > 0) {
+      onFilesSelected(pendingItems.map((p) => p.file));
+      setPendingItems((prev) => {
+        prev.forEach((p) => {
+          if (p.previewUrl) URL.revokeObjectURL(p.previewUrl);
+        });
+        return [];
+      });
       onOpenChange(false);
     }
   };
@@ -158,6 +205,55 @@ export function MediaUploadModal({
           </Button>
         </div>
         <div className="space-y-4">
+          {pendingItems.length > 0 && (
+            <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-sm font-medium text-slate-700">
+                Wybrane pliki ({pendingItems.length}) — podgląd
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {pendingItems.map((item, index) => (
+                  <div
+                    key={`${item.file.name}-${index}`}
+                    className="relative flex flex-col items-center rounded-lg border border-slate-200 bg-white p-1"
+                  >
+                    <div className="h-20 w-20 overflow-hidden rounded bg-slate-100">
+                      {item.previewUrl ? (
+                        <img
+                          src={item.previewUrl}
+                          alt={item.file.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <Film className="h-8 w-8 text-slate-400" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="mt-1 max-w-[100px] truncate text-xs text-slate-600">
+                      {item.file.name}
+                    </p>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="absolute right-0 top-0 h-6 w-6 text-slate-500 hover:text-red-600"
+                      onClick={() => removePending(index)}
+                      aria-label="Usuń z listy"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                type="button"
+                className="mt-2 gap-2"
+                onClick={confirmAddFiles}
+              >
+                Dodaj wybrane ({pendingItems.length})
+              </Button>
+            </div>
+          )}
           {remaining > 0 && (
             <>
               <div className="space-y-2">

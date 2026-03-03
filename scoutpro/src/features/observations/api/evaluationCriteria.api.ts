@@ -1,4 +1,7 @@
 import { supabase } from "@/lib/supabase";
+import type { Database } from "@/types/database.types";
+
+export type CriterionSection = Database["public"]["Enums"]["criterion_section"];
 
 export type EvaluationCriterion = {
   id: string;
@@ -6,23 +9,35 @@ export type EvaluationCriterion = {
   position_id: string;
   sort_order: number;
   weight: number;
+  section?: CriterionSection | null;
+  code?: string | null;
 };
 
-/** Fetch evaluation criteria for a position by its code (e.g. CAM, GK). */
+/** Map position_dictionary position_code to positions table code (e.g. DM->CDM, AM->CAM). */
+function positionCodeToPositionsTableCode(code: string): string {
+  const trimmed = code?.trim() || "";
+  const map: Record<string, string> = { DM: "CDM", AM: "CAM" };
+  return map[trimmed] ?? trimmed;
+}
+
+/** Fetch evaluation criteria for a position by its code (e.g. CAM, GK, DM from position_dictionary). Includes section/code for extended form. */
 export async function fetchEvaluationCriteriaByPositionCode(
   positionCode: string
 ): Promise<EvaluationCriterion[]> {
+  const codeToUse = positionCodeToPositionsTableCode(positionCode);
+  if (!codeToUse) return [];
+
   const { data: position, error: posError } = await supabase
     .from("positions")
     .select("id")
-    .eq("code", positionCode)
+    .eq("code", codeToUse)
     .maybeSingle();
 
   if (posError || !position) return [];
 
   const { data: criteria, error } = await supabase
     .from("evaluation_criteria")
-    .select("id, name, position_id, sort_order, weight")
+    .select("id, name, position_id, sort_order, weight, section, code")
     .eq("position_id", position.id)
     .order("sort_order", { ascending: true });
 

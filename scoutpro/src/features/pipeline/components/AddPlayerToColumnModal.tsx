@@ -41,7 +41,7 @@ export function AddPlayerToColumnModal({
     setIsSearching(true);
     try {
       const result = await fetchPlayers({ search: trimmed });
-      const players = Array.isArray(result) ? result : result.data;
+      const players = Array.isArray(result) ? result : result.data ?? [];
       setResults(players.slice(0, MAX_RESULTS));
     } catch {
       setResults([]);
