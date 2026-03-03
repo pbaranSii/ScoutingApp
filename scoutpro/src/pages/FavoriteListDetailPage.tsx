@@ -296,7 +296,7 @@ export function FavoriteListDetailPage() {
             slotKeys={slotKeys}
             benchPlayerIds={benchPlayerIds}
             memberNames={memberNames}
-            allMemberIds={memberIds.map((m) => m.player_id)}
+            allMemberIds={memberIds}
             selectedPositionCode={selectedPositionCode}
             onSelectPosition={setSelectedPositionCode}
             onAssignSlot={handleAssignSlot}

@@ -118,3 +118,9 @@ export function useTeamRoles() {
   const config = getDictionaryById("team_roles");
   return useDictionaryEntries(config ?? null, { activeOnly: true });
 }
+
+/** Aktywne pozycje słownika Budowa ciała – do formularza zawodnika. */
+export function useBodyBuild() {
+  const config = getDictionaryById("body_build");
+  return useDictionaryEntries(config ?? null, { activeOnly: true });
+}

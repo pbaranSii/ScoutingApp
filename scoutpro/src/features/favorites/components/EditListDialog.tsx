@@ -41,7 +41,7 @@ export function EditListDialog({ open, list, onClose, onSubmit, isSubmitting }: 
       const hasFormationId = list.formation_id != null && list.formation_id !== "";
       if (hasFormationId) {
         setFormationSelection({
-          formation_id: list.formation_id,
+          formation_id: list.formation_id ?? null,
           formation: list.formation || "4-4-2",
         });
       } else if (defaultFormation) {

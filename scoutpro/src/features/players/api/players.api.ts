@@ -21,19 +21,44 @@ export async function fetchPlayersForTask(): Promise<PlayerSearchItem[]> {
   return (data ?? []) as PlayerSearchItem[];
 }
 
-/** Search players by name or club (min 2 chars), limit 20, for observation form. */
+/** Search players by name (min 2 chars). Supports multiple words: each word must match first_name or last_name. */
 export async function searchPlayers(query: string): Promise<PlayerSearchItem[]> {
   const q = (query ?? "").trim();
   if (q.length < 2) return [];
-  const searchTerm = `%${q}%`;
-  const { data, error } = await supabase
+  const words = q.split(/\s+/).filter(Boolean).map((w) => w.trim());
+  if (words.length === 0) return [];
+
+  if (words.length === 1) {
+    const searchTerm = `%${words[0]}%`;
+    const { data, error } = await supabase
+      .from("players")
+      .select("id, first_name, last_name, birth_year, primary_position, club:clubs(name)")
+      .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm}`)
+      .order("last_name", { ascending: true })
+      .limit(20);
+    if (error) throw error;
+    return (data ?? []) as PlayerSearchItem[];
+  }
+
+  const searchTerm0 = `%${words[0]}%`;
+  const { data: raw, error } = await supabase
     .from("players")
     .select("id, first_name, last_name, birth_year, primary_position, club:clubs(name)")
-    .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm}`)
+    .or(`first_name.ilike.${searchTerm0},last_name.ilike.${searchTerm0}`)
     .order("last_name", { ascending: true })
-    .limit(20);
+    .limit(80);
   if (error) throw error;
-  return (data ?? []) as PlayerSearchItem[];
+  const list = (raw ?? []) as PlayerSearchItem[];
+
+  const lowerWords = words.slice(1).map((w) => w.toLowerCase());
+  const filtered = list.filter((row) => {
+    const first = (row.first_name ?? "").toLowerCase();
+    const last = (row.last_name ?? "").toLowerCase();
+    return lowerWords.every(
+      (word) => first.includes(word) || last.includes(word)
+    );
+  });
+  return filtered.slice(0, 20);
 }
 
 export type DuplicateCandidate = {
@@ -247,6 +272,19 @@ export async function fetchClubs() {
 
   if (error) throw error;
   return data ?? [];
+}
+
+/** Resolve club name to id (exact match). Returns null if not found or name empty. */
+export async function getClubIdByName(name: string | null | undefined): Promise<string | null> {
+  const n = (name ?? "").trim();
+  if (!n) return null;
+  const { data, error } = await supabase
+    .from("clubs")
+    .select("id")
+    .eq("name", n)
+    .maybeSingle();
+  if (error) throw error;
+  return (data?.id as string) ?? null;
 }
 
 export async function deletePlayer(id: string) {

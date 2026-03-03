@@ -149,6 +149,14 @@ export function ObservationDetailPage() {
               Edytuj
             </Link>
           </Button>
+          {observation.match_observation_id && (
+            <Button asChild variant="outline" className="gap-2">
+              <Link to={`/observations/match/${observation.match_observation_id}/edit`}>
+                <Pencil className="h-4 w-4" />
+                Edytuj nagłówek meczu
+              </Link>
+            </Button>
+          )}
           <Button
             variant="destructive"
             className="gap-2"

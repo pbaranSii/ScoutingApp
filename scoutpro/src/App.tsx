@@ -14,6 +14,11 @@ import { PlayerDetailPage } from "@/pages/PlayerDetailPage";
 import { EditPlayerPage } from "@/pages/EditPlayerPage";
 import { ObservationsPage } from "@/pages/ObservationsPage";
 import { NewObservationPage } from "@/pages/NewObservationPage";
+import { MatchObservationNewPage } from "@/pages/MatchObservationNewPage";
+import { MatchObservationNewLayout } from "@/pages/MatchObservationNewLayout";
+import { MatchObservationPlayerFormPage } from "@/pages/MatchObservationPlayerFormPage";
+import { MatchObservationEditPage } from "@/pages/MatchObservationEditPage";
+import { IndividualObservationNewPage } from "@/pages/IndividualObservationNewPage";
 import { ObservationDetailPage } from "@/pages/ObservationDetailPage";
 import { EditObservationPage } from "@/pages/EditObservationPage";
 import { PipelinePage } from "@/pages/PipelinePage";
@@ -65,6 +70,15 @@ export default function App() {
           <Route path="/observations">
             <Route index element={<ObservationsPage />} />
             <Route path="new" element={<NewObservationPage />} />
+            <Route path="match">
+              <Route path="new" element={<MatchObservationNewLayout />}>
+                <Route index element={<MatchObservationNewPage />} />
+                <Route path="player" element={<MatchObservationPlayerFormPage />} />
+                <Route path="player/:slotId" element={<MatchObservationPlayerFormPage />} />
+              </Route>
+              <Route path=":matchId/edit" element={<MatchObservationEditPage />} />
+            </Route>
+            <Route path="individual/new" element={<IndividualObservationNewPage />} />
             <Route path=":id" element={<ObservationDetailPage />} />
             <Route path=":id/edit" element={<EditObservationPage />} />
           </Route>

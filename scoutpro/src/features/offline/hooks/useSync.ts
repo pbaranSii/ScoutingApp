@@ -3,7 +3,9 @@ import { supabase } from "@/lib/supabase";
 import type { Database } from "@/types/database.types";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { offlineDb } from "../db/offlineDb";
-import type { OfflineObservation } from "../db/offlineDb";
+import type { OfflineObservation, OfflineMatchObservation } from "../db/offlineDb";
+import { createMatchObservation } from "@/features/observations/api/matchObservations.api";
+import { createObservation } from "@/features/observations/api/observations.api";
 
 const MAX_RETRY_ATTEMPTS = 3;
 
@@ -15,11 +17,17 @@ export function useSync() {
 
   useEffect(() => {
     const updatePending = async () => {
-      const count = await offlineDb.offlineObservations
-        .where("syncStatus")
-        .anyOf(["pending", "failed"])
-        .count();
-      setPendingCount(count);
+      const [obsCount, matchCount] = await Promise.all([
+        offlineDb.offlineObservations
+          .where("syncStatus")
+          .anyOf(["pending", "failed"])
+          .count(),
+        offlineDb.offlineMatchObservations
+          .where("syncStatus")
+          .anyOf(["pending", "failed"])
+          .count(),
+      ]);
+      setPendingCount(obsCount + matchCount);
     };
     updatePending();
     const interval = setInterval(updatePending, 5000);
@@ -117,6 +125,13 @@ export function useSync() {
               technical_rating: obs.data.technical_rating ?? null,
               speed_rating: obs.data.speed_rating ?? null,
               motor_rating: obs.data.motor_rating ?? null,
+              motor_speed_rating: obs.data.motor_speed_rating ?? null,
+              motor_endurance_rating: obs.data.motor_endurance_rating ?? null,
+              motor_jump_rating: obs.data.motor_jump_rating ?? null,
+              motor_agility_rating: obs.data.motor_agility_rating ?? null,
+              motor_acceleration_rating: obs.data.motor_acceleration_rating ?? null,
+              motor_strength_rating: obs.data.motor_strength_rating ?? null,
+              motor_description: obs.data.motor_description ?? null,
               tactical_rating: obs.data.tactical_rating ?? null,
               mental_rating: obs.data.mental_rating ?? null,
               strengths: obs.data.strengths ?? null,
@@ -134,6 +149,13 @@ export function useSync() {
               updated_by_role: obs.data.updated_by_role ?? null,
               updated_at: obs.data.updated_at ?? null,
               is_offline_created: true,
+              match_observation_id: obs.data.match_observation_id ?? null,
+              observation_category: obs.data.observation_category ?? null,
+              form_type: obs.data.form_type ?? null,
+              match_performance_rating: obs.data.match_performance_rating ?? null,
+              summary: obs.data.summary ?? null,
+              recommendation: obs.data.recommendation ?? null,
+              mental_description: obs.data.mental_description ?? null,
             };
 
           const { data: observation, error: obsError } = await supabase
@@ -159,6 +181,88 @@ export function useSync() {
           });
         }
       }
+
+      const pendingMatch = await offlineDb.offlineMatchObservations
+        .where("syncStatus")
+        .anyOf(["pending", "failed"])
+        .filter((m) => m.syncAttempts < MAX_RETRY_ATTEMPTS)
+        .toArray();
+
+      for (let i = 0; i < pendingMatch.length; i += 1) {
+        const matchObs = pendingMatch[i];
+        setSyncProgress({
+          current: pending.length + i + 1,
+          total: pending.length + pendingMatch.length,
+        });
+        try {
+          await offlineDb.offlineMatchObservations.update(matchObs.localId, {
+            syncStatus: "syncing",
+            lastSyncAttempt: new Date(),
+          });
+          const header = matchObs.matchHeader;
+          const match = await createMatchObservation({
+            context_type: header.context_type,
+            observation_date: header.observation_date,
+            competition: header.competition,
+            home_team: header.home_team ?? null,
+            away_team: header.away_team ?? null,
+            match_result: header.match_result ?? null,
+            location: header.location ?? null,
+            source: header.source,
+            scout_id: header.scout_id,
+            home_team_formation: header.home_team_formation ?? null,
+            away_team_formation: header.away_team_formation ?? null,
+            match_notes: header.match_notes ?? null,
+          });
+          for (const slot of matchObs.slots) {
+            let playerId = slot.player_id;
+            if (!playerId) {
+              const { data: player, error: playerError } = await supabase
+                .from("players")
+                .insert({
+                  first_name: slot.first_name,
+                  last_name: slot.last_name,
+                  birth_year: slot.birth_year,
+                  primary_position: slot.primary_position,
+                })
+                .select()
+                .single();
+              if (playerError) throw playerError;
+              playerId = player.id as string;
+            }
+            await createObservation({
+              player_id: playerId,
+              scout_id: header.scout_id,
+              source: header.source as Database["public"]["Enums"]["observation_source"],
+              observation_date: header.observation_date,
+              match_observation_id: match.id,
+              observation_category: "match_player",
+              form_type: "simplified",
+              overall_rating: slot.overall_rating,
+              match_performance_rating: slot.match_performance_rating,
+              recommendation: slot.recommendation,
+              summary: slot.summary,
+              positions: [slot.primary_position],
+              strengths: slot.strengths?.trim() || null,
+              weaknesses: slot.weaknesses?.trim() || null,
+              potential_now: slot.potential_now ?? null,
+              potential_future: slot.potential_future ?? null,
+            });
+          }
+          await offlineDb.offlineMatchObservations.update(matchObs.localId, {
+            syncStatus: "synced",
+            syncError: undefined,
+          });
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Nieznany błąd";
+          await offlineDb.offlineMatchObservations.update(matchObs.localId, {
+            syncStatus: "failed",
+            syncAttempts: matchObs.syncAttempts + 1,
+            syncError: message,
+          });
+        }
+      }
     } finally {
       setIsSyncing(false);
       setSyncProgress({ current: 0, total: 0 });
@@ -174,11 +278,23 @@ export function useSync() {
   const addOfflineObservation = useCallback(
     async (payload: OfflineObservation) => {
       await offlineDb.offlineObservations.add(payload);
-      const count = await offlineDb.offlineObservations
-        .where("syncStatus")
-        .anyOf(["pending", "failed"])
-        .count();
-      setPendingCount(count);
+      const [obsCount, matchCount] = await Promise.all([
+        offlineDb.offlineObservations.where("syncStatus").anyOf(["pending", "failed"]).count(),
+        offlineDb.offlineMatchObservations.where("syncStatus").anyOf(["pending", "failed"]).count(),
+      ]);
+      setPendingCount(obsCount + matchCount);
+    },
+    []
+  );
+
+  const addOfflineMatchObservation = useCallback(
+    async (payload: OfflineMatchObservation) => {
+      await offlineDb.offlineMatchObservations.add(payload);
+      const [obsCount, matchCount] = await Promise.all([
+        offlineDb.offlineObservations.where("syncStatus").anyOf(["pending", "failed"]).count(),
+        offlineDb.offlineMatchObservations.where("syncStatus").anyOf(["pending", "failed"]).count(),
+      ]);
+      setPendingCount(obsCount + matchCount);
     },
     []
   );
@@ -189,5 +305,6 @@ export function useSync() {
     syncProgress,
     syncPendingObservations,
     addOfflineObservation,
+    addOfflineMatchObservation,
   };
 }

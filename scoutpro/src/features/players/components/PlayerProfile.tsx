@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { format, parseISO } from "date-fns";
 import type { Player } from "../types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { useDeletePipelineHistoryByPlayer, useDeletePlayer } from "@/features/players/hooks/usePlayers";
 import { useDeleteObservationsByPlayer } from "@/features/observations/hooks/useObservations";
+import { useBodyBuild } from "@/features/dictionaries/hooks/useDictionaries";
 import { toast } from "@/hooks/use-toast";
 
 type PlayerProfileProps = {
@@ -25,6 +27,12 @@ export function PlayerProfile({ player, additionalActions }: PlayerProfileProps)
   const deletePlayer = useDeletePlayer();
   const deleteObservations = useDeleteObservationsByPlayer();
   const deletePipelineHistory = useDeletePipelineHistoryByPlayer();
+  const { data: bodyBuildOptions = [] } = useBodyBuild();
+  const bodyBuildLabel = player.body_build
+    ? (bodyBuildOptions as { code?: string; name_pl?: string }[]).find(
+        (o) => String(o.code) === String(player.body_build)
+      )?.name_pl ?? player.body_build
+    : null;
   const canUseDom = typeof document !== "undefined";
   const statusLabel =
     ALL_PIPELINE_STATUSES.find((column) => column.id === (player.pipeline_status ?? "unassigned"))
@@ -66,6 +74,11 @@ export function PlayerProfile({ player, additionalActions }: PlayerProfileProps)
               <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
                 {player.birth_year}
               </Badge>
+              {player.birth_date && (
+                <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
+                  {format(parseISO(player.birth_date), "dd.MM.yyyy")}
+                </Badge>
+              )}
               <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
                 {player.club?.name ?? "Brak klubu"}
               </Badge>
@@ -204,6 +217,14 @@ export function PlayerProfile({ player, additionalActions }: PlayerProfileProps)
             <div className="text-lg font-semibold text-slate-900">{footLabel}</div>
           </CardContent>
         </Card>
+        {bodyBuildLabel && (
+          <Card>
+            <CardContent className="space-y-1 p-4">
+              <div className="text-xs text-slate-500">Budowa ciała</div>
+              <div className="text-lg font-semibold text-slate-900">{bodyBuildLabel}</div>
+            </CardContent>
+          </Card>
+        )}
         <Card>
           <CardContent className="space-y-1 p-4">
             <div className="text-xs text-slate-500">Narodowosc</div>

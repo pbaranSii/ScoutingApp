@@ -30,7 +30,7 @@ export function DictionaryListPage() {
         <div className="text-sm text-slate-500">Ładowanie…</div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {DICTIONARIES.map((dict) => (
+          {DICTIONARIES.filter((dict) => !dict.hidden).map((dict) => (
             <Link key={dict.id} to={`/settings/dictionaries/${dict.route}`}>
               <Card className="transition-colors hover:bg-slate-50">
                 <CardContent className="flex flex-row items-center justify-between p-4">
