@@ -1236,6 +1236,14 @@ export function ObservationWizard({
             />
           </section>
 
+          {formType === "extended" && !primaryPosition && (
+            <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+              <p className="text-sm text-slate-600">
+                Wybierz pozycję główną w sekcji powyżej, aby zobaczyć oceny specyficzne dla pozycji (motoryka i kryteria pozycyjne).
+              </p>
+            </section>
+          )}
+
           {formType === "simplified" && (
             <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="text-lg font-semibold text-slate-800">4. Oceny ogólne</h2>

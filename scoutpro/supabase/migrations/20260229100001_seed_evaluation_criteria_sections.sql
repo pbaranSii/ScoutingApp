@@ -219,3 +219,5 @@ cross join lateral (values
 ) as v(ord, name, section, code)
 where p.code = 'CM'
   and not exists (select 1 from public.evaluation_criteria ec where ec.position_id = p.id and ec.section is not null);
+ 
+  
