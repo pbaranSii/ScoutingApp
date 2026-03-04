@@ -79,7 +79,7 @@ alter table public.formations enable row level security;
 alter table public.tactical_slots enable row level security;
 alter table public.player_position_mapping enable row level security;
 
--- position_dictionary: wszyscy authenticated czytają; tylko admin modyfikuje
+-- position_dictionary: wszyscy authenticated czytają; tylko admin modyfikuje (drop if exists = idempotent)
 drop policy if exists "Position dictionary viewable by authenticated" on public.position_dictionary;
 create policy "Position dictionary viewable by authenticated"
 on public.position_dictionary for select to authenticated using (true);

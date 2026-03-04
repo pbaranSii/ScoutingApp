@@ -1588,7 +1588,7 @@ export type Database = {
           formation: string
           formation_id: string | null
           region_id: string | null
-          slot_assignments?: Record<string, string> | null
+          slot_assignments: Record<string, string> | null
           last_used_at: string | null
           created_at: string
           updated_at: string
