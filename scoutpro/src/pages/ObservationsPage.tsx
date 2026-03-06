@@ -1,4 +1,5 @@
 import { useObservations } from "@/features/observations/hooks/useObservations";
+import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 import { useMemo, useState, useEffect } from "react";
 import { ObservationList } from "@/features/observations/components/ObservationList";
 import { Button } from "@/components/ui/button";
@@ -29,11 +30,13 @@ function filterByTab(observations: Observation[], tab: ObservationTab): Observat
 }
 
 export function ObservationsPage() {
+  const { data: profile } = useCurrentUserProfile();
   const [page, setPage] = useState(1);
   const [tab, setTab] = useState<ObservationTab>("all");
   const { data = [], total = 0, isLoading, isError, error } = useObservations({
     page,
     pageSize: PAGE_SIZE,
+    ...(profile?.business_role === "scout" && profile?.id ? { scoutId: profile.id } : {}),
   });
   const [search, setSearch] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -45,6 +48,8 @@ export function ObservationsPage() {
     ratingMax: "",
     recommendation: "",
     formType: "",
+    birthYearFrom: "",
+    birthYearTo: "",
   });
   const hasActiveFilters =
     filters.source ||
@@ -53,7 +58,9 @@ export function ObservationsPage() {
     filters.ratingMin ||
     filters.ratingMax ||
     filters.recommendation ||
-    filters.formType;
+    filters.formType ||
+    filters.birthYearFrom ||
+    filters.birthYearTo;
 
   const byTab = useMemo(() => filterByTab(data, tab), [data, tab]);
   const filtered = useMemo(() => {
@@ -97,13 +104,22 @@ export function ObservationsPage() {
       }
       if (filters.recommendation && observation.recommendation !== filters.recommendation) return false;
       if (filters.formType && observation.form_type !== filters.formType) return false;
+      const birthYear = observation.player?.birth_year;
+      if (filters.birthYearFrom) {
+        const from = Number(filters.birthYearFrom);
+        if (!Number.isFinite(from) || typeof birthYear !== "number" || birthYear < from) return false;
+      }
+      if (filters.birthYearTo) {
+        const to = Number(filters.birthYearTo);
+        if (!Number.isFinite(to) || typeof birthYear !== "number" || birthYear > to) return false;
+      }
       return true;
     });
   }, [filtered, filters]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, tab, filters.source, filters.rank, filters.position, filters.ratingMin, filters.ratingMax, filters.recommendation, filters.formType]);
+  }, [search, tab, filters.source, filters.rank, filters.position, filters.ratingMin, filters.ratingMax, filters.recommendation, filters.formType, filters.birthYearFrom, filters.birthYearTo]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -140,14 +156,14 @@ export function ObservationsPage() {
       )}
       <Tabs value={tab} onValueChange={(v) => setTab(v as ObservationTab)}>
         <TabsList>
+          <TabsTrigger value="all">Wszystkie</TabsTrigger>
           <TabsTrigger value="match">Meczowe</TabsTrigger>
           <TabsTrigger value="individual">Indywidualne</TabsTrigger>
-          <TabsTrigger value="all">Wszystkie</TabsTrigger>
         </TabsList>
         <TabsContent value={tab} className="mt-2" />
       </Tabs>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
+      <div className="flex flex-row items-center gap-2">
+        <div className="relative min-w-0 flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
           <Input
             placeholder="Szukaj zawodnika lub klubu..."
@@ -159,7 +175,7 @@ export function ObservationsPage() {
         <Button
           type="button"
           variant="outline"
-          className="gap-2"
+          className="shrink-0 gap-2"
           onClick={() => setFiltersOpen((prev) => !prev)}
         >
           <SlidersHorizontal className="h-4 w-4" />
@@ -173,9 +189,9 @@ export function ObservationsPage() {
       </div>
       {filtersOpen && (
         <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Zrodlo</label>
+              <label className="text-sm font-medium text-slate-700">Źródło</label>
               <Select value={filters.source} onValueChange={(value) => setFilters((prev) => ({ ...prev, source: value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Dowolne" />
@@ -183,7 +199,7 @@ export function ObservationsPage() {
                 <SelectContent>
                   <SelectItem value="scouting">Skauting</SelectItem>
                   <SelectItem value="referral">Polecenie</SelectItem>
-                  <SelectItem value="application">Zgloszenie</SelectItem>
+                  <SelectItem value="application">Zgłoszenie</SelectItem>
                   <SelectItem value="trainer_report">Raport trenera</SelectItem>
                   <SelectItem value="scout_report">Raport skauta</SelectItem>
                 </SelectContent>
@@ -199,11 +215,11 @@ export function ObservationsPage() {
                   <SelectItem value="A">A - TOP</SelectItem>
                   <SelectItem value="B">B - Dobry</SelectItem>
                   <SelectItem value="C">C - Szeroka kadra</SelectItem>
-                  <SelectItem value="D">D - Slaby</SelectItem>
+                  <SelectItem value="D">D - Słaby</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Pozycja</label>
               <Select value={filters.position} onValueChange={(value) => setFilters((prev) => ({ ...prev, position: value }))}>
                 <SelectTrigger>
@@ -265,12 +281,46 @@ export function ObservationsPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Rocznik od</label>
+              <Input
+                type="number"
+                min={1950}
+                max={new Date().getFullYear()}
+                value={filters.birthYearFrom}
+                onChange={(event) => setFilters((prev) => ({ ...prev, birthYearFrom: event.target.value }))}
+                placeholder="np. 2008"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Rocznik do</label>
+              <Input
+                type="number"
+                min={1950}
+                max={new Date().getFullYear()}
+                value={filters.birthYearTo}
+                onChange={(event) => setFilters((prev) => ({ ...prev, birthYearTo: event.target.value }))}
+                placeholder="np. 2010"
+              />
+            </div>
           </div>
           <div className="mt-4 flex flex-wrap justify-end gap-2">
             <Button
               type="button"
               variant="outline"
-              onClick={() => setFilters({ source: "", rank: "", position: "", ratingMin: "", ratingMax: "", recommendation: "", formType: "" })}
+              onClick={() =>
+                setFilters({
+                  source: "",
+                  rank: "",
+                  position: "",
+                  ratingMin: "",
+                  ratingMax: "",
+                  recommendation: "",
+                  formType: "",
+                  birthYearFrom: "",
+                  birthYearTo: "",
+                })
+              }
             >
               Wyczyść
             </Button>

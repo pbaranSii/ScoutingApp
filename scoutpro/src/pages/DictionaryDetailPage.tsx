@@ -110,6 +110,19 @@ export function DictionaryDetailPage() {
   const nameCol = config.nameColumn;
   const nameEnCol = config.nameEnColumn;
   const isClubsDictionary = config.table === "clubs";
+  const isCategoriesDictionary = config.table === "categories";
+
+  const defaultFormTypeLabel = (value: unknown) =>
+    value === "extended" ? "Rozszerzony" : "Uproszczony";
+
+  const referenceBirthYear = (row: DictionaryRow) => {
+    if (config?.table !== "categories") return null;
+    const au = row.age_under;
+    if (au == null || au === "") return null;
+    const n = Number(au);
+    if (Number.isNaN(n)) return null;
+    return new Date().getFullYear() - n;
+  };
 
   return (
     <div className="mx-auto w-full max-w-[960px] space-y-5">
@@ -174,6 +187,12 @@ export function DictionaryDetailPage() {
                     <th className="px-3 py-2 text-left font-medium text-slate-700">Miasto</th>
                   </>
                 )}
+                {isCategoriesDictionary && (
+                  <>
+                    <th className="px-3 py-2 text-left font-medium text-slate-700">Domyślny typ formularza</th>
+                    <th className="px-3 py-2 text-left font-medium text-slate-700">Rocznik (oblicz.)</th>
+                  </>
+                )}
                 {hasActiveColumn && (
                   <th className="px-3 py-2 text-left font-medium text-slate-700">Status</th>
                 )}
@@ -196,6 +215,16 @@ export function DictionaryDetailPage() {
                         {String((row.region as { name?: string } | null)?.name ?? (row.regions as { name?: string } | null)?.name ?? "")}
                       </td>
                       <td className="px-3 py-2 text-slate-600">{String(row.city ?? "")}</td>
+                    </>
+                  )}
+                  {isCategoriesDictionary && (
+                    <>
+                      <td className="px-3 py-2 text-slate-600">
+                        {defaultFormTypeLabel(row.default_form_type)}
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">
+                        {referenceBirthYear(row) ?? "—"}
+                      </td>
                     </>
                   )}
                   {hasActiveColumn && (

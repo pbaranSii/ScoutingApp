@@ -14,6 +14,6 @@
 - [Runbooki](runbooks/) – [wdrożenie DEV→PROD](runbooks/deploy-dev-to-prod.md), [migracje](runbooks/apply-migrations.md)
 - [ADR (Architecture Decision Records)](adr/README.md)
 - [Change Management](CHANGE-MANAGEMENT.md)
-- [Formularze obserwacji](observation-forms.md)
+- [Formularze obserwacji](observation-forms.md) · [Specyfikacja formularzy obserwacji (wymagania i struktura)](observation-forms-specification.md)
 - [Zarządzanie użytkownikami](user-management.md)
 - [Historia zmian](change-log.md)

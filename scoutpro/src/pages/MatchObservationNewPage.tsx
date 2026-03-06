@@ -29,6 +29,13 @@ function nextId() {
   return crypto.randomUUID();
 }
 
+const auditName = (user: { user_metadata?: { full_name?: string }; email?: string } | null) =>
+  (user?.user_metadata as { full_name?: string } | undefined)?.full_name ??
+  user?.email ??
+  "Użytkownik";
+const auditRole = (user: { user_metadata?: { role?: string } } | null) =>
+  (user?.user_metadata as { role?: string } | undefined)?.role ?? "user";
+
 export function MatchObservationNewPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -105,6 +112,9 @@ export function MatchObservationNewPage() {
             home_team_formation: headerValues.home_team_formation?.trim() || null,
             away_team_formation: headerValues.away_team_formation?.trim() || null,
             match_notes: headerValues.match_notes?.trim() || null,
+            created_by: user!.id,
+            created_by_name: auditName(user),
+            created_by_role: auditRole(user),
           },
           slots: players.map((p) => ({
             player_id: p.player_id,
@@ -196,6 +206,12 @@ export function MatchObservationNewPage() {
           weaknesses: slot.weaknesses?.trim() || null,
           potential_now: slot.potential_now ?? null,
           potential_future: slot.potential_future ?? null,
+          created_by: user!.id,
+          created_by_name: auditName(user),
+          created_by_role: auditRole(user),
+          updated_by: user!.id,
+          updated_by_name: auditName(user),
+          updated_by_role: auditRole(user),
         };
         await createObservation(input);
       }

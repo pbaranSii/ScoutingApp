@@ -1,15 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PIPELINE_BOARD_COLUMNS } from "@/features/pipeline/types";
+import { PIPELINE_BOARD_COLUMNS, getStatusDotClass } from "@/features/pipeline/types";
 import { usePlayersByStatus } from "../hooks/useDashboard";
-
-const STATUS_COLORS: Record<string, string> = {
-  observed: "bg-slate-400",
-  shortlist: "bg-blue-500",
-  trial: "bg-yellow-400",
-  offer: "bg-orange-500",
-  signed: "bg-green-500",
-  rejected: "bg-red-400",
-};
 
 export function PipelineSummary() {
   const { data = {}, isLoading } = usePlayersByStatus();
@@ -25,7 +16,7 @@ export function PipelineSummary() {
           PIPELINE_BOARD_COLUMNS.map((column) => (
             <div key={column.id} className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className={`h-2.5 w-2.5 rounded-full ${STATUS_COLORS[column.id]}`} />
+                <span className={`h-2.5 w-2.5 rounded-full ${getStatusDotClass(column.id)}`} />
                 <span className="text-sm text-slate-700">{column.label}</span>
               </div>
               <span className="text-sm font-semibold text-slate-900">

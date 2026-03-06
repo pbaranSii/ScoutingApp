@@ -34,6 +34,7 @@ export type Player = {
   video_urls?: string[] | null;
   pipeline_status?: PipelineStatus | null;
   observation_count?: number | null;
+  created_by?: string | null;
   created_at?: string;
   updated_at?: string;
 };

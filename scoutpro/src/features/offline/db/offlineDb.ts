@@ -92,6 +92,9 @@ export type OfflineMatchHeader = {
   home_team_formation?: string | null;
   away_team_formation?: string | null;
   match_notes?: string | null;
+  created_by?: string;
+  created_by_name?: string;
+  created_by_role?: string;
 };
 
 /** One player slot for offline match observation (minimal fields to create observation). */

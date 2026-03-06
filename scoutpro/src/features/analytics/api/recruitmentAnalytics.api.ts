@@ -40,11 +40,13 @@ export async function fetchPlayerList(params: {
   status:
     | "first_contact"
     | "observed"
-    | "shortlist"
-    | "trial"
+    | "in_contact"
+    | "evaluation"
     | "offer"
     | "signed"
-    | "rejected";
+    | "rejected_by_club"
+    | "rejected_by_player"
+    | "out_of_reach";
   range: RecruitmentAnalyticsDateRange;
   filters: RecruitmentAnalyticsFilters;
   page: number;

@@ -471,7 +471,8 @@ export function ObservationWizard({
           (values.mental_rating ?? 3) +
           (values.potential_now ?? 3) +
           (values.potential_future ?? 3);
-        const overall_rating = Math.round((sum / 7) * 2);
+        const computedOverall = Math.round((sum / 7) * 2);
+        const overall_rating = values.overall_rating ?? computedOverall;
         await updateObservation({
           id: observationId,
           input: {
@@ -1307,6 +1308,66 @@ export function ObservationWizard({
                 </p>
                 <p className="text-xs text-slate-500">(wyliczana z powyższych ocen)</p>
               </div>
+              {isEditMode && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="overall_rating"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ocena ogólna (1–10)</FormLabel>
+                        <FormControl>
+                          <div className="flex w-full flex-wrap gap-2">
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
+                              <button
+                                key={v}
+                                type="button"
+                                onClick={() => field.onChange(v)}
+                                className={`min-h-10 w-12 rounded-lg border-2 text-sm font-medium transition touch-manipulation ${
+                                  (field.value ?? 0) === v
+                                    ? "border-red-600 bg-red-600 text-white"
+                                    : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+                                }`}
+                              >
+                                {v}
+                              </button>
+                            ))}
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="match_performance_rating"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ocena za występ (1–5)</FormLabel>
+                        <FormControl>
+                          <div className="flex w-full gap-2">
+                            {[1, 2, 3, 4, 5].map((v) => (
+                              <button
+                                key={v}
+                                type="button"
+                                onClick={() => field.onChange(v)}
+                                className={`min-h-10 flex-1 rounded-lg border-2 text-sm font-medium transition touch-manipulation ${
+                                  (field.value ?? 0) === v
+                                    ? "border-red-600 bg-red-600 text-white"
+                                    : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+                                }`}
+                              >
+                                {v}
+                              </button>
+                            ))}
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
             </section>
           )}
 

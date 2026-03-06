@@ -15,6 +15,7 @@ import type { FetchPlayersResult, PlayersFilters } from "../api/players.api";
 import type { PipelineStatus, Player, PlayerInput } from "../types";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { offlineDb } from "@/features/offline/db/offlineDb";
+import { normalizePipelineStatus } from "@/features/pipeline/types";
 import { useAuthStore } from "@/stores/authStore";
 
 export function usePlayers(filters?: PlayersFilters) {
@@ -28,7 +29,14 @@ export function usePlayers(filters?: PlayersFilters) {
     queryFn: async (): Promise<{ data: Player[]; total?: number }> => {
       if (!isOnline) {
         const cached = await offlineDb.cachedPlayers.toArray();
-        const all = cached.map((item) => item.data) as Player[];
+        let all = cached.map((item) => {
+          const p = item.data as Player;
+          const status = normalizePipelineStatus(p.pipeline_status);
+          return status !== p.pipeline_status ? { ...p, pipeline_status: status } : p;
+        }) as Player[];
+        if (filters?.createdBy) {
+          all = all.filter((p) => p.created_by === filters.createdBy);
+        }
         if (usePagination) {
           const from = (page - 1) * pageSize;
           return { data: all.slice(from, from + pageSize), total: all.length };

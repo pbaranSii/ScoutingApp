@@ -6,39 +6,34 @@ export type CriterionSection = Database["public"]["Enums"]["criterion_section"];
 export type EvaluationCriterion = {
   id: string;
   name: string;
-  position_id: string;
+  position_dictionary_id: string;
   sort_order: number;
   weight: number;
   section?: CriterionSection | null;
   code?: string | null;
 };
 
-/** Map position_dictionary position_code to positions table code (e.g. DM->CDM, AM->CAM). */
-function positionCodeToPositionsTableCode(code: string): string {
-  const trimmed = code?.trim() || "";
-  const map: Record<string, string> = { DM: "CDM", AM: "CAM" };
-  return map[trimmed] ?? trimmed;
-}
-
 /** Fetch evaluation criteria for a position by its code (e.g. CAM, GK, DM from position_dictionary). Includes section/code for extended form. */
 export async function fetchEvaluationCriteriaByPositionCode(
   positionCode: string
 ): Promise<EvaluationCriterion[]> {
-  const codeToUse = positionCodeToPositionsTableCode(positionCode);
-  if (!codeToUse) return [];
+  const code = positionCode?.trim() || "";
+  if (!code) return [];
 
   const { data: position, error: posError } = await supabase
-    .from("positions")
+    .from("position_dictionary")
     .select("id")
-    .eq("code", codeToUse)
+    .eq("position_code", code)
+    .order("display_order", { ascending: true })
+    .limit(1)
     .maybeSingle();
 
   if (posError || !position) return [];
 
   const { data: criteria, error } = await supabase
     .from("evaluation_criteria")
-    .select("id, name, position_id, sort_order, weight, section, code")
-    .eq("position_id", position.id)
+    .select("id, name, position_dictionary_id, sort_order, weight, section, code")
+    .eq("position_dictionary_id", position.id)
     .order("sort_order", { ascending: true });
 
   if (error) return [];

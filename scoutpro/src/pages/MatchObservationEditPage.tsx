@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/common/PageHeader";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { MatchObservationHeaderForm, type MatchObservationHeaderFormRef } from "@/features/observations/components/MatchObservationHeaderForm";
 import { fetchMatchObservationById, updateMatchObservation } from "@/features/observations/api/matchObservations.api";
 import { fetchObservationsByMatchObservation } from "@/features/observations/api/observations.api";
@@ -98,19 +98,16 @@ export function MatchObservationEditPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Edycja nagłówka obserwacji meczowej"
-        subtitle={`Data: ${format(new Date(match.observation_date), "dd.MM.yyyy")} · ${match.competition}`}
-        actions={
-          <Button asChild variant="outline" className="gap-2">
-            <Link to="/observations">
-              <ArrowLeft className="h-4 w-4" />
-              Anuluj
-            </Link>
-          </Button>
-        }
-      />
+    <div className="mx-auto w-full max-w-[960px] space-y-6">
+      <div className="flex justify-end">
+        <Button asChild variant="outline" className="gap-2">
+          <Link to="/observations">
+            <ArrowLeft className="h-4 w-4" />
+            Anuluj
+          </Link>
+        </Button>
+      </div>
+      <PageHeader title="Obserwacja meczowa" />
       <Card>
         <CardHeader>
           <h2 className="text-lg font-semibold">Nagłówek spotkania</h2>
@@ -123,8 +120,14 @@ export function MatchObservationEditPage() {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <h2 className="text-lg font-semibold">Zawodnicy ({observations.length})</h2>
+          <Button asChild variant="outline" size="sm" className="gap-2">
+            <Link to={`/observations/match/${matchId}/player/new`}>
+              <Plus className="h-4 w-4" />
+              Dodaj zawodnika
+            </Link>
+          </Button>
         </CardHeader>
         <CardContent>
           <ul className="space-y-2">

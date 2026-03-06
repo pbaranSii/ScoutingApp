@@ -82,7 +82,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
-          position_id: string
+          position_dictionary_id: string
           section: Database["public"]["Enums"]["criterion_section"] | null
           sort_order: number
           weight: number
@@ -92,7 +92,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
-          position_id: string
+          position_dictionary_id: string
           section?: Database["public"]["Enums"]["criterion_section"] | null
           sort_order?: number
           weight?: number
@@ -102,17 +102,17 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
-          position_id?: string
+          position_dictionary_id?: string
           section?: Database["public"]["Enums"]["criterion_section"] | null
           sort_order?: number
           weight?: number
         }
         Relationships: [
           {
-            foreignKeyName: "evaluation_criteria_position_id_fkey"
-            columns: ["position_id"]
+            foreignKeyName: "evaluation_criteria_position_dictionary_id_fkey"
+            columns: ["position_dictionary_id"]
             isOneToOne: false
-            referencedRelation: "positions"
+            referencedRelation: "position_dictionary"
             referencedColumns: ["id"]
           },
         ]
@@ -1794,11 +1794,13 @@ export type Database = {
       pipeline_status:
         | "unassigned"
         | "observed"
-        | "shortlist"
-        | "trial"
+        | "in_contact"
+        | "evaluation"
         | "offer"
         | "signed"
-        | "rejected"
+        | "rejected_by_club"
+        | "rejected_by_player"
+        | "out_of_reach"
       sync_status: "pending" | "synced" | "failed"
       task_status: "pending" | "completed" | "cancelled"
       task_type: "task" | "invitation" | "observation"
@@ -1954,11 +1956,13 @@ export const Constants = {
       pipeline_status: [
         "unassigned",
         "observed",
-        "shortlist",
-        "trial",
+        "in_contact",
+        "evaluation",
         "offer",
         "signed",
-        "rejected",
+        "rejected_by_club",
+        "rejected_by_player",
+        "out_of_reach",
       ],
       sync_status: ["pending", "synced", "failed"],
       task_status: ["pending", "completed", "cancelled"],

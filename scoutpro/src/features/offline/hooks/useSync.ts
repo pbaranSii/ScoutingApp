@@ -247,6 +247,12 @@ export function useSync() {
               weaknesses: slot.weaknesses?.trim() || null,
               potential_now: slot.potential_now ?? null,
               potential_future: slot.potential_future ?? null,
+              created_by: header.created_by ?? header.scout_id,
+              created_by_name: header.created_by_name ?? null,
+              created_by_role: header.created_by_role ?? null,
+              updated_by: header.created_by ?? header.scout_id,
+              updated_by_name: header.created_by_name ?? null,
+              updated_by_role: header.created_by_role ?? null,
             });
           }
           await offlineDb.offlineMatchObservations.update(matchObs.localId, {

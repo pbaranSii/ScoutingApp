@@ -63,8 +63,8 @@ export function DictionaryEntryForm({
   const [defaultFormType, setDefaultFormType] = useState<string>(
     config.table === "categories" ? String(initial?.default_form_type ?? "simplified") : "simplified"
   );
-  const [category, setCategory] = useState(
-    config.table === "positions" ? String(initial?.category ?? "") : ""
+  const [ageUnder, setAgeUnder] = useState<string>(
+    config.table === "categories" ? String(initial?.age_under ?? "") : ""
   );
 
   const { data: regions = [] } = useRegions();
@@ -90,8 +90,8 @@ export function DictionaryEntryForm({
       payload.min_birth_year = minBirthYear !== "" ? Number(minBirthYear) : null;
       payload.max_birth_year = maxBirthYear !== "" ? Number(maxBirthYear) : null;
       payload.default_form_type = defaultFormType === "extended" ? "extended" : "simplified";
+      payload.age_under = ageUnder !== "" ? Number(ageUnder) : null;
     }
-    if (config.table === "positions") payload.category = category.trim() || null;
     await onSubmit(payload);
   };
 
@@ -112,7 +112,7 @@ export function DictionaryEntryForm({
         </div>
       )}
       <div>
-        <Label htmlFor="name">{config.table === "positions" ? "Nazwa" : "Nazwa (PL)"}</Label>
+        <Label htmlFor="name">Nazwa (PL)</Label>
         <Input
           id="name"
           value={name}
@@ -127,17 +127,6 @@ export function DictionaryEntryForm({
             id="name_en"
             value={nameEn}
             onChange={(e) => setNameEn(e.target.value)}
-          />
-        </div>
-      )}
-      {config.table === "positions" && (
-        <div>
-          <Label htmlFor="category">Kategoria</Label>
-          <Input
-            id="category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            placeholder="np. Bramka, Obrona"
           />
         </div>
       )}
@@ -221,6 +210,21 @@ export function DictionaryEntryForm({
                 <SelectItem value="extended">Rozszerzony</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label htmlFor="age_under">Wiek pod (U, opcjonalnie)</Label>
+            <Input
+              id="age_under"
+              type="number"
+              min={1}
+              max={23}
+              placeholder="np. 10 dla U10"
+              value={ageUnder}
+              onChange={(e) => setAgeUnder(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Gdy ustawione: rocznik odniesienia = bieżący rok − wartość (np. U10 w 2026 → rocznik 2016).
+            </p>
           </div>
         </>
       )}

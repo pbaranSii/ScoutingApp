@@ -68,15 +68,17 @@ function safeParseState(raw: string | null): StoredState | null {
   }
 }
 
-/** Klasy Tailwind dla wypełnienia pasków lejka – zgodne z obramowaniem górnym stosów w Pipeline (PIPELINE_STATUS_COLORS.dot). */
+/** Klasy Tailwind dla wypełnienia pasków lejka – zgodne z PIPELINE_STATUS_COLORS.dot. */
 const FUNNEL_STAGE_BAR_CLASS: Record<string, string> = {
   first_contact: PIPELINE_STATUS_COLORS.unassigned.dot,
   observed: PIPELINE_STATUS_COLORS.observed.dot,
-  shortlist: PIPELINE_STATUS_COLORS.shortlist.dot,
-  trial: PIPELINE_STATUS_COLORS.trial.dot,
+  in_contact: PIPELINE_STATUS_COLORS.in_contact.dot,
+  evaluation: PIPELINE_STATUS_COLORS.evaluation.dot,
   offer: PIPELINE_STATUS_COLORS.offer.dot,
   signed: PIPELINE_STATUS_COLORS.signed.dot,
-  rejected: PIPELINE_STATUS_COLORS.rejected.dot,
+  rejected_by_club: PIPELINE_STATUS_COLORS.rejected_by_club.dot,
+  rejected_by_player: PIPELINE_STATUS_COLORS.rejected_by_player.dot,
+  out_of_reach: PIPELINE_STATUS_COLORS.out_of_reach.dot,
 };
 
 function FunnelStageRow(props: {
@@ -204,7 +206,7 @@ export function RecruitmentAnalyticsPage() {
 
   const [playerListOpen, setPlayerListOpen] = useState(false);
   const [playerListStatus, setPlayerListStatus] = useState<
-    "first_contact" | "observed" | "shortlist" | "trial" | "offer" | "signed" | "rejected"
+    "first_contact" | "observed" | "in_contact" | "evaluation" | "offer" | "signed" | "rejected_by_club" | "rejected_by_player" | "out_of_reach"
   >("first_contact");
   const [playerListPage, setPlayerListPage] = useState(1);
 
@@ -240,14 +242,16 @@ export function RecruitmentAnalyticsPage() {
       { metric: "total_candidates", value: m.kpi.totalCandidates },
       { metric: "conversion_rate_pct", value: m.kpi.conversionRate },
       { metric: "time_to_hire_days_avg", value: m.kpi.timeToHireDaysAvg },
-      { metric: "active_trials", value: m.kpi.activeTrials },
+      { metric: "active_in_evaluation", value: m.kpi.activeInEvaluation },
       { metric: "funnel_first_contact", value: m.funnel.first_contact },
       { metric: "funnel_observed", value: m.funnel.observed },
-      { metric: "funnel_shortlist", value: m.funnel.shortlist },
-      { metric: "funnel_trial", value: m.funnel.trial },
+      { metric: "funnel_in_contact", value: m.funnel.in_contact },
+      { metric: "funnel_evaluation", value: m.funnel.evaluation },
       { metric: "funnel_offer", value: m.funnel.offer },
       { metric: "funnel_signed", value: m.funnel.signed },
-      { metric: "funnel_rejected", value: m.funnel.rejected },
+      { metric: "funnel_rejected_by_club", value: m.funnel.rejected_by_club },
+      { metric: "funnel_rejected_by_player", value: m.funnel.rejected_by_player },
+      { metric: "funnel_out_of_reach", value: m.funnel.out_of_reach },
     ];
     const csv = toCsv(rows);
     downloadText(`recruitment-analytics_${exportBaseName}.csv`, csv);
@@ -280,7 +284,7 @@ export function RecruitmentAnalyticsPage() {
       totalCandidates: pct(curr.totalCandidates, prev.totalCandidates),
       conversionRate: pct(curr.conversionRate, prev.conversionRate),
       timeToHireDaysAvg: pct(curr.timeToHireDaysAvg, prev.timeToHireDaysAvg),
-      activeTrials: pct(curr.activeTrials, prev.activeTrials),
+      activeInEvaluation: pct(curr.activeInEvaluation, prev.activeInEvaluation),
     };
   }, [compareEnabled, metricsQuery.data, compareMetricsQuery.data]);
 
@@ -540,11 +544,11 @@ export function RecruitmentAnalyticsPage() {
             </Card>
             <Card className="min-w-[220px]">
               <CardHeader>
-                <CardTitle>Testy</CardTitle>
+                <CardTitle>W weryfikacji</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold tabular-nums">
-                  {metricsQuery.data.kpi.activeTrials}
+                  {metricsQuery.data.kpi.activeInEvaluation}
                 </div>
               </CardContent>
             </Card>
@@ -557,11 +561,13 @@ export function RecruitmentAnalyticsPage() {
                 <>
                   <FunnelStageRow label="First Contact" stageKey="first_contact" count={funnel.first_contact} prevCount={null} totalForPercent={funnel.first_contact} onClick={() => openPlayerList("first_contact")} />
                   <FunnelStageRow label="Observed" stageKey="observed" count={funnel.observed} prevCount={funnel.first_contact} totalForPercent={funnel.first_contact} onClick={() => openPlayerList("observed")} />
-                  <FunnelStageRow label="Shortlist" stageKey="shortlist" count={funnel.shortlist} prevCount={funnel.observed} totalForPercent={funnel.first_contact} onClick={() => openPlayerList("shortlist")} />
-                  <FunnelStageRow label="Trial" stageKey="trial" count={funnel.trial} prevCount={funnel.shortlist} totalForPercent={funnel.first_contact} onClick={() => openPlayerList("trial")} />
-                  <FunnelStageRow label="Offer" stageKey="offer" count={funnel.offer} prevCount={funnel.trial} totalForPercent={funnel.first_contact} onClick={() => openPlayerList("offer")} />
+                  <FunnelStageRow label="Kontakt" stageKey="in_contact" count={funnel.in_contact} prevCount={funnel.observed} totalForPercent={funnel.first_contact} onClick={() => openPlayerList("in_contact")} />
+                  <FunnelStageRow label="Weryfikacja" stageKey="evaluation" count={funnel.evaluation} prevCount={funnel.in_contact} totalForPercent={funnel.first_contact} onClick={() => openPlayerList("evaluation")} />
+                  <FunnelStageRow label="Offer" stageKey="offer" count={funnel.offer} prevCount={funnel.evaluation} totalForPercent={funnel.first_contact} onClick={() => openPlayerList("offer")} />
                   <FunnelStageRow label="Signed" stageKey="signed" count={funnel.signed} prevCount={funnel.offer} totalForPercent={funnel.first_contact} onClick={() => openPlayerList("signed")} />
-                  <FunnelStageRow label="Rejected" stageKey="rejected" count={funnel.rejected} prevCount={funnel.first_contact} totalForPercent={funnel.first_contact} onClick={() => openPlayerList("rejected")} />
+                  <FunnelStageRow label="Odrzucony przez klub" stageKey="rejected_by_club" count={funnel.rejected_by_club} prevCount={funnel.first_contact} totalForPercent={funnel.first_contact} onClick={() => openPlayerList("rejected_by_club")} />
+                  <FunnelStageRow label="Odrzucony przez zawodnika" stageKey="rejected_by_player" count={funnel.rejected_by_player} prevCount={funnel.first_contact} totalForPercent={funnel.first_contact} onClick={() => openPlayerList("rejected_by_player")} />
+                  <FunnelStageRow label="Poza zasięgiem" stageKey="out_of_reach" count={funnel.out_of_reach} prevCount={funnel.first_contact} totalForPercent={funnel.first_contact} onClick={() => openPlayerList("out_of_reach")} />
                 </>
               )}
             </div>
@@ -618,15 +624,15 @@ export function RecruitmentAnalyticsPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Aktywne testy</CardTitle>
+                <CardTitle>W weryfikacji</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold tabular-nums">
-                  {metricsQuery.data.kpi.activeTrials}
+                  {metricsQuery.data.kpi.activeInEvaluation}
                 </div>
-                {deltas?.activeTrials !== null && deltas?.activeTrials !== undefined && (
+                {deltas?.activeInEvaluation !== null && deltas?.activeInEvaluation !== undefined && (
                   <div className="text-xs text-slate-500 tabular-nums">
-                    {deltas.activeTrials === null ? "—" : `${deltas.activeTrials.toFixed(1)}%`}
+                    {deltas.activeInEvaluation === null ? "—" : `${deltas.activeInEvaluation.toFixed(1)}%`}
                   </div>
                 )}
               </CardContent>
@@ -665,26 +671,26 @@ export function RecruitmentAnalyticsPage() {
                       onClick={() => openPlayerList("observed")}
                     />
                     <FunnelStageRow
-                      label="Shortlist"
-                      stageKey="shortlist"
-                      count={funnel.shortlist}
+                      label="Kontakt"
+                      stageKey="in_contact"
+                      count={funnel.in_contact}
                       prevCount={funnel.observed}
                       totalForPercent={funnel.first_contact}
-                      onClick={() => openPlayerList("shortlist")}
+                      onClick={() => openPlayerList("in_contact")}
                     />
                     <FunnelStageRow
-                      label="Trial"
-                      stageKey="trial"
-                      count={funnel.trial}
-                      prevCount={funnel.shortlist}
+                      label="Weryfikacja"
+                      stageKey="evaluation"
+                      count={funnel.evaluation}
+                      prevCount={funnel.in_contact}
                       totalForPercent={funnel.first_contact}
-                      onClick={() => openPlayerList("trial")}
+                      onClick={() => openPlayerList("evaluation")}
                     />
                     <FunnelStageRow
                       label="Offer"
                       stageKey="offer"
                       count={funnel.offer}
-                      prevCount={funnel.trial}
+                      prevCount={funnel.evaluation}
                       totalForPercent={funnel.first_contact}
                       onClick={() => openPlayerList("offer")}
                     />
@@ -697,12 +703,28 @@ export function RecruitmentAnalyticsPage() {
                       onClick={() => openPlayerList("signed")}
                     />
                     <FunnelStageRow
-                      label="Rejected"
-                      stageKey="rejected"
-                      count={funnel.rejected}
+                      label="Odrzucony przez klub"
+                      stageKey="rejected_by_club"
+                      count={funnel.rejected_by_club}
                       prevCount={funnel.first_contact}
                       totalForPercent={funnel.first_contact}
-                      onClick={() => openPlayerList("rejected")}
+                      onClick={() => openPlayerList("rejected_by_club")}
+                    />
+                    <FunnelStageRow
+                      label="Odrzucony przez zawodnika"
+                      stageKey="rejected_by_player"
+                      count={funnel.rejected_by_player}
+                      prevCount={funnel.first_contact}
+                      totalForPercent={funnel.first_contact}
+                      onClick={() => openPlayerList("rejected_by_player")}
+                    />
+                    <FunnelStageRow
+                      label="Poza zasięgiem"
+                      stageKey="out_of_reach"
+                      count={funnel.out_of_reach}
+                      prevCount={funnel.first_contact}
+                      totalForPercent={funnel.first_contact}
+                      onClick={() => openPlayerList("out_of_reach")}
                     />
                   </>
                 )}
@@ -821,11 +843,13 @@ export function RecruitmentAnalyticsPage() {
                           [
                             ["First Contact", funnel.first_contact],
                             ["Observed", funnel.observed],
-                            ["Shortlist", funnel.shortlist],
-                            ["Trial", funnel.trial],
+                            ["Kontakt", funnel.in_contact],
+                            ["Weryfikacja", funnel.evaluation],
                             ["Offer", funnel.offer],
                             ["Signed", funnel.signed],
-                            ["Rejected", funnel.rejected],
+                            ["Odrzucony przez klub", funnel.rejected_by_club],
+                            ["Odrzucony przez zawodnika", funnel.rejected_by_player],
+                            ["Poza zasięgiem", funnel.out_of_reach],
                           ] as [string, number][]
                         ).map(([label, value]) => (
                           <tr key={label} className="border-t border-slate-100">
@@ -849,9 +873,9 @@ export function RecruitmentAnalyticsPage() {
                         {(
                           [
                             ["First → Observed", funnel.first_contact ? (funnel.observed / funnel.first_contact) * 100 : 0],
-                            ["Observed → Shortlist", funnel.observed ? (funnel.shortlist / funnel.observed) * 100 : 0],
-                            ["Shortlist → Trial", funnel.shortlist ? (funnel.trial / funnel.shortlist) * 100 : 0],
-                            ["Trial → Offer", funnel.trial ? (funnel.offer / funnel.trial) * 100 : 0],
+                            ["Observed → Kontakt", funnel.observed ? (funnel.in_contact / funnel.observed) * 100 : 0],
+                            ["Kontakt → Weryfikacja", funnel.in_contact ? (funnel.evaluation / funnel.in_contact) * 100 : 0],
+                            ["Weryfikacja → Offer", funnel.evaluation ? (funnel.offer / funnel.evaluation) * 100 : 0],
                             ["Offer → Signed", funnel.offer ? (funnel.signed / funnel.offer) * 100 : 0],
                           ] as [string, number][]
                         ).map(([label, value]) => (

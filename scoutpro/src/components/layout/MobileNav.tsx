@@ -11,11 +11,13 @@ import {
   Target,
 } from "lucide-react";
 import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
-import { canViewAnalytics } from "@/features/users/types";
+import { canViewAnalytics, canAccessSettings, canAccessPipeline } from "@/features/users/types";
 
 export function MobileNav() {
   const { data: profile } = useCurrentUserProfile();
   const showAnalytics = canViewAnalytics(profile?.business_role);
+  const showSettings = canAccessSettings(profile?.business_role);
+  const showPipeline = canAccessPipeline(profile?.business_role);
 
   const navItems = [
     { to: "/dashboard", label: "Home", icon: LayoutDashboard },
@@ -23,12 +25,12 @@ export function MobileNav() {
     { to: "/observations", label: "Obserwacje", icon: ClipboardList },
     { to: "/favorites", label: "Ulubione", icon: Heart },
     { to: "/demands", label: "Zapotrz.", icon: Target },
-    { to: "/pipeline", label: "Pipeline", icon: KanbanSquare },
+    ...(showPipeline ? [{ to: "/pipeline", label: "Pipeline", icon: KanbanSquare }] : []),
     { to: "/tasks", label: "Zadania", icon: CheckSquare },
     ...(showAnalytics
       ? [{ to: "/analytics/recruitment-pipeline", label: "Analytics", icon: BarChart3 }]
       : []),
-    { to: "/settings", label: "Ustawienia", icon: Settings },
+    ...(showSettings ? [{ to: "/settings", label: "Ustawienia", icon: Settings }] : []),
   ];
 
   return (

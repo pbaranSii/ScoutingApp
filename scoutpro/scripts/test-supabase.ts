@@ -35,7 +35,7 @@ async function run() {
     first_name: "Test",
     last_name: "Supabase",
     birth_year: new Date().getFullYear() - 14,
-    pipeline_status: "observed" as Database["public"]["Enums"]["pipeline_status"],
+    pipeline_status: "observed" as Database["public"]["Enums"]["pipeline_status"], // valid after 20260306 migration
   };
 
   const { data: createdPlayer, error: createError } = await supabase

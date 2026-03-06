@@ -140,6 +140,7 @@ export type PlayersFilters = {
   primary_position?: string;
   clubIds?: string[];
   scoutId?: string;
+  createdBy?: string;
   page?: number;
   pageSize?: number;
 };
@@ -192,6 +193,9 @@ export async function fetchPlayers(filters?: PlayersFilters): Promise<FetchPlaye
       return usePagination ? { data: [], total: 0 } : [];
     }
     query = query.in("id", playerIds);
+  }
+  if (filters?.createdBy) {
+    query = query.eq("created_by", filters.createdBy);
   }
 
   if (usePagination) {

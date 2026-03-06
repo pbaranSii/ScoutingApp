@@ -45,6 +45,7 @@ export const DICTIONARIES: DictionaryConfig[] = [
     orderColumn: "display_order",
     activeColumn: "id",
     route: "positions",
+    hidden: true,
   },
   {
     id: "player_sources",
@@ -88,7 +89,7 @@ export const DICTIONARIES: DictionaryConfig[] = [
     codeColumn: "id",
     nameColumn: "name",
     orderColumn: "id",
-    activeColumn: "id",
+    activeColumn: "is_active",
     route: "categories",
   },
   {

@@ -1,7 +1,18 @@
 import type { HeatmapRow } from "../types";
 import { cn } from "@/lib/utils";
 
-const STATUSES = ["observed", "shortlist", "trial", "offer", "signed", "rejected"] as const;
+const STATUSES = ["observed", "in_contact", "evaluation", "offer", "signed", "rejected_by_club", "rejected_by_player", "out_of_reach"] as const;
+
+const STATUS_LABELS: Record<(typeof STATUSES)[number], string> = {
+  observed: "Obserwowany",
+  in_contact: "Kontakt",
+  evaluation: "Weryfikacja",
+  offer: "Oferta",
+  signed: "Podpisany",
+  rejected_by_club: "Odrzucony (klub)",
+  rejected_by_player: "Odrzucony (zawodnik)",
+  out_of_reach: "Poza zasięgiem",
+};
 
 function cellClass(value: number, max: number) {
   if (max <= 0) return "bg-white";
@@ -16,7 +27,16 @@ function cellClass(value: number, max: number) {
 
 export function HeatmapTable({ rows }: { rows: HeatmapRow[] }) {
   const max = rows.reduce((acc, r) => {
-    const v = Math.max(r.observed, r.shortlist, r.trial, r.offer, r.signed, r.rejected);
+    const v = Math.max(
+      r.observed,
+      r.in_contact,
+      r.evaluation,
+      r.offer,
+      r.signed,
+      r.rejected_by_club,
+      r.rejected_by_player,
+      r.out_of_reach
+    );
     return Math.max(acc, v);
   }, 0);
 
@@ -28,7 +48,7 @@ export function HeatmapTable({ rows }: { rows: HeatmapRow[] }) {
             <th className="sticky left-0 bg-slate-50 px-3 py-2 text-left">Region</th>
             {STATUSES.map((s) => (
               <th key={s} className="px-3 py-2 text-right">
-                {s}
+                {STATUS_LABELS[s]}
               </th>
             ))}
           </tr>

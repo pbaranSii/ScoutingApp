@@ -96,3 +96,17 @@ Migracje do uruchomienia w kolejności: `20260218160000_recruitment_analytics_mo
 ## Moduł „Statystyki użytkowników i Ankieta satysfakcji”
 
 Jeśli w projekcie brak tabel **`user_sessions`** i **`user_surveys`**, zastosuj migrację ręcznie według instrukcji: **[APPLY_ADMIN_STATS_SURVEY.md](APPLY_ADMIN_STATS_SURVEY.md)**.
+
+---
+
+## Rozliczenia (Statystyki użytkowników → Rozliczenia)
+
+Zakładka **Rozliczenia** wywołuje RPC **`admin_usage_monthly_breakdown`**. Jeśli w konsoli przeglądarki pojawia się **404 (Not Found)** na tym wywołaniu, oznacza to, że funkcja nie istnieje w bazie. Błąd **„column p.created_by does not exist”** oznacza, że tabela `players` nie ma kolumny `created_by` – trzeba uruchomić migrację `20260305000000_players_created_by.sql`.
+
+**Wymagane migracje (w kolejności):**
+
+1. `supabase/migrations/20260305000000_players_created_by.sql` – dodaje do tabeli `players` kolumnę `created_by` i wypełnia ją na podstawie pierwszej obserwacji (scout). **Obowiązkowe** – bez niej RPC Rozliczeń zgłasza błąd „column p.created_by does not exist”.
+2. `supabase/migrations/20260225100000_admin_usage_monthly_breakdown.sql` – definiuje RPC `admin_usage_monthly_breakdown` (tabela użytkownik × miesiąc: liczba obserwacji i zawodników dodanych w danym miesiącu).
+3. `supabase/migrations/20260304000002_admin_usage_user_detail_players_30d.sql` – poprawia RPC `admin_usage_user_detail` (liczenie zawodników zarejestrowanych przez użytkownika w ostatnich 30 dniach).
+
+**Sposób zastosowania:** w Supabase Dashboard → **SQL Editor** skopiuj i uruchom zawartość powyższych plików w podanej kolejności. Alternatywnie: `supabase db push` w katalogu projektu. Po wdrożeniu: **Project Settings → API → Reload schema cache**.

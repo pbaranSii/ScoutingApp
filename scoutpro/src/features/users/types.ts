@@ -4,9 +4,22 @@ export type UserProfile = Tables<"users">;
 
 export type BusinessRole = "scout" | "coach" | "director" | "suspended" | "admin";
 
-/** Role uprawnione do modułu Analytics (lejka rekrutacji). Zgodne z mapowaniem w DEPLOY_ANALYTICS.md. */
+/** Role uprawnione do modułu Analytics (lejka rekrutacji). Scout nie ma dostępu. */
 export const ROLES_CAN_VIEW_ANALYTICS: readonly BusinessRole[] = [
-  "scout",
+  "coach",
+  "director",
+  "admin",
+] as const;
+
+/** Role z dostępem do Ustawień (scout nie ma). */
+export const ROLES_CAN_ACCESS_SETTINGS: readonly BusinessRole[] = [
+  "coach",
+  "director",
+  "admin",
+] as const;
+
+/** Role z dostępem do Pipeline (scout nie ma). */
+export const ROLES_CAN_ACCESS_PIPELINE: readonly BusinessRole[] = [
   "coach",
   "director",
   "admin",
@@ -14,6 +27,14 @@ export const ROLES_CAN_VIEW_ANALYTICS: readonly BusinessRole[] = [
 
 export function canViewAnalytics(role: BusinessRole | undefined): boolean {
   return role != null && ROLES_CAN_VIEW_ANALYTICS.includes(role);
+}
+
+export function canAccessSettings(role: BusinessRole | undefined): boolean {
+  return role != null && ROLES_CAN_ACCESS_SETTINGS.includes(role);
+}
+
+export function canAccessPipeline(role: BusinessRole | undefined): boolean {
+  return role != null && ROLES_CAN_ACCESS_PIPELINE.includes(role);
 }
 
 export const BUSINESS_ROLE_LABELS: Record<BusinessRole, { label: string; description: string }> = {

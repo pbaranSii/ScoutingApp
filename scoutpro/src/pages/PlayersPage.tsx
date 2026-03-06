@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { usePlayers } from "@/features/players/hooks/usePlayers";
+import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 import { PlayerList } from "@/features/players/components/PlayerList";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import { SlidersHorizontal } from "lucide-react";
 const PAGE_SIZE = 100;
 
 export function PlayersPage() {
+  const { data: profile } = useCurrentUserProfile();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -31,6 +33,7 @@ export function PlayersPage() {
     primary_position: filters.position || undefined,
     status: (filters.status || undefined) as PipelineStatus | undefined,
     birthYear: filters.birthYear ? Number(filters.birthYear) : undefined,
+    ...(profile?.business_role === "scout" && profile?.id ? { createdBy: profile.id } : {}),
   });
 
   useEffect(() => {

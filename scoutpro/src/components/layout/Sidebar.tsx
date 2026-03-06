@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
-import { canViewAnalytics } from "@/features/users/types";
+import { canViewAnalytics, canAccessSettings, canAccessPipeline } from "@/features/users/types";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,6 +29,8 @@ export function Sidebar() {
   const { logout } = useAuthStore();
   const { data: profile } = useCurrentUserProfile();
   const showAnalytics = canViewAnalytics(profile?.business_role);
+  const showSettings = canAccessSettings(profile?.business_role);
+  const showPipeline = canAccessPipeline(profile?.business_role);
 
   const navItems = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -36,12 +38,12 @@ export function Sidebar() {
     { to: "/observations", label: "Obserwacje", icon: ClipboardList },
     { to: "/favorites", label: "Ulubione", icon: Heart },
     { to: "/demands", label: "Zapotrzebowania", icon: Target },
-    { to: "/pipeline", label: "Pipeline", icon: KanbanSquare },
+    ...(showPipeline ? [{ to: "/pipeline", label: "Pipeline", icon: KanbanSquare }] : []),
     { to: "/tasks", label: "Zadania", icon: CheckSquare },
     ...(showAnalytics
       ? [{ to: "/analytics/recruitment-pipeline", label: "Analytics", icon: BarChart3 }]
       : []),
-    { to: "/settings", label: "Ustawienia", icon: Settings },
+    ...(showSettings ? [{ to: "/settings", label: "Ustawienia", icon: Settings }] : []),
   ];
 
   return (
@@ -97,12 +99,14 @@ export function Sidebar() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem asChild>
-                <Link to="/settings" className="flex cursor-pointer items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Ustawienia
-                </Link>
-              </DropdownMenuItem>
+              {showSettings && (
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="flex cursor-pointer items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    Ustawienia
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem asChild>
                 <Link to="/survey/satisfaction" className="flex cursor-pointer items-center gap-2">
                   <Star className="h-4 w-4" />

@@ -82,8 +82,7 @@ export function FormationEditorPage() {
   }, [formation?.id]);
 
   const selectedSlot = selectedSlotIndex !== null ? slots[selectedSlotIndex] ?? null : null;
-  const isSystem = formation?.is_system === true;
-  const readOnly = isSystem;
+  const readOnly = false;
 
   const validationError = useMemo(
     () => (slots.length > 0 ? validateSlots(slots, positions) : null),
@@ -169,7 +168,7 @@ export function FormationEditorPage() {
         const msg = e instanceof Error ? e.message : "Błąd zapisu";
         toast({ variant: "destructive", title: "Błąd", description: msg });
       }
-    } else if (id && !isSystem) {
+    } else if (id) {
       try {
         await updateFormation.mutateAsync({ id, input: { name, code, description, is_default } });
         await replaceSlots.mutateAsync({ formationId: id, slots: slotPayload });

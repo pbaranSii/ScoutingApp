@@ -95,10 +95,10 @@ export function useRegions() {
   return useDictionaryEntries(config ?? null, { activeOnly: true });
 }
 
-/** Kategorie wiekowe – do wyboru w polu Rozgrywki w formularzu obserwacji. */
+/** Kategorie wiekowe – do wyboru w polu Rozgrywki w formularzu obserwacji. Tylko aktywne. */
 export function useCategories() {
   const config = getDictionaryById("categories");
-  return useDictionaryEntries(config ?? null);
+  return useDictionaryEntries(config ?? null, { activeOnly: true });
 }
 
 /** Aktywne pozycje słownika Mocne strony – do tagów w formularzu obserwacji. */

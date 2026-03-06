@@ -16,7 +16,7 @@ export function DashboardPage() {
   const { data: statusCounts = {} } = usePlayersByStatus();
   const total = data?.total ?? 0;
   const weekly = data?.weekly ?? 0;
-  const pipelineCount = (statusCounts.shortlist ?? 0) + (statusCounts.trial ?? 0);
+  const pipelineCount = (statusCounts.in_contact ?? 0) + (statusCounts.evaluation ?? 0);
 
   return (
     <div className="space-y-6">

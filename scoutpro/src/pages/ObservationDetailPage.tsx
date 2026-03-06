@@ -21,6 +21,7 @@ import { MULTIMEDIA_TABLE_MISSING_CODE } from "@/features/multimedia/api/multime
 import { buildLegacyMediaItemsForObservation } from "@/features/multimedia/lib/legacyMedia";
 import { mapLegacyPosition } from "@/features/players/positions";
 import { AddToFavoritesButton } from "@/features/favorites/components/AddToFavoritesButton";
+import { RatingBar } from "@/features/observations/components/RatingBar";
 
 export function ObservationDetailPage() {
   const { id } = useParams();
@@ -370,43 +371,39 @@ export function ObservationDetailPage() {
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-slate-800">4. Oceny ogólne</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
-            <div>
-              <span className="font-medium text-slate-700">Technika: </span>
-              <span className="text-slate-600">{observation.technical_rating ?? "—"}</span>
-            </div>
-            <div>
-              <span className="font-medium text-slate-700">Szybkość: </span>
-              <span className="text-slate-600">{observation.speed_rating ?? "—"}</span>
-            </div>
-            <div>
-              <span className="font-medium text-slate-700">Motoryka: </span>
-              <span className="text-slate-600">{observation.motor_rating ?? "—"}</span>
-            </div>
-            <div>
-              <span className="font-medium text-slate-700">Taktyka: </span>
-              <span className="text-slate-600">{observation.tactical_rating ?? "—"}</span>
-            </div>
-            <div>
-              <span className="font-medium text-slate-700">Mentalność: </span>
-              <span className="text-slate-600">{observation.mental_rating ?? "—"}</span>
-            </div>
-            <div>
-              <span className="font-medium text-slate-700">Potencjał teraz: </span>
-              <span className="text-slate-600">{observation.potential_now ?? "—"}</span>
-            </div>
-            <div>
-              <span className="font-medium text-slate-700">Potencjał przyszły: </span>
-              <span className="text-slate-600">{observation.potential_future ?? "—"}</span>
-            </div>
-          </div>
-          {typeof observation.overall_rating === "number" && (
-            <div className="mt-2">
-              <span className="font-medium text-slate-700">Ogólna ocena (1–10): </span>
-              <Badge className={`ml-1 ${ratingClass}`}>{observation.overall_rating}</Badge>
-            </div>
+        <CardContent className="space-y-4">
+          {typeof observation.technical_rating === "number" && (
+            <RatingBar label="Technika" value={observation.technical_rating} max={10} />
           )}
+          {typeof observation.speed_rating === "number" && (
+            <RatingBar label="Szybkość" value={observation.speed_rating} max={10} />
+          )}
+          {typeof observation.motor_rating === "number" && (
+            <RatingBar label="Motoryka" value={observation.motor_rating} max={10} />
+          )}
+          {typeof observation.tactical_rating === "number" && (
+            <RatingBar label="Taktyka" value={observation.tactical_rating} max={10} />
+          )}
+          {typeof observation.mental_rating === "number" && (
+            <RatingBar label="Mentalność" value={observation.mental_rating} max={10} />
+          )}
+          {typeof observation.potential_now === "number" && (
+            <RatingBar label="Potencjał teraz" value={observation.potential_now} max={10} />
+          )}
+          {typeof observation.potential_future === "number" && (
+            <RatingBar label="Potencjał przyszły" value={observation.potential_future} max={10} />
+          )}
+          {typeof observation.overall_rating === "number" && (
+            <RatingBar label="Ocena ogólna (1–10)" value={observation.overall_rating} max={10} />
+          )}
+          {observation.observation_category === "match_player" &&
+            typeof observation.match_performance_rating === "number" && (
+              <RatingBar
+                label="Ocena za występ (1–5)"
+                value={observation.match_performance_rating}
+                max={5}
+              />
+            )}
         </CardContent>
       </Card>
 
@@ -417,17 +414,15 @@ export function ObservationDetailPage() {
               5. Oceny specyficzne dla pozycji
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ul className="space-y-1 text-sm">
-              {positionEvaluations.map(({ criteria_id, score }) => (
-                <li key={criteria_id} className="flex justify-between gap-2">
-                  <span className="font-medium text-slate-700">
-                    {criteriaById[criteria_id] ?? criteria_id}
-                  </span>
-                  <span className="text-slate-600">{score}</span>
-                </li>
-              ))}
-            </ul>
+          <CardContent className="space-y-4">
+            {positionEvaluations.map(({ criteria_id, score }) => (
+              <RatingBar
+                key={criteria_id}
+                label={criteriaById[criteria_id] ?? criteria_id}
+                value={typeof score === "number" ? score : 0}
+                max={10}
+              />
+            ))}
           </CardContent>
         </Card>
       )}
