@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { formatPosition } from "@/features/players/positions";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Pencil, Plus, Star, Trash2, User } from "lucide-react";
+import { ArrowLeft, Pencil, Star, Trash2, User } from "lucide-react";
 import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { toast } from "@/hooks/use-toast";
 import { MediaGallery, useMultimediaByObservation } from "@/features/multimedia";

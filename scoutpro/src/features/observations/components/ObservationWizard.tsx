@@ -93,6 +93,7 @@ const wizardSchema = z
       ),
     location: z.string().max(200).optional(),
     notes: z.string().max(2000).optional(),
+    observation_category: z.enum(["match_player", "individual"]).optional(),
     primary_position: z.string().min(1, "Wybierz pozycje"),
     additional_positions: z.array(z.string()).optional(),
     technical_rating: z.coerce.number().int().min(1).max(5),
@@ -277,7 +278,6 @@ export function ObservationWizard({
     "Użytkownik";
   const auditRole =
     (user?.user_metadata as { role?: string })?.role ?? "user";
-  const shouldUpdatePlayer = Boolean(prefillPlayer?.id) && !lockPlayerFields;
   const goBack = () => {
     if (window.history.length > 1) {
       navigate(-1);
@@ -308,6 +308,7 @@ export function ObservationWizard({
       match_result: "",
       location: "",
       notes: "",
+      observation_category: "individual",
       primary_position: "",
       additional_positions: [],
       technical_rating: 3,
@@ -345,7 +346,7 @@ export function ObservationWizard({
   const primaryPosition = form.watch("primary_position");
   const isMatchPlayer = form.watch("observation_category") === "match_player";
   const rawFormType = form.watch("form_type") ?? "academy";
-  const formType = rawFormType === "simplified" || rawFormType === "extended" ? "academy" : rawFormType;
+  const formType = (String(rawFormType) === "simplified" || String(rawFormType) === "extended") ? "academy" : (rawFormType as "academy" | "senior");
   const { data: positions = [] } = usePositionDictionary(true);
   const positionOptions = useMemo(() => {
     const all = getPositionOptionsFromDictionary(positions);
@@ -757,7 +758,7 @@ export function ObservationWizard({
             photo_url: values.photo_url?.trim(),
             summary: values.summary?.trim(),
             recommendation: values.recommendation ?? undefined,
-            form_type: (values.form_type === "simplified" || values.form_type === "extended" ? "academy" : values.form_type) ?? "academy",
+            form_type: (values.form_type === "senior" ? "extended" : "simplified"),
             match_performance_rating: values.match_performance_rating ?? undefined,
             created_by: user.id,
             created_by_name: auditName,
@@ -864,7 +865,7 @@ export function ObservationWizard({
           updated_by_name: auditName,
           updated_by_role: auditRole,
           updated_at: nowIso,
-          form_type: (values.form_type === "simplified" || values.form_type === "extended" ? "academy" : values.form_type) ?? "academy",
+          form_type: (values.form_type === "senior" ? "extended" : "simplified"),
           summary: values.summary?.trim() || null,
           recommendation: values.recommendation ?? null,
           match_performance_rating: values.match_performance_rating ?? null,

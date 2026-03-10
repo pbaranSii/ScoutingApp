@@ -35,6 +35,9 @@ export type OfflineObservation = {
     tactical_rating?: number;
     mental_rating?: number;
     competition?: string;
+    league?: string | null;
+    home_team?: string;
+    away_team?: string;
     match_result?: string;
     location?: string;
     positions?: string[];

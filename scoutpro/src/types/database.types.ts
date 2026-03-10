@@ -1753,6 +1753,7 @@ export type Database = {
           season: string
           league_ids: string[]
           position: string
+          positions: string[]
           quantity_needed: number
           priority: string
           age_min: number | null
@@ -1772,6 +1773,7 @@ export type Database = {
           season: string
           league_ids?: string[]
           position: string
+          positions?: string[]
           quantity_needed?: number
           priority?: string
           age_min?: number | null
@@ -1791,6 +1793,7 @@ export type Database = {
           season?: string
           league_ids?: string[]
           position?: string
+          positions?: string[]
           quantity_needed?: number
           priority?: string
           age_min?: number | null
@@ -1841,7 +1844,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_player_ids_by_last_observation: {
+        Args: {
+          p_recommendation?: string | null
+          p_potential_now_min?: number | null
+          p_potential_now_max?: number | null
+        }
+        Returns: string[]
+      }
     }
     Enums: {
       contact_type: "parent" | "guardian" | "agent" | "other"

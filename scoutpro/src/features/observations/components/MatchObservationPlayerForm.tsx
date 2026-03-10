@@ -116,7 +116,7 @@ export function MatchObservationPlayerForm({
   const [birth_date, setBirth_date] = useState(defaultSlotData.birth_date ?? "");
   const [club_name, setClub_name] = useState(defaultSlotData.club_name ?? "");
   const [primary_position, setPrimary_position] = useState(defaultSlotData.primary_position);
-  const [overall_rating, setOverall_rating] = useState(defaultSlotData.overall_rating);
+  const [, setOverall_rating] = useState(defaultSlotData.overall_rating);
   const [match_performance_rating, setMatch_performance_rating] = useState(defaultSlotData.match_performance_rating);
   const [recommendation, setRecommendation] = useState<MatchPlayerSlot["recommendation"]>(defaultSlotData.recommendation);
   const [summary, setSummary] = useState(defaultSlotData.summary);
