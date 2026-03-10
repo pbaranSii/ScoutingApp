@@ -49,6 +49,7 @@ import { SurveySatisfactionPage } from "@/pages/SurveySatisfactionPage";
 import { SurveyThankYouPage } from "@/pages/SurveyThankYouPage";
 import { TacticalFormationsListPage } from "@/pages/TacticalFormationsListPage";
 import { TacticalPositionDictionaryPage } from "@/pages/TacticalPositionDictionaryPage";
+import { FormTemplatesPage } from "@/pages/FormTemplatesPage";
 import { FormationEditorPage } from "@/pages/FormationEditorPage";
 
 export default function App() {
@@ -114,6 +115,7 @@ export default function App() {
               <Route path="tactical/formations/new" element={<FormationEditorPage />} />
               <Route path="tactical/formations/:id" element={<FormationEditorPage />} />
               <Route path="tactical/positions" element={<TacticalPositionDictionaryPage />} />
+              <Route path="tactical/form-templates" element={<FormTemplatesPage />} />
             </Route>
             <Route path="dictionaries" element={<DictionaryListPage />} />
             <Route path="dictionaries/:route" element={<DictionaryDetailPage />} />

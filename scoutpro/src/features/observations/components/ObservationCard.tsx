@@ -19,6 +19,8 @@ function getCategoryLabel(category: Observation["observation_category"]): string
 function getFormTypeLabel(formType: Observation["form_type"]): string {
   if (formType === "simplified") return "Formularz uproszczony";
   if (formType === "extended") return "Formularz rozszerzony";
+  if (formType === "academy") return "Akademia";
+  if (formType === "senior") return "Senior";
   return "";
 }
 
@@ -49,8 +51,10 @@ export function ObservationCard({ observation }: ObservationCardProps) {
   const category = observation.observation_category;
   const categoryLabel = getCategoryLabel(category);
   const showFormType =
-    category === "individual" &&
-    (observation.form_type === "simplified" || observation.form_type === "extended");
+    (category === "individual" &&
+      (observation.form_type === "simplified" || observation.form_type === "extended")) ||
+    (category === "match_player" &&
+      (observation.form_type === "academy" || observation.form_type === "senior"));
   const formTypeLabel = getFormTypeLabel(observation.form_type);
   const recommendationLabel = getRecommendationLabel(observation.recommendation);
   const hasRecommendation = Boolean(observation.recommendation);
@@ -147,9 +151,9 @@ export function ObservationCard({ observation }: ObservationCardProps) {
               <div className="flex items-center gap-1.5 text-sm text-slate-600">
                 <TrendingUp className="h-4 w-4 text-slate-500" />
                 <span>
-                  Potencjał:{" "}
+                  Performance:{" "}
                   {typeof observation.potential_now === "number" && (
-                    <>teraz <strong>{observation.potential_now}</strong></>
+                    <strong>{observation.potential_now}</strong>
                   )}
                   {typeof observation.potential_now === "number" &&
                     typeof observation.potential_future === "number" &&
@@ -162,9 +166,9 @@ export function ObservationCard({ observation }: ObservationCardProps) {
             )}
           </div>
 
-          {/* Dolna sekcja: notatka (line-clamp), data i autor */}
-          {observation.notes && (
-            <p className="mt-3 line-clamp-2 text-sm text-slate-600">{observation.notes}</p>
+          {/* Dolna sekcja: podsumowanie (line-clamp), data i autor */}
+          {observation.summary?.trim() && (
+            <p className="mt-3 line-clamp-2 text-sm text-slate-600">{observation.summary.trim()}</p>
           )}
           <div className="mt-3 flex flex-wrap items-center justify-end gap-x-2 gap-y-1 text-xs text-slate-500">
             <span>{dateLabel}</span>

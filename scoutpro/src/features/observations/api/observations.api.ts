@@ -14,9 +14,15 @@ const VALID_OBSERVATION_SOURCE = new Set<string>([
   "video_analysis",
   "tournament",
   "training_camp",
+  "live_match",
+  "video_match",
+  "video_clips",
 ]);
 const UPDATE_KEYS: (keyof ObservationUpdate)[] = [
   "competition",
+  "league",
+  "home_team",
+  "away_team",
   "location",
   "match_result",
   "match_observation_id",
@@ -185,6 +191,9 @@ const BASE_OPTIONAL = [
 
 const EXTENDED_OPTIONAL = [
   "match_result",
+  "league",
+  "home_team",
+  "away_team",
   "location",
   "positions",
   "technical_rating",

@@ -66,6 +66,23 @@ export function getStatusBorderClass(status: PipelineStatus): string {
   return PIPELINE_STATUS_COLORS[status]?.borderTop ?? "border-t-slate-400";
 }
 
+/** Left border classes for dashboard tiles — same colors as pipeline board (use with border-l-4). */
+export const PIPELINE_STATUS_LEFT_BORDER: Record<PipelineStatus, string> = {
+  unassigned: "border-l-slate-400",
+  observed: "border-l-slate-400",
+  in_contact: "border-l-violet-500",
+  evaluation: "border-l-amber-500",
+  offer: "border-l-blue-500",
+  signed: "border-l-emerald-500",
+  rejected_by_club: "border-l-red-500",
+  rejected_by_player: "border-l-red-400",
+  out_of_reach: "border-l-slate-500",
+};
+
+export function getStatusLeftBorderClass(status: PipelineStatus | string): string {
+  return PIPELINE_STATUS_LEFT_BORDER[status as PipelineStatus] ?? "border-l-slate-400";
+}
+
 /** Tailwind class for status badge (e.g. on player list). */
 export function getStatusBadgeClass(status: PipelineStatus | string): string {
   const key = status as PipelineStatus;

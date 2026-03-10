@@ -8,8 +8,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { useCreateObservation, useUpdateObservation } from "../hooks/useObservations";
 import type { ObservationSource } from "../types";
 import {
-  fetchEvaluationCriteriaByPositionCode,
+  fetchCriteriaForObservationForm,
   type EvaluationCriterion,
+  type ObservationFormElement,
 } from "../api/evaluationCriteria.api";
 import {
   fetchObservationCriterionNotes,
@@ -17,6 +18,7 @@ import {
 } from "../api/observationCriterionNotes.api";
 import { useQuery } from "@tanstack/react-query";
 import { useCreatePlayer, useUpdatePlayer } from "@/features/players/hooks/usePlayers";
+import { fetchPlayerById } from "@/features/players/api/players.api";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
 import { PositionPickerDialog } from "@/features/players/components/PositionPickerDialog";
 import { useAuthStore } from "@/stores/authStore";
@@ -39,7 +41,7 @@ import { mapLegacyPosition } from "@/features/players/positions";
 import { checkDuplicatePlayers } from "@/features/players/api/players.api";
 import type { DuplicateCandidate } from "@/features/players/api/players.api";
 import type { PlayerSearchItem } from "@/features/players/api/players.api";
-import { usePlayerSources, useStrengths, useWeaknesses, useCategories } from "@/features/dictionaries/hooks/useDictionaries";
+import { useStrengths, useWeaknesses, useCategories, usePlayerSources } from "@/features/dictionaries/hooks/useDictionaries";
 import { StrengthsWeaknessesTagField } from "./StrengthsWeaknessesTagField";
 import { PlayerSearchDialog } from "./PlayerSearchDialog";
 import { DuplicateWarningDialog } from "./DuplicateWarningDialog";
@@ -52,6 +54,17 @@ import { MAX_MEDIA_PER_OBSERVATION } from "@/features/multimedia/types";
 const CURRENT_YEAR = new Date().getFullYear();
 /** Domyślny rok urodzenia dla nowego zawodnika w formularzu obserwacji */
 const DEFAULT_BIRTH_YEAR = 2010;
+
+/** Wartości enum observation_source – do filtrowania opcji ze słownika i fallbacku. */
+const OBSERVATION_SOURCE_VALID = new Set([
+  "scouting", "referral", "application", "trainer_report", "scout_report",
+  "video_analysis", "tournament", "training_camp", "live_match", "video_match", "video_clips",
+]);
+const FALLBACK_SOURCE_OPTIONS = [
+  { value: "live_match", label: "Mecz na żywo" },
+  { value: "video_match", label: "Mecz wideo" },
+  { value: "video_clips", label: "Fragmenty wideo" },
+] as const;
 
 const wizardSchema = z
   .object({
@@ -66,6 +79,9 @@ const wizardSchema = z
       .optional(),
     club_name: z.string().optional(),
     competition: z.string().optional(),
+    league: z.string().max(200).optional(),
+    home_team: z.string().max(200).optional(),
+    away_team: z.string().max(200).optional(),
     match_date: z.string().min(1, "Wybierz date meczu"),
     match_result: z
       .string()
@@ -76,6 +92,7 @@ const wizardSchema = z
         "Format: X-Y lub X:Y (np. 2-1 lub 2:1)"
       ),
     location: z.string().max(200).optional(),
+    notes: z.string().max(2000).optional(),
     primary_position: z.string().min(1, "Wybierz pozycje"),
     additional_positions: z.array(z.string()).optional(),
     technical_rating: z.coerce.number().int().min(1).max(5),
@@ -88,16 +105,34 @@ const wizardSchema = z
     overall_rating: z.coerce.number().min(1).max(10).optional(),
     strengths: z.string().optional(),
     weaknesses: z.string().optional(),
-    motor_speed_rating: z.coerce.number().int().min(1).max(5),
-    motor_endurance_rating: z.coerce.number().int().min(1).max(5),
-    motor_jump_rating: z.coerce.number().int().min(1).max(5),
-    motor_agility_rating: z.coerce.number().int().min(1).max(5),
-    motor_acceleration_rating: z.coerce.number().int().min(1).max(5),
-    motor_strength_rating: z.coerce.number().int().min(1).max(5),
+    motor_speed_rating: z.preprocess(
+      (v) => (v === undefined || v === "" || Number.isNaN(Number(v)) ? 3 : Number(v)),
+      z.number().int().min(1).max(5)
+    ),
+    motor_endurance_rating: z.preprocess(
+      (v) => (v === undefined || v === "" || Number.isNaN(Number(v)) ? 3 : Number(v)),
+      z.number().int().min(1).max(5)
+    ),
+    motor_jump_rating: z.preprocess(
+      (v) => (v === undefined || v === "" || Number.isNaN(Number(v)) ? 3 : Number(v)),
+      z.number().int().min(1).max(5)
+    ),
+    motor_agility_rating: z.preprocess(
+      (v) => (v === undefined || v === "" || Number.isNaN(Number(v)) ? 3 : Number(v)),
+      z.number().int().min(1).max(5)
+    ),
+    motor_acceleration_rating: z.preprocess(
+      (v) => (v === undefined || v === "" || Number.isNaN(Number(v)) ? 3 : Number(v)),
+      z.number().int().min(1).max(5)
+    ),
+    motor_strength_rating: z.preprocess(
+      (v) => (v === undefined || v === "" || Number.isNaN(Number(v)) ? 3 : Number(v)),
+      z.number().int().min(1).max(5)
+    ),
     photo_url: z.string().optional(),
-    rank: z.string().min(1, "Wybierz range"),
+    rank: z.string().optional(),
     source: z.string().min(1, "Wybierz zrodlo"),
-    form_type: z.enum(["simplified", "extended"]).optional(),
+    form_type: z.enum(["simplified", "extended", "academy", "senior"]).optional(),
     summary: z
       .string()
       .max(5000)
@@ -116,6 +151,10 @@ const wizardSchema = z
         (s) => !s || /^\d{4}-\d{2}-\d{2}$/.test(s),
         "Podaj datę urodzenia w formacie RRRR-MM-DD"
       ),
+    transfermarkt_url: z.string().max(500).optional(),
+    instagram_url: z.string().max(500).optional(),
+    facebook_url: z.string().max(500).optional(),
+    other_social_url: z.string().max(500).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.player_id) return;
@@ -157,6 +196,14 @@ const wizardSchema = z
         });
       }
     }
+    const ft = data.form_type === "simplified" || data.form_type === "extended" ? "academy" : data.form_type;
+    if (ft === "senior" && !(String(data.rank ?? "").trim())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Wybierz range",
+        path: ["rank"],
+      });
+    }
   });
 
 type WizardFormValues = z.infer<typeof wizardSchema>;
@@ -177,8 +224,8 @@ type ObservationWizardProps = {
   prefillPlayer?: PrefillPlayer;
   lockPlayerFields?: boolean;
   cancelHref?: string;
-  /** Domyślny typ formularza w trybie tworzenia (np. extended dla obserwacji indywidualnej). */
-  defaultFormType?: "simplified" | "extended";
+  /** Domyślny typ formularza w trybie tworzenia (akademia = pełny formularz, senior = uproszczony). */
+  defaultFormType?: "academy" | "senior";
   /** Zapisane multimedia (dla trybu edycji – zaciągane z obserwacji). */
   savedMedia?: Multimedia[];
   /** Callback usunięcia zapisanego medium (np. wywołanie deleteMultimedia). */
@@ -199,6 +246,14 @@ export function ObservationWizard({
   const { user } = useAuthStore();
   const isOnline = useOnlineStatus();
   const { data: playerSources = [] } = usePlayerSources();
+  const individualSourceOptions = useMemo(() => {
+    const fromDict = (playerSources as { source_code?: string; name_pl?: string }[])
+      .filter((e) => OBSERVATION_SOURCE_VALID.has(String(e.source_code ?? "")))
+      .map((e) => ({ value: String(e.source_code), label: String(e.name_pl ?? e.source_code ?? "") }));
+    const seen = new Set(fromDict.map((o) => o.value));
+    const fallbacks = FALLBACK_SOURCE_OPTIONS.filter((f) => !seen.has(f.value));
+    return [...fromDict, ...fallbacks];
+  }, [playerSources]);
   const { data: categoriesOptions = [] } = useCategories();
   const { data: strengthsOptions = [] } = useStrengths();
   const { data: weaknessesOptions = [] } = useWeaknesses();
@@ -246,9 +301,13 @@ export function ObservationWizard({
       age: DEFAULT_BIRTH_YEAR,
       club_name: "",
       competition: "",
+      league: "",
+      home_team: "",
+      away_team: "",
       match_date: format(new Date(), "yyyy-MM-dd"),
       match_result: "",
       location: "",
+      notes: "",
       primary_position: "",
       additional_positions: [],
       technical_rating: 3,
@@ -268,19 +327,25 @@ export function ObservationWizard({
       strengths: "",
       weaknesses: "",
       rank: "B",
-      source: "scouting",
+      source: "live_match",
       photo_url: "",
-      form_type: defaultFormType ?? "simplified",
+      form_type: defaultFormType ?? "academy",
       summary: "",
       recommendation: undefined,
       match_performance_rating: undefined,
       birth_date: "",
       motor_description: "",
+      transfermarkt_url: "",
+      instagram_url: "",
+      facebook_url: "",
+      other_social_url: "",
     },
   });
 
   const primaryPosition = form.watch("primary_position");
-  const formType = form.watch("form_type") ?? "simplified";
+  const isMatchPlayer = form.watch("observation_category") === "match_player";
+  const rawFormType = form.watch("form_type") ?? "academy";
+  const formType = rawFormType === "simplified" || rawFormType === "extended" ? "academy" : rawFormType;
   const { data: positions = [] } = usePositionDictionary(true);
   const positionOptions = useMemo(() => {
     const all = getPositionOptionsFromDictionary(positions);
@@ -292,16 +357,25 @@ export function ObservationWizard({
     });
   }, [positions, primaryPosition]);
   const { data: positionCriteria = [] } = useQuery({
-    queryKey: ["evaluation-criteria", primaryPosition],
-    queryFn: () => fetchEvaluationCriteriaByPositionCode(primaryPosition || ""),
+    queryKey: ["evaluation-criteria-form", primaryPosition],
+    queryFn: () => fetchCriteriaForObservationForm(primaryPosition || ""),
     enabled: Boolean(primaryPosition?.trim()),
   });
 
+  const criteriaFromForm = (elements: ObservationFormElement[]): EvaluationCriterion[] =>
+    elements.filter((e): e is { type: "criterion"; criterion: EvaluationCriterion } => e.type === "criterion").map((e) => e.criterion);
+
   const isEditMode = mode === "edit" && Boolean(observationId);
+  const selectedPlayerId = form.watch("player_id");
+  const { data: selectedPlayerFull } = useQuery({
+    queryKey: ["player-for-links", selectedPlayerId],
+    queryFn: () => fetchPlayerById(selectedPlayerId!),
+    enabled: Boolean(selectedPlayerId) && formType === "academy",
+  });
   const { data: existingCriterionNotes } = useQuery({
     queryKey: ["observation-criterion-notes", observationId],
     queryFn: () => fetchObservationCriterionNotes(observationId!),
-    enabled: isEditMode && formType === "extended",
+    enabled: isEditMode && formType === "academy",
   });
 
   useEffect(() => {
@@ -351,6 +425,19 @@ export function ObservationWizard({
       form.setValue("primary_position", mapLegacyPosition(prefillPlayer.primary_position));
     }
   }, [prefillPlayer, form, currentYear]);
+
+  useEffect(() => {
+    if (!selectedPlayerFull || formType !== "academy") return;
+    const t = (selectedPlayerFull as { transfermarkt_url?: string | null }).transfermarkt_url?.trim() ?? "";
+    const i = (selectedPlayerFull as { instagram_url?: string | null }).instagram_url?.trim() ?? "";
+    const f = (selectedPlayerFull as { facebook_url?: string | null }).facebook_url?.trim() ?? "";
+    const o = (selectedPlayerFull as { other_social_url?: string | null }).other_social_url?.trim() ?? "";
+    const cur = form.getValues();
+    if (!(cur.transfermarkt_url ?? "").trim() && t) form.setValue("transfermarkt_url", t);
+    if (!(cur.instagram_url ?? "").trim() && i) form.setValue("instagram_url", i);
+    if (!(cur.facebook_url ?? "").trim() && f) form.setValue("facebook_url", f);
+    if (!(cur.other_social_url ?? "").trim() && o) form.setValue("other_social_url", o);
+  }, [selectedPlayerFull, formType, form]);
 
   const handleSelectPlayer = (player: PlayerSearchItem) => {
     form.setValue("player_id", player.id);
@@ -454,6 +541,18 @@ export function ObservationWizard({
     }
     setSubmitError(null);
 
+    const criteria = criteriaFromForm(positionCriteria as ObservationFormElement[]);
+    if (values.form_type === "senior" && criteria.length > 0) {
+      const required = criteria.filter((c) => c.is_required);
+      const missing = required.filter((c) => !(criterionNotes[c.id]?.trim()));
+      if (missing.length > 0) {
+        setSubmitError(
+          `Uzupełnij wymagane kryteria pozycyjne: ${missing.map((c) => c.name).join(", ")}`
+        );
+        return;
+      }
+    }
+
     if (isEditMode && observationId) {
       try {
         const nowIso = new Date().toISOString();
@@ -477,7 +576,7 @@ export function ObservationWizard({
           id: observationId,
           input: {
             source: values.source as ObservationSource,
-            rank: values.rank,
+            rank: (values.form_type === "simplified" || values.form_type === "extended" ? "academy" : values.form_type) === "senior" ? values.rank : (values.rank?.trim() || "B"),
             technical_rating: values.technical_rating ?? null,
             speed_rating: values.speed_rating ?? null,
             motor_rating: values.motor_rating ?? null,
@@ -494,8 +593,12 @@ export function ObservationWizard({
             potential_future: values.potential_future,
             observation_date: values.match_date,
             competition: values.competition?.trim() || null,
+            league: values.league?.trim() || null,
+            home_team: values.home_team?.trim() || null,
+            away_team: values.away_team?.trim() || null,
             match_result: values.match_result?.trim() || null,
             location: values.location?.trim() || null,
+            notes: values.notes?.trim() || null,
             positions: positions.length > 0 ? positions : null,
             overall_rating,
             strengths: values.strengths?.trim() || null,
@@ -505,17 +608,17 @@ export function ObservationWizard({
             updated_at: nowIso,
             updated_by_name: auditName,
             updated_by_role: auditRole,
-            form_type: values.form_type ?? "simplified",
+            form_type: (values.form_type === "simplified" || values.form_type === "extended" ? "academy" : values.form_type) ?? "academy",
             summary: values.summary?.trim() || null,
             recommendation: values.recommendation ?? null,
             match_performance_rating: values.match_performance_rating ?? null,
           },
         });
-        if (values.form_type === "extended" && (positionCriteria as EvaluationCriterion[]).length > 0) {
+        if (values.form_type === "senior" && criteria.length > 0) {
           try {
             await replaceObservationCriterionNotes(
               observationId,
-              (positionCriteria as EvaluationCriterion[]).map((c) => ({
+              criteria.map((c) => ({
                 criteria_id: c.id,
                 description: criterionNotes[c.id]?.trim() || null,
               }))
@@ -625,11 +728,14 @@ export function ObservationWizard({
             primary_position: values.primary_position,
             should_update_player: Boolean(playerId) && !lockPlayerFields,
             source: values.source as ObservationSource,
-            rank: values.rank,
+            rank: (values.form_type === "simplified" || values.form_type === "extended" ? "academy" : values.form_type) === "senior" ? values.rank : (values.rank?.trim() || "B"),
             potential_now: values.potential_now,
             potential_future: values.potential_future,
             observation_date: values.match_date,
             competition: values.competition?.trim(),
+            league: values.league?.trim() || undefined,
+            home_team: values.home_team?.trim() || undefined,
+            away_team: values.away_team?.trim() || undefined,
             match_result: values.match_result?.trim(),
             location: values.location?.trim(),
             positions: offlinePositions.length > 0 ? offlinePositions : undefined,
@@ -651,7 +757,7 @@ export function ObservationWizard({
             photo_url: values.photo_url?.trim(),
             summary: values.summary?.trim(),
             recommendation: values.recommendation ?? undefined,
-            form_type: values.form_type ?? "simplified",
+            form_type: (values.form_type === "simplified" || values.form_type === "extended" ? "academy" : values.form_type) ?? "academy",
             match_performance_rating: values.match_performance_rating ?? undefined,
             created_by: user.id,
             created_by_name: auditName,
@@ -670,7 +776,7 @@ export function ObservationWizard({
           description: "Obserwacja zostala zapisana offline.",
         });
       } else {
-        if (playerId && shouldUpdatePlayer) {
+        if (playerId) {
           const clubId = await resolveClubId(values.club_name?.trim());
           await updatePlayer({
             id: playerId,
@@ -680,6 +786,10 @@ export function ObservationWizard({
               birth_year: birthYear,
               club_id: clubId ?? null,
               primary_position: values.primary_position,
+              transfermarkt_url: values.transfermarkt_url?.trim() || null,
+              instagram_url: values.instagram_url?.trim() || null,
+              facebook_url: values.facebook_url?.trim() || null,
+              other_social_url: values.other_social_url?.trim() || null,
             },
           });
         }
@@ -692,6 +802,10 @@ export function ObservationWizard({
             club_id: clubId,
             primary_position: values.primary_position,
             pipeline_status: "unassigned",
+            transfermarkt_url: values.transfermarkt_url?.trim() || null,
+            instagram_url: values.instagram_url?.trim() || null,
+            facebook_url: values.facebook_url?.trim() || null,
+            other_social_url: values.other_social_url?.trim() || null,
           });
           playerId = player.id;
         }
@@ -715,7 +829,7 @@ export function ObservationWizard({
           player_id: playerId,
           scout_id: user.id,
           source: values.source as ObservationSource,
-          rank: values.rank,
+          rank: (values.form_type === "simplified" || values.form_type === "extended" ? "academy" : values.form_type) === "senior" ? values.rank : (values.rank?.trim() || "B"),
           technical_rating: values.technical_rating ?? null,
           speed_rating: values.speed_rating ?? null,
           motor_rating: values.motor_rating ?? null,
@@ -732,8 +846,12 @@ export function ObservationWizard({
           potential_future: values.potential_future,
           observation_date: values.match_date,
           competition: values.competition?.trim() || null,
+          league: values.league?.trim() || null,
+          home_team: values.home_team?.trim() || null,
+          away_team: values.away_team?.trim() || null,
           match_result: values.match_result?.trim() || null,
           location: values.location?.trim() || null,
+          notes: values.notes?.trim() || null,
           positions: positions.length > 0 ? positions : null,
           overall_rating,
           strengths: values.strengths?.trim() || null,
@@ -746,17 +864,17 @@ export function ObservationWizard({
           updated_by_name: auditName,
           updated_by_role: auditRole,
           updated_at: nowIso,
-          form_type: values.form_type ?? "simplified",
+          form_type: (values.form_type === "simplified" || values.form_type === "extended" ? "academy" : values.form_type) ?? "academy",
           summary: values.summary?.trim() || null,
           recommendation: values.recommendation ?? null,
           match_performance_rating: values.match_performance_rating ?? null,
           observation_category: "individual",
         });
-        if (values.form_type === "extended" && (positionCriteria as EvaluationCriterion[]).length > 0) {
+        if (values.form_type === "senior" && criteria.length > 0) {
           try {
             await replaceObservationCriterionNotes(
               observation.id,
-              (positionCriteria as EvaluationCriterion[]).map((c) => ({
+              criteria.map((c) => ({
                 criteria_id: c.id,
                 description: criterionNotes[c.id]?.trim() || null,
               }))
@@ -876,7 +994,7 @@ export function ObservationWizard({
             {hasSelectedPlayer && showPlayerActions && (
               <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <p className="text-sm font-medium text-slate-900">
-                  Zawodnik: {form.watch("first_name") ?? ""} {form.watch("last_name") ?? ""} | Rok urodzenia: {form.watch("age") ?? DEFAULT_BIRTH_YEAR} | {form.watch("club_name") ?? "—"}
+                  Istniejący zawodnik z bazy — dane poniżej można edytować i zostaną zapisane w profilu przy zapisie obserwacji.
                 </p>
                 <Button
                   type="button"
@@ -914,7 +1032,7 @@ export function ObservationWizard({
                 </Button>
               </div>
             )}
-            {!isEditMode && (!showPlayerActions || !hasSelectedPlayer) && (
+            {!isEditMode && (
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
@@ -927,7 +1045,6 @@ export function ObservationWizard({
                     <FormControl>
                       <Input
                         placeholder="Jan"
-                        disabled={hasSelectedPlayer}
                         {...field}
                         value={field.value ?? ""}
                       />
@@ -947,7 +1064,6 @@ export function ObservationWizard({
                     <FormControl>
                       <Input
                         placeholder="Kowalski"
-                        disabled={hasSelectedPlayer}
                         {...field}
                         value={field.value ?? ""}
                       />
@@ -970,7 +1086,6 @@ export function ObservationWizard({
                         inputMode="numeric"
                         min={CURRENT_YEAR - 50}
                         max={CURRENT_YEAR - 8}
-                        disabled={hasSelectedPlayer}
                         {...field}
                         onBlur={() => {
                           field.onBlur();
@@ -991,7 +1106,6 @@ export function ObservationWizard({
                     <FormControl>
                       <Input
                         type="date"
-                        disabled={hasSelectedPlayer}
                         {...field}
                       />
                     </FormControl>
@@ -1009,7 +1123,6 @@ export function ObservationWizard({
                         value={field.value ?? ""}
                         onChange={field.onChange}
                         placeholder="Wybierz klub"
-                        disabled={hasSelectedPlayer}
                       />
                     </FormControl>
                   </FormItem>
@@ -1019,55 +1132,118 @@ export function ObservationWizard({
             )}
           </section>
 
-          <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-            <h2 className="text-lg font-semibold text-slate-800">Typ formularza</h2>
-            <FormField
-              control={form.control}
-              name="form_type"
-              render={({ field }) => {
-                const isExtended = (field.value ?? "simplified") === "extended";
-                return (
-                  <FormItem>
-                    <FormControl>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span className="text-sm font-medium text-slate-700">Typ formularza:</span>
-                        <div className="relative flex rounded-lg border-2 border-slate-300 bg-slate-100 p-1">
-                          <button
-                            type="button"
-                            onClick={() => field.onChange("simplified")}
-                            className={`relative z-10 min-w-[100px] rounded-md px-4 py-2 text-sm font-medium transition ${
-                              !isExtended ? "text-white" : "text-slate-600 hover:text-slate-800"
-                            }`}
-                          >
-                            Uproszczony
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => field.onChange("extended")}
-                            className={`relative z-10 min-w-[100px] rounded-md px-4 py-2 text-sm font-medium transition ${
-                              isExtended ? "text-white" : "text-slate-600 hover:text-slate-800"
-                            }`}
-                          >
-                            Rozszerzony
-                          </button>
-                          <span
-                            className={`absolute top-1 bottom-1 z-0 rounded-md bg-red-600 transition-all duration-200 ${
-                              isExtended ? "left-[calc(50%+2px)] right-1" : "left-1 right-[calc(50%+2px)]"
-                            }`}
-                            aria-hidden
-                          />
-                        </div>
-                      </div>
-                    </FormControl>
-                  </FormItem>
-                );
-              }}
-            />
-          </section>
+          {(formType === "academy" || formType === "senior") && (
+            <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+              <h2 className="text-lg font-semibold text-slate-800">Portale społecznościowe</h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="transfermarkt_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>TransferMarkt URL</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://www.transfermarkt.pl/..." {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="facebook_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Facebook URL</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://www.facebook.com/..." {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="instagram_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Instagram URL</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://www.instagram.com/..." {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="other_social_url"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Inne URL</FormLabel>
+                      <FormControl>
+                        <Input placeholder="https://..." {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </section>
+          )}
 
           <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
             <h2 className="text-lg font-semibold text-slate-800">2. Dane obserwacji</h2>
+            {isMatchPlayer && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                Dane meczu (liga, lokalizacja, drużyny, wynik, notatki do meczu) są wspólne dla wszystkich zawodników w tej
+                obserwacji meczowej. Edytuj je w <strong>nagłówku meczu</strong>.
+              </div>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="source"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Źródło <span className="text-red-600">*</span>
+                    </FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger ref={field.ref}>
+                          <SelectValue placeholder="Wybierz źródło" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {individualSourceOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="match_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Data meczu <span className="text-red-600">*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
               <FormField
                 control={form.control}
                 name="competition"
@@ -1103,27 +1279,17 @@ export function ObservationWizard({
               />
               <FormField
                 control={form.control}
-                name="match_date"
+                name="league"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      Data meczu <span className="text-red-600">*</span>
-                    </FormLabel>
+                    <FormLabel>Liga</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="match_result"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Wynik meczu</FormLabel>
-                    <FormControl>
-                      <Input placeholder="2:1 lub 2-1" {...field} value={field.value ?? ""} />
+                      <Input
+                        placeholder="np. Ekstraklasa, 1. Liga"
+                        {...field}
+                        value={field.value ?? ""}
+                        disabled={isMatchPlayer}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1136,39 +1302,148 @@ export function ObservationWizard({
                   <FormItem>
                     <FormLabel>Lokalizacja</FormLabel>
                     <FormControl>
-                      <Input placeholder="Stadion Legii Warszawa" {...field} value={field.value ?? ""} />
+                      <Input
+                        placeholder="Stadion Legii Warszawa"
+                        {...field}
+                        value={field.value ?? ""}
+                        disabled={isMatchPlayer}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="source"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>
-                      Źródło <span className="text-red-600">*</span>
-                    </FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger ref={field.ref}>
-                          <SelectValue placeholder="Wybierz źródło" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {(playerSources ?? []).map((s) => (
-                          <SelectItem key={s.id} value={String(s.source_code)}>
-                            {String(s.name_pl)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
+            {form.watch("source") !== "tournament" && (
+              <div className="grid gap-4 sm:grid-cols-3">
+                <FormField
+                  control={form.control}
+                  name="home_team"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gospodarz</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Nazwa drużyny gospodarzy"
+                          {...field}
+                          value={field.value ?? ""}
+                          disabled={isMatchPlayer}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="away_team"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gość</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Nazwa drużyny gości"
+                          {...field}
+                          value={field.value ?? ""}
+                          disabled={isMatchPlayer}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="match_result"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Wynik meczu</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="2:1 lub 2-1"
+                          {...field}
+                          value={field.value ?? ""}
+                          disabled={isMatchPlayer}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    {isMatchPlayer
+                      ? "Notatki do meczu (wspólne – edytuj w nagłówku meczu)"
+                      : "Notatki do meczu (opcjonalnie, max 2000 znaków)"}
+                  </FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Notatki do meczu..."
+                      {...field}
+                      value={field.value ?? ""}
+                      className="min-h-[80px]"
+                      maxLength={2000}
+                      disabled={isMatchPlayer}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </section>
+
+          <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="text-lg font-semibold text-slate-800">Typ formularza</h2>
+            <FormField
+              control={form.control}
+              name="form_type"
+              render={({ field }) => {
+                const raw = field.value ?? "academy";
+                const isSenior = raw === "senior";
+                const displayAcademy = raw === "academy" || raw === "simplified" || raw === "extended";
+                return (
+                  <FormItem>
+                    <FormControl>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="text-sm font-medium text-slate-700">Typ formularza:</span>
+                        <div className="relative flex rounded-lg border-2 border-slate-300 bg-slate-100 p-1">
+                          <button
+                            type="button"
+                            onClick={() => field.onChange("academy")}
+                            className={`relative z-10 min-w-[100px] rounded-md px-4 py-2 text-sm font-medium transition ${
+                              displayAcademy ? "text-white" : "text-slate-600 hover:text-slate-800"
+                            }`}
+                          >
+                            Akademia
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => field.onChange("senior")}
+                            className={`relative z-10 min-w-[100px] rounded-md px-4 py-2 text-sm font-medium transition ${
+                              isSenior ? "text-white" : "text-slate-600 hover:text-slate-800"
+                            }`}
+                          >
+                            Senior
+                          </button>
+                          <span
+                            className={`absolute top-1 bottom-1 z-0 rounded-md bg-red-600 transition-all duration-200 ${
+                              isSenior ? "left-[calc(50%+2px)] right-1" : "left-1 right-[calc(50%+2px)]"
+                            }`}
+                            aria-hidden
+                          />
+                        </div>
+                      </div>
+                    </FormControl>
+                  </FormItem>
+                );
+              }}
+            />
           </section>
 
           <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
@@ -1237,7 +1512,7 @@ export function ObservationWizard({
             />
           </section>
 
-          {formType === "extended" && !primaryPosition && (
+          {formType === "senior" && !primaryPosition && (
             <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
               <p className="text-sm text-slate-600">
                 Wybierz pozycję główną w sekcji powyżej, aby zobaczyć oceny specyficzne dla pozycji (motoryka i kryteria pozycyjne).
@@ -1245,7 +1520,7 @@ export function ObservationWizard({
             </section>
           )}
 
-          {formType === "simplified" && (
+          {formType === "academy" && (
             <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="text-lg font-semibold text-slate-800">4. Oceny ogólne</h2>
               <p className="text-xs text-slate-500">
@@ -1371,7 +1646,7 @@ export function ObservationWizard({
             </section>
           )}
 
-          {formType === "extended" && primaryPosition && (
+          {formType === "senior" && primaryPosition && (
             <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="text-lg font-semibold text-slate-800">
                 4b. Oceny specyficzne dla pozycji — Kryteria pozycyjne — {getPositionLabelFromDictionary(positions, primaryPosition)}
@@ -1444,47 +1719,34 @@ export function ObservationWizard({
                 />
               </div>
 
-              {formType === "extended" && codeForLookup(primaryPosition) !== "GK" && (
+              {formType === "senior" && codeForLookup(primaryPosition) !== "GK" && (
                 <>
                   <h3 className="text-sm font-semibold text-slate-700 pt-4">Notatki do kryteriów (formularz rozszerzony)</h3>
-                  {(
-                    [
-                      { key: "defense" as const, label: "DEFENSYWA — BRONIENIE" },
-                      { key: "offense" as const, label: "OFENSYWA — POSIADANIE PIŁKI" },
-                      { key: "transition_oa" as const, label: "FAZA PRZEJŚCIOWA O→A" },
-                      { key: "transition_ao" as const, label: "FAZA PRZEJŚCIOWA A→O" },
-                      { key: null, label: "Inne" },
-                    ] as const
-                  ).map(({ key, label }) => {
-                    const criteriaInSection = (positionCriteria as EvaluationCriterion[]).filter(
-                      (c) => (c.section ?? null) === key
-                    );
-                    if (criteriaInSection.length === 0) return null;
-                    const isTransition = key === "transition_oa" || key === "transition_ao";
-                    return (
-                      <div key={label} className="space-y-2 pt-2">
-                        <h4 className={`text-sm font-semibold ${isTransition ? "text-red-600 uppercase" : "text-slate-700"}`}>
-                          {label}
+                  {(positionCriteria as ObservationFormElement[]).map((el, idx) =>
+                    el.type === "header" ? (
+                      el.label ? (
+                        <h4 key={`h-${idx}`} className="text-sm font-semibold text-slate-700 pt-2">
+                          {el.label}
                         </h4>
-                        <div className="space-y-2">
-                          {criteriaInSection.map((c) => (
-                            <div key={c.id} className="space-y-1">
-                              <label className="text-sm text-slate-600">{c.name}</label>
-                              <Textarea
-                                placeholder="Opcjonalna notatka (max 2000 znaków)"
-                                value={criterionNotes[c.id] ?? ""}
-                                onChange={(e) =>
-                                  setCriterionNotes((prev) => ({ ...prev, [c.id]: e.target.value }))
-                                }
-                                className="min-h-[72px]"
-                                maxLength={2000}
-                              />
-                            </div>
-                          ))}
-                        </div>
+                      ) : null
+                    ) : (
+                      <div key={el.criterion.id} className="space-y-1 pt-2">
+                        <label className={`text-sm ${el.criterion.is_required ? "font-semibold text-slate-800" : "text-slate-600"}`}>
+                          {el.criterion.name}
+                          {el.criterion.is_required && <span className="ml-0.5 text-red-600">*</span>}
+                        </label>
+                        <Textarea
+                          placeholder={el.criterion.is_required ? "Wymagane (min. 1 znak)" : "Opcjonalna notatka (max 2000 znaków)"}
+                          value={criterionNotes[el.criterion.id] ?? ""}
+                          onChange={(e) =>
+                            setCriterionNotes((prev) => ({ ...prev, [el.criterion.id]: e.target.value }))
+                          }
+                          className={`min-h-[72px] ${el.criterion.is_required && !(criterionNotes[el.criterion.id]?.trim()) ? "border-red-500" : ""}`}
+                          maxLength={2000}
+                        />
                       </div>
-                    );
-                  })}
+                    )
+                  )}
                 </>
               )}
             </section>
@@ -1492,6 +1754,36 @@ export function ObservationWizard({
 
           <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
             <h2 className="text-lg font-semibold text-slate-800">5. Analiza i notatki</h2>
+            {formType === "senior" && (
+              <FormField
+                control={form.control}
+                name="match_performance_rating"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Ocena za występ (1–5) <span className="text-red-600">*</span></FormLabel>
+                    <FormControl>
+                      <div className="flex w-full gap-2">
+                        {[1, 2, 3, 4, 5].map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => field.onChange(v)}
+                            className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition touch-manipulation ${
+                              (field.value ?? 0) === v
+                                ? "border-red-600 bg-red-600 text-white"
+                                : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+                            }`}
+                          >
+                            {v}
+                          </button>
+                        ))}
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
             <div className="space-y-4">
               <FormField
                 control={form.control}
@@ -1534,6 +1826,121 @@ export function ObservationWizard({
             </div>
             <FormField
               control={form.control}
+              name="summary"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Podsumowanie (min. 10 znaków)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder={formType === "academy" ? "Analiza występu, mocne i słabe strony, rekomendacja, porównanie do naszego zawodnika" : "Opis występu, mocne i słabe strony, rekomendacja, porównanie do zawodnika KS Polonia"}
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                      className="min-h-[100px]"
+                      maxLength={5000}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {formType === "academy" && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="potential_now"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Performance</FormLabel>
+                      <FormControl>
+                        <div className="flex w-full gap-2">
+                          {[1, 2, 3, 4, 5].map((v) => (
+                            <button
+                              key={v}
+                              type="button"
+                              onClick={() => field.onChange(v)}
+                              className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition touch-manipulation ${
+                                (field.value ?? 3) === v
+                                  ? "border-red-600 bg-red-600 text-white"
+                                  : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+                              }`}
+                            >
+                              {v}
+                            </button>
+                          ))}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="potential_future"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Potencjał przyszły</FormLabel>
+                      <FormControl>
+                        <div className="flex w-full gap-2">
+                          {[1, 2, 3, 4, 5].map((v) => (
+                            <button
+                              key={v}
+                              type="button"
+                              onClick={() => field.onChange(v)}
+                              className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition touch-manipulation ${
+                                (field.value ?? 3) === v
+                                  ? "border-red-600 bg-red-600 text-white"
+                                  : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+                              }`}
+                            >
+                              {v}
+                            </button>
+                          ))}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
+            <FormField
+              control={form.control}
+              name="recommendation"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Rekomendacja</FormLabel>
+                  <FormControl>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { value: "positive" as const, label: "Pozytywna" },
+                        { value: "to_observe" as const, label: "Do obserwacji" },
+                        { value: "negative" as const, label: "Negatywna" },
+                      ].map((opt) => {
+                        const selected = field.value === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => field.onChange(opt.value)}
+                            className={`rounded-lg border-2 px-4 py-2 text-sm font-medium transition touch-manipulation ${
+                              selected
+                                ? "border-red-600 bg-red-600 text-white"
+                                : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {formType === "senior" && (
+            <FormField
+              control={form.control}
               name="rank"
               render={({ field }) => (
                 <FormItem>
@@ -1570,116 +1977,7 @@ export function ObservationWizard({
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="summary"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Podsumowanie (min. 10 znaków)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Jedno pole: analiza występu, mocne i słabe strony, rekomendacje (min. 10, max 5000 znaków)."
-                      value={field.value ?? ""}
-                      onChange={field.onChange}
-                      className="min-h-[100px]"
-                      maxLength={5000}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="recommendation"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Rekomendacja</FormLabel>
-                  <FormControl>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { value: "positive" as const, label: "Pozytywna" },
-                        { value: "to_observe" as const, label: "Do obserwacji" },
-                        { value: "negative" as const, label: "Negatywna" },
-                      ].map((opt) => {
-                        const selected = field.value === opt.value;
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => field.onChange(opt.value)}
-                            className={`rounded-lg border-2 px-4 py-2 text-sm font-medium transition touch-manipulation ${
-                              selected
-                                ? "border-red-600 bg-red-600 text-white"
-                                : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="potential_now"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Potencjał obecny</FormLabel>
-                  <FormControl>
-                    <div className="flex w-full gap-2">
-                      {[1, 2, 3, 4, 5].map((v) => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => field.onChange(v)}
-                          className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition touch-manipulation ${
-                            (field.value ?? 3) === v
-                              ? "border-red-600 bg-red-600 text-white"
-                              : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
-                          }`}
-                        >
-                          {v}
-                        </button>
-                      ))}
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="potential_future"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Potencjał przyszły</FormLabel>
-                  <FormControl>
-                    <div className="flex w-full gap-2">
-                      {[1, 2, 3, 4, 5].map((v) => (
-                        <button
-                          key={v}
-                          type="button"
-                          onClick={() => field.onChange(v)}
-                          className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition touch-manipulation ${
-                            (field.value ?? 3) === v
-                              ? "border-red-600 bg-red-600 text-white"
-                              : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
-                          }`}
-                        >
-                          {v}
-                        </button>
-                      ))}
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            )}
           </section>
 
           <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">

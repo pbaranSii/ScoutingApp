@@ -100,9 +100,9 @@ export function MatchObservationNewPage() {
         await addOfflineMatchObservation({
           localId,
           matchHeader: {
-            context_type: headerValues.context_type,
             observation_date: headerValues.observation_date,
             competition: headerValues.competition,
+            league: headerValues.league?.trim() || null,
             home_team: headerValues.home_team?.trim() || null,
             away_team: headerValues.away_team?.trim() || null,
             match_result: headerValues.match_result?.trim() || null,
@@ -132,6 +132,11 @@ export function MatchObservationNewPage() {
             weaknesses: p.weaknesses,
             potential_now: p.potential_now,
             potential_future: p.potential_future,
+            technical_rating: p.technical_rating,
+            speed_rating: p.speed_rating,
+            motor_rating: p.motor_rating,
+            tactical_rating: p.tactical_rating,
+            mental_rating: p.mental_rating,
           })),
           createdAt: new Date(),
           syncStatus: "pending",
@@ -146,9 +151,9 @@ export function MatchObservationNewPage() {
       }
 
       const matchObs = await createMatchObservation({
-        context_type: headerValues.context_type,
         observation_date: headerValues.observation_date,
         competition: headerValues.competition,
+        league: headerValues.league?.trim() || null,
         home_team: headerValues.home_team?.trim() || null,
         away_team: headerValues.away_team?.trim() || null,
         match_result: headerValues.match_result?.trim() || null,
@@ -188,6 +193,7 @@ export function MatchObservationNewPage() {
           },
         });
 
+        const formType = slot.form_type ?? "academy";
         const input: ObservationInput = {
           player_id: playerId,
           scout_id: user!.id,
@@ -195,17 +201,22 @@ export function MatchObservationNewPage() {
           observation_date: headerValues.observation_date,
           match_observation_id: matchObs.id,
           observation_category: "match_player",
-          form_type: "simplified",
+          form_type: formType as ObservationInput["form_type"],
           match_performance_rating: slot.match_performance_rating,
           recommendation: slot.recommendation,
           summary: slot.summary.trim(),
-          overall_rating: slot.overall_rating,
+          overall_rating: formType === "senior" ? null : slot.overall_rating,
           competition: headerValues.competition.trim() || null,
           positions: [slot.primary_position],
           strengths: slot.strengths?.trim() || null,
           weaknesses: slot.weaknesses?.trim() || null,
-          potential_now: slot.potential_now ?? null,
-          potential_future: slot.potential_future ?? null,
+          potential_now: formType === "senior" ? null : (slot.potential_now ?? null),
+          potential_future: formType === "senior" ? null : (slot.potential_future ?? null),
+          technical_rating: formType === "senior" ? null : (slot.technical_rating ?? null),
+          speed_rating: formType === "senior" ? null : (slot.speed_rating ?? null),
+          motor_rating: formType === "senior" ? null : (slot.motor_rating ?? null),
+          tactical_rating: formType === "senior" ? null : (slot.tactical_rating ?? null),
+          mental_rating: formType === "senior" ? null : (slot.mental_rating ?? null),
           created_by: user!.id,
           created_by_name: auditName(user),
           created_by_role: auditRole(user),

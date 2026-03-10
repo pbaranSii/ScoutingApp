@@ -201,9 +201,9 @@ export function useSync() {
           });
           const header = matchObs.matchHeader;
           const match = await createMatchObservation({
-            context_type: header.context_type,
             observation_date: header.observation_date,
             competition: header.competition,
+            league: header.league ?? null,
             home_team: header.home_team ?? null,
             away_team: header.away_team ?? null,
             match_result: header.match_result ?? null,

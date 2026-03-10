@@ -9,9 +9,12 @@ import {
 
 export function FAB() {
   const location = useLocation();
-  const isObservations = location.pathname.startsWith("/observations");
+  const pathname = location.pathname;
+  const isMainView =
+    pathname === "/observations" || pathname === "/observations/match/new";
+  const isUnderObservations = pathname.startsWith("/observations");
 
-  if (isObservations) {
+  if (isMainView) {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -40,6 +43,8 @@ export function FAB() {
       </DropdownMenu>
     );
   }
+
+  if (isUnderObservations) return null;
 
   return (
     <Link

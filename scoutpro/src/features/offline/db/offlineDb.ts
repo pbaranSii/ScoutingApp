@@ -80,9 +80,9 @@ export type CachedObservation = {
 
 /** Header payload for match observation (matches MatchObservationInput). */
 export type OfflineMatchHeader = {
-  context_type?: "match" | "tournament";
   observation_date: string;
   competition: string;
+  league?: string | null;
   home_team?: string | null;
   away_team?: string | null;
   match_result?: string | null;

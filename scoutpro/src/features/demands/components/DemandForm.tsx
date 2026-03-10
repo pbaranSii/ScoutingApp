@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useClubs } from "@/features/players/hooks/usePlayers";
-import { POSITION_OPTIONS } from "@/features/players/positions";
+import { usePositionDictionary } from "@/features/tactical/hooks/usePositionDictionary";
+import { getPositionOptionsFromDictionary } from "@/features/players/components/PositionDictionarySelect";
 import {
   useCreatePlayerDemand,
   useUpdatePlayerDemand,
@@ -21,9 +22,9 @@ import { toast } from "@/hooks/use-toast";
 
 const demandSchema = z.object({
   club_id: z.string().min(1, "Wybierz klub"),
-  season: z.string().min(1, "Podaj sezon (np. 2025/2026)"),
+  season: z.string().min(1, "Podaj okres (np. 2025/2026)"),
   league_ids: z.array(z.string()).default([]),
-  position: z.string().min(1, "Wybierz pozycję"),
+  positions: z.array(z.string()).min(1, "Wybierz co najmniej jedną pozycję"),
   quantity_needed: z.coerce.number().int().min(1).max(20).default(1),
   priority: z.enum(["critical", "high", "standard"]),
   age_min: z.union([z.coerce.number().int().min(0).max(99), z.nan()]).optional().nullable(),
@@ -44,6 +45,8 @@ type DemandFormProps = {
 
 export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
   const { data: clubs = [] } = useClubs();
+  const { data: positionDictionary = [] } = usePositionDictionary(true);
+  const positionOptions = getPositionOptionsFromDictionary(positionDictionary);
   const { data: leagues = [] } = useQuery({
     queryKey: ["leagues"],
     queryFn: fetchLeagues,
@@ -58,7 +61,7 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
       club_id: "",
       season: "",
       league_ids: [],
-      position: "",
+      positions: [] as string[],
       quantity_needed: 1,
       priority: "standard",
       age_min: 18,
@@ -74,7 +77,9 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
             club_id: demand.club_id,
             season: demand.season,
             league_ids: demand.league_ids ?? [],
-            position: demand.position,
+            positions: (demand as { positions?: string[] }).positions?.length
+              ? (demand as { positions: string[] }).positions
+              : [demand.position].filter(Boolean),
             quantity_needed: demand.quantity_needed,
             priority: demand.priority,
             age_min: demand.age_min ?? undefined,
@@ -94,7 +99,7 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
           club_id: values.club_id,
           season: values.season.trim(),
           league_ids: values.league_ids?.length ? values.league_ids : undefined,
-          position: values.position,
+          positions: values.positions,
           quantity_needed: values.quantity_needed,
           priority: values.priority as DemandPriority,
           age_min: values.age_min ?? null,
@@ -111,7 +116,7 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
             club_id: values.club_id,
             season: values.season.trim(),
             league_ids: values.league_ids,
-            position: values.position,
+            positions: values.positions,
             quantity_needed: values.quantity_needed,
             priority: values.priority as DemandPriority,
             age_min: values.age_min ?? null,
@@ -169,13 +174,51 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="positions"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Pozycje * (wybierz co najmniej jedną)</FormLabel>
+                  <FormControl>
+                    <div className="grid grid-cols-2 gap-2 rounded-md border border-slate-200 p-3 sm:grid-cols-3">
+                      {positionOptions.map((opt) => {
+                        const checked = (field.value ?? []).includes(opt.value);
+                        return (
+                          <label
+                            key={opt.id}
+                            className="flex cursor-pointer items-center gap-2 text-sm"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {
+                                const current = field.value ?? [];
+                                if (current.includes(opt.value)) {
+                                  field.onChange(current.filter((p) => p !== opt.value));
+                                } else {
+                                  field.onChange([...current, opt.value]);
+                                }
+                              }}
+                              className="h-4 w-4 rounded border-slate-300"
+                            />
+                            <span>{opt.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="season"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Sezon *</FormLabel>
+                    <FormLabel>Okres *</FormLabel>
                     <FormControl>
                       <Input placeholder="np. 2025/2026" {...field} />
                     </FormControl>
@@ -183,31 +226,6 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="position"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Pozycja *</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Wybierz pozycję" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {POSITION_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.code} value={opt.code}>
-                            {opt.label} ({opt.code})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
             <FormField
               control={form.control}
               name="league_ids"
@@ -236,6 +254,7 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
                 </FormItem>
               )}
             />
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
@@ -317,46 +336,49 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
                 )}
               />
             </div>
-            <FormField
-              control={form.control}
-              name="preferred_foot"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Noga wiodąca</FormLabel>
-                  <Select
-                    value={field.value ?? "any"}
-                    onValueChange={(v) => field.onChange(v as DemandPreferredFoot)}
-                  >
+            {/* Ukryte zgodnie z wymaganiami (P3): Noga wiodąca, Styl gry */}
+            <div className="hidden">
+              <FormField
+                control={form.control}
+                name="preferred_foot"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Noga wiodąca</FormLabel>
+                    <Select
+                      value={field.value ?? "any"}
+                      onValueChange={(v) => field.onChange(v as DemandPreferredFoot)}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {(["left", "right", "both", "any"] as const).map((p) => (
+                          <SelectItem key={p} value={p}>
+                            {DEMAND_PREFERRED_FOOT_LABELS[p]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="style_notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Wymagania stylu gry (opcjonalnie)</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
+                      <Input placeholder="np. pressing, budowanie od tyłu" {...field} />
                     </FormControl>
-                    <SelectContent>
-                      {(["left", "right", "both", "any"] as const).map((p) => (
-                        <SelectItem key={p} value={p}>
-                          {DEMAND_PREFERRED_FOOT_LABELS[p]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="style_notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Wymagania stylu gry (opcjonalnie)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="np. pressing, budowanie od tyłu" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <FormField
               control={form.control}
               name="notes"

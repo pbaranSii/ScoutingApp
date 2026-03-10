@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { PositionDictionaryRow } from "../types";
 
 export type PositionFormValues = {
@@ -11,10 +12,17 @@ export type PositionFormValues = {
   position_name_pl: string;
   description: string;
   display_order: number;
+  criteria_template_position_id: string | null;
+  form_template_id: string | null;
 };
+
+export type TemplatePositionOption = { id: string; label: string };
+export type FormTemplateOption = { id: string; label: string };
 
 type PositionFormProps = {
   initial?: PositionDictionaryRow | null;
+  templatePositionOptions: TemplatePositionOption[];
+  formTemplateOptions: FormTemplateOption[];
   onSubmit: (values: PositionFormValues) => Promise<void>;
   onCancel: () => void;
   isSubmitting: boolean;
@@ -22,6 +30,8 @@ type PositionFormProps = {
 
 export function PositionForm({
   initial,
+  templatePositionOptions,
+  formTemplateOptions,
   onSubmit,
   onCancel,
   isSubmitting,
@@ -41,6 +51,12 @@ export function PositionForm({
   const [display_order, setDisplayOrder] = useState(
     initial?.display_order ?? 0
   );
+  const [criteria_template_position_id, setCriteriaTemplatePositionId] = useState<string | null>(
+    initial?.criteria_template_position_id ?? null
+  );
+  const [form_template_id, setFormTemplateId] = useState<string | null>(
+    (initial as { form_template_id?: string | null })?.form_template_id ?? null
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +66,8 @@ export function PositionForm({
       position_name_pl: position_name_pl.trim(),
       description: description.trim() || "",
       display_order: Number(display_order) || 0,
+      criteria_template_position_id: criteria_template_position_id || null,
+      form_template_id: form_template_id || null,
     });
   };
 
@@ -108,6 +126,50 @@ export function PositionForm({
           value={display_order}
           onChange={(e) => setDisplayOrder(Number(e.target.value) || 0)}
         />
+      </div>
+      <div>
+        <Label>Wzór formularza opisu pozycji</Label>
+        <Select
+          value={form_template_id ?? "__none__"}
+          onValueChange={(v) => setFormTemplateId(v === "__none__" ? null : v)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Brak" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Brak</SelectItem>
+            {formTemplateOptions.map((opt) => (
+              <SelectItem key={opt.id} value={opt.id}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="mt-1 text-xs text-slate-500">
+          Jeśli wybrano wzór, sekcja 4b (Notatki do kryteriów) w formularzu Senior używa pól z tego wzoru.
+        </p>
+      </div>
+      <div>
+        <Label>Kryteria formularza Senior (wzór pozycji)</Label>
+        <Select
+          value={criteria_template_position_id ?? "__none__"}
+          onValueChange={(v) => setCriteriaTemplatePositionId(v === "__none__" ? null : v)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Brak — własne kryteria" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Brak — własne kryteria</SelectItem>
+            {templatePositionOptions.map((opt) => (
+              <SelectItem key={opt.id} value={opt.id}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="mt-1 text-xs text-slate-500">
+          Używane, gdy nie wybrano wzoru formularza powyżej. Formularz Senior używa wtedy kryteriów tej pozycji.
+        </p>
       </div>
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>

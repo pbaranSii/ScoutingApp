@@ -73,17 +73,22 @@ export function MatchObservationAddPlayerPage() {
         observation_date: match.observation_date,
         match_observation_id: matchId,
         observation_category: "match_player",
-        form_type: "simplified",
+        form_type: (slot.form_type ?? "academy") as ObservationInput["form_type"],
         match_performance_rating: slot.match_performance_rating,
         recommendation: slot.recommendation,
         summary: slot.summary.trim(),
-        overall_rating: slot.overall_rating,
+        overall_rating: slot.form_type === "senior" ? null : slot.overall_rating,
         competition: match.competition?.trim() || null,
         positions: [slot.primary_position],
         strengths: slot.strengths?.trim() || null,
         weaknesses: slot.weaknesses?.trim() || null,
-        potential_now: slot.potential_now ?? null,
-        potential_future: slot.potential_future ?? null,
+        potential_now: slot.form_type === "senior" ? null : (slot.potential_now ?? null),
+        potential_future: slot.form_type === "senior" ? null : (slot.potential_future ?? null),
+        technical_rating: slot.form_type === "senior" ? null : (slot.technical_rating ?? null),
+        speed_rating: slot.form_type === "senior" ? null : (slot.speed_rating ?? null),
+        motor_rating: slot.form_type === "senior" ? null : (slot.motor_rating ?? null),
+        tactical_rating: slot.form_type === "senior" ? null : (slot.tactical_rating ?? null),
+        mental_rating: slot.form_type === "senior" ? null : (slot.mental_rating ?? null),
         created_by: user.id,
         created_by_name: auditName(user),
         created_by_role: auditRole(user),
@@ -144,6 +149,7 @@ export function MatchObservationAddPlayerPage() {
         onSave={handleSave}
         onCancel={handleCancel}
         headerTeamNames={headerTeamNames}
+        competition={match.competition}
       />
     </div>
   );

@@ -136,7 +136,8 @@ export function PlayerDetailPage() {
               playerName={`${data.first_name} ${data.last_name}`}
               size="default"
               variant="outline"
-              label="Zapotrzebowanie"
+              showCount
+              className="min-w-[4rem]"
             />
             <AddToFavoritesButton
             playerId={data.id}
@@ -189,9 +190,9 @@ export function PlayerDetailPage() {
               {(typeof latestObservation?.potential_now === "number" ||
                 typeof latestObservation?.potential_future === "number") && (
                 <span className="text-sm text-slate-600">
-                  Potencjał:{" "}
+                  Performance:{" "}
                   {typeof latestObservation?.potential_now === "number" && (
-                    <>teraz <strong>{latestObservation.potential_now}</strong></>
+                    <strong>{latestObservation.potential_now}</strong>
                   )}
                   {typeof latestObservation?.potential_now === "number" &&
                     typeof latestObservation?.potential_future === "number" && " / "}
@@ -201,56 +202,6 @@ export function PlayerDetailPage() {
                 </span>
               )}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {playerDemands.length > 0 && (
-        <Card>
-          <CardContent className="p-5 space-y-3">
-            <div className="font-semibold text-slate-900">Zapotrzebowania</div>
-            <p className="text-sm text-slate-600">
-              Zawodnik jest przypisany do {playerDemands.length} zapotrzebowań:
-            </p>
-            <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
-              {playerDemands.map((d) => (
-                <li key={d.id}>
-                  <Link
-                    to={`/demands/${d.id}`}
-                    className="text-primary hover:underline"
-                  >
-                    {d.position} · {d.season}
-                    {d.club?.name ? ` (${d.club.name})` : ""}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            <AssignToDemandButton
-              playerId={data.id}
-              playerName={`${data.first_name} ${data.last_name}`}
-              variant="outline"
-              size="sm"
-              label="Przypisz do innego zapotrzebowania"
-            />
-          </CardContent>
-        </Card>
-      )}
-      {playerDemands.length === 0 && (
-        <Card>
-          <CardContent className="p-5 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className="font-semibold text-slate-900">Zapotrzebowania</div>
-              <p className="text-sm text-slate-600 mt-0.5">
-                Przypisz tego zawodnika do zapotrzebowania na pozycję.
-              </p>
-            </div>
-            <AssignToDemandButton
-              playerId={data.id}
-              playerName={`${data.first_name} ${data.last_name}`}
-              variant="outline"
-              size="sm"
-              label="Przypisz do zapotrzebowania"
-            />
           </CardContent>
         </Card>
       )}
@@ -312,6 +263,12 @@ export function PlayerDetailPage() {
             className="rounded-full data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
           >
             Obserwacje ({observations.length})
+          </TabsTrigger>
+          <TabsTrigger
+            value="demands"
+            className="rounded-full data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+          >
+            Zapotrzebowania ({playerDemands.length})
           </TabsTrigger>
           <TabsTrigger
             value="multimedia"
@@ -425,9 +382,9 @@ export function PlayerDetailPage() {
                         </Button>
                       </div>
                     </div>
-                    {(observation.summary || observation.notes) && (
+                    {observation.summary?.trim() && (
                       <p className="mt-3 text-sm text-slate-600">
-                        {observation.summary || observation.notes}
+                        {observation.summary.trim()}
                       </p>
                     )}
                   </CardContent>
@@ -442,6 +399,55 @@ export function PlayerDetailPage() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="demands" className="space-y-4">
+          <Card>
+            <CardContent className="p-5 space-y-3">
+              {playerDemands.length > 0 ? (
+                <>
+                  <div className="font-semibold text-slate-900">Zapotrzebowania</div>
+                  <p className="text-sm text-slate-600">
+                    Zawodnik jest przypisany do {playerDemands.length} zapotrzebowań:
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                    {playerDemands.map((d) => (
+                      <li key={d.id}>
+                        <Link
+                          to={`/demands/${d.id}`}
+                          className="text-primary hover:underline"
+                        >
+                          {d.position} · {d.season}
+                          {d.club?.name ? ` (${d.club.name})` : ""}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                  <AssignToDemandButton
+                    playerId={data.id}
+                    playerName={`${data.first_name} ${data.last_name}`}
+                    variant="outline"
+                    size="sm"
+                    label="Przypisz do innego zapotrzebowania"
+                  />
+                </>
+              ) : (
+                <>
+                  <div className="font-semibold text-slate-900">Zapotrzebowania</div>
+                  <p className="text-sm text-slate-600 mt-0.5">
+                    Przypisz tego zawodnika do zapotrzebowania na pozycję.
+                  </p>
+                  <AssignToDemandButton
+                    playerId={data.id}
+                    playerName={`${data.first_name} ${data.last_name}`}
+                    variant="outline"
+                    size="sm"
+                    label="Przypisz do zapotrzebowania"
+                  />
+                </>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="multimedia" className="space-y-4">

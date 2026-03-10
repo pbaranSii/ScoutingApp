@@ -72,7 +72,7 @@ export function FavoriteListsPage() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Ulubione"
+        title="Shadow Team"
         subtitle="Twoje listy zawodników i shortlisty"
         actions={
           <Button

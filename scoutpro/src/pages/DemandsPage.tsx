@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/common/PageHeader";
-import { Plus } from "lucide-react";
+import { Plus, SlidersHorizontal } from "lucide-react";
 import { Link } from "react-router-dom";
 import { usePlayerDemands, useDeletePlayerDemand } from "@/features/demands/hooks";
 import type { PlayerDemandFilters, DemandPriority, DemandStatus } from "@/features/demands/types";
@@ -15,8 +15,12 @@ import type { PlayerDemand } from "@/features/demands/types";
 const CAN_MANAGE_ROLES = ["director", "coach", "admin"] as const;
 
 export function DemandsPage() {
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<PlayerDemandFilters>({});
   const { data: demands = [], isLoading, isError, error } = usePlayerDemands(filters);
+  const hasActiveFilters = Boolean(
+    filters.clubId ?? filters.season ?? filters.position ?? filters.priority ?? filters.status
+  );
   const { data: clubs = [] } = useClubs();
   const { data: profile } = useCurrentUserProfile();
   const deleteDemand = useDeletePlayerDemand();
@@ -58,88 +62,121 @@ export function DemandsPage() {
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <Select
-          value={filters.clubId ?? "all"}
-          onValueChange={(v) => setFilters((prev) => ({ ...prev, clubId: v === "all" ? undefined : v }))}
+        <Button
+          type="button"
+          variant="outline"
+          className="shrink-0 gap-2"
+          onClick={() => setFiltersOpen((prev) => !prev)}
         >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Klub" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Wszystkie kluby</SelectItem>
-            {clubs.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.season ?? "all"}
-          onValueChange={(v) => setFilters((prev) => ({ ...prev, season: v === "all" ? undefined : v }))}
-        >
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Sezon" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Wszystkie sezony</SelectItem>
-            {Array.from(new Set(demands.map((d) => d.season))).sort().map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.position ?? "all"}
-          onValueChange={(v) => setFilters((prev) => ({ ...prev, position: v === "all" ? undefined : v }))}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Pozycja" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Wszystkie pozycje</SelectItem>
-            {Array.from(new Set(demands.map((d) => d.position))).sort().map((p) => (
-              <SelectItem key={p} value={p}>
-                {p}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.priority ?? "all"}
-          onValueChange={(v) =>
-            setFilters((prev) => ({ ...prev, priority: v === "all" ? undefined : (v as DemandPriority) }))
-          }
-        >
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Priorytet" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Wszystkie</SelectItem>
-            <SelectItem value="critical">Krytyczny</SelectItem>
-            <SelectItem value="high">Wysoki</SelectItem>
-            <SelectItem value="standard">Standardowy</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          value={filters.status ?? "all"}
-          onValueChange={(v) =>
-            setFilters((prev) => ({ ...prev, status: v === "all" ? undefined : (v as DemandStatus) }))
-          }
-        >
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Wszystkie</SelectItem>
-            <SelectItem value="open">Otwarte</SelectItem>
-            <SelectItem value="in_progress">W trakcie</SelectItem>
-            <SelectItem value="filled">Wypełnione</SelectItem>
-            <SelectItem value="cancelled">Anulowane</SelectItem>
-          </SelectContent>
-        </Select>
+          <SlidersHorizontal className="h-4 w-4" />
+          Filtry
+          {hasActiveFilters && (
+            <span className="ml-1 rounded-full bg-slate-900 px-2 text-[11px] text-white">aktywne</span>
+          )}
+        </Button>
       </div>
+      {filtersOpen && (
+        <div className="rounded-lg border border-slate-200 bg-white p-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Klub</label>
+              <Select
+                value={filters.clubId ?? "all"}
+                onValueChange={(v) => setFilters((prev) => ({ ...prev, clubId: v === "all" ? undefined : v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Wszystkie kluby" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Wszystkie kluby</SelectItem>
+                  {clubs.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Sezon</label>
+              <Select
+                value={filters.season ?? "all"}
+                onValueChange={(v) => setFilters((prev) => ({ ...prev, season: v === "all" ? undefined : v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Wszystkie sezony" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Wszystkie sezony</SelectItem>
+                  {Array.from(new Set(demands.map((d) => d.season))).sort().map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Pozycja</label>
+              <Select
+                value={filters.position ?? "all"}
+                onValueChange={(v) => setFilters((prev) => ({ ...prev, position: v === "all" ? undefined : v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Wszystkie pozycje" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Wszystkie pozycje</SelectItem>
+                  {Array.from(new Set(demands.map((d) => d.position))).sort().map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Priorytet</label>
+              <Select
+                value={filters.priority ?? "all"}
+                onValueChange={(v) =>
+                  setFilters((prev) => ({ ...prev, priority: v === "all" ? undefined : (v as DemandPriority) }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Wszystkie" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Wszystkie</SelectItem>
+                  <SelectItem value="critical">Krytyczny</SelectItem>
+                  <SelectItem value="high">Wysoki</SelectItem>
+                  <SelectItem value="standard">Standardowy</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Status</label>
+              <Select
+                value={filters.status ?? "all"}
+                onValueChange={(v) =>
+                  setFilters((prev) => ({ ...prev, status: v === "all" ? undefined : (v as DemandStatus) }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Wszystkie" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Wszystkie</SelectItem>
+                  <SelectItem value="open">Otwarte</SelectItem>
+                  <SelectItem value="in_progress">W trakcie</SelectItem>
+                  <SelectItem value="filled">Wypełnione</SelectItem>
+                  <SelectItem value="cancelled">Anulowane</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isLoading && <p className="text-sm text-slate-500">Ładowanie…</p>}
       {isError && (

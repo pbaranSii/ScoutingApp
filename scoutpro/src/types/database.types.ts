@@ -81,6 +81,7 @@ export type Database = {
           code: string | null
           created_at: string
           id: string
+          is_required: boolean
           name: string
           position_dictionary_id: string
           section: Database["public"]["Enums"]["criterion_section"] | null
@@ -91,6 +92,7 @@ export type Database = {
           code?: string | null
           created_at?: string
           id?: string
+          is_required?: boolean
           name: string
           position_dictionary_id: string
           section?: Database["public"]["Enums"]["criterion_section"] | null
@@ -101,6 +103,7 @@ export type Database = {
           code?: string | null
           created_at?: string
           id?: string
+          is_required?: boolean
           name?: string
           position_dictionary_id?: string
           section?: Database["public"]["Enums"]["criterion_section"] | null
@@ -259,10 +262,13 @@ export type Database = {
           id: string
           is_offline_created: boolean
           location: string | null
+          league: string | null
           match_id: string | null
           match_observation_id: string | null
           match_performance_rating: number | null
           match_result: string | null
+          home_team: string | null
+          away_team: string | null
           mental_description: string | null
           mental_rating: number | null
           motor_rating: number | null
@@ -367,10 +373,13 @@ export type Database = {
           id?: string
           is_offline_created?: boolean
           location?: string | null
+          league?: string | null
           match_id?: string | null
           match_observation_id?: string | null
           match_performance_rating?: number | null
           match_result?: string | null
+          home_team?: string | null
+          away_team?: string | null
           mental_description?: string | null
           mental_rating?: number | null
           motor_rating?: number | null
@@ -449,6 +458,7 @@ export type Database = {
           context_type: Database["public"]["Enums"]["observation_context_type"]
           observation_date: string
           competition: string
+          league: string | null
           home_team: string | null
           away_team: string | null
           match_result: string | null
@@ -468,6 +478,7 @@ export type Database = {
           context_type?: Database["public"]["Enums"]["observation_context_type"]
           observation_date?: string
           competition: string
+          league?: string | null
           home_team?: string | null
           away_team?: string | null
           match_result?: string | null
@@ -487,6 +498,7 @@ export type Database = {
           context_type?: Database["public"]["Enums"]["observation_context_type"]
           observation_date?: string
           competition?: string
+          league?: string | null
           home_team?: string | null
           away_team?: string | null
           match_result?: string | null
@@ -1246,6 +1258,8 @@ export type Database = {
           display_order: number
           created_at: string
           updated_at: string
+          criteria_template_position_id: string | null
+          form_template_id: string | null
         }
         Insert: {
           id?: string
@@ -1257,6 +1271,8 @@ export type Database = {
           display_order?: number
           created_at?: string
           updated_at?: string
+          criteria_template_position_id?: string | null
+          form_template_id?: string | null
         }
         Update: {
           id?: string
@@ -1268,6 +1284,62 @@ export type Database = {
           display_order?: number
           created_at?: string
           updated_at?: string
+          criteria_template_position_id?: string | null
+          form_template_id?: string | null
+        }
+        Relationships: []
+      }
+      position_form_template: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      position_form_template_element: {
+        Row: {
+          id: string
+          template_id: string
+          element_type: string
+          sort_order: number
+          header_label: string | null
+          evaluation_criterion_id: string | null
+          is_required: boolean | null
+        }
+        Insert: {
+          id?: string
+          template_id: string
+          element_type: string
+          sort_order?: number
+          header_label?: string | null
+          evaluation_criterion_id?: string | null
+          is_required?: boolean | null
+        }
+        Update: {
+          id?: string
+          template_id?: string
+          element_type?: string
+          sort_order?: number
+          header_label?: string | null
+          evaluation_criterion_id?: string | null
+          is_required?: boolean | null
         }
         Relationships: []
       }
@@ -1776,7 +1848,7 @@ export type Database = {
       criterion_section: "defense" | "offense" | "transition_oa" | "transition_ao"
       default_form_type_enum: "simplified" | "extended"
       dominant_foot: "left" | "right" | "both"
-      form_type: "simplified" | "extended"
+      form_type: "simplified" | "extended" | "academy" | "senior"
       match_type: "live" | "video"
       observation_category_type: "match_player" | "individual"
       observation_context_type: "match" | "tournament"
@@ -1790,6 +1862,9 @@ export type Database = {
         | "video_analysis"
         | "tournament"
         | "training_camp"
+        | "live_match"
+        | "video_match"
+        | "video_clips"
       recommendation_type: "positive" | "to_observe" | "negative"
       pipeline_status:
         | "unassigned"
@@ -1937,7 +2012,7 @@ export const Constants = {
       criterion_section: ["defense", "offense", "transition_oa", "transition_ao"],
       default_form_type_enum: ["simplified", "extended"],
       dominant_foot: ["left", "right", "both"],
-      form_type: ["simplified", "extended"],
+      form_type: ["simplified", "extended", "academy", "senior"],
       match_type: ["live", "video"],
       observation_category_type: ["match_player", "individual"],
       observation_context_type: ["match", "tournament"],
@@ -1952,6 +2027,9 @@ export const Constants = {
         "video_analysis",
         "tournament",
         "training_camp",
+        "live_match",
+        "video_match",
+        "video_clips",
       ],
       pipeline_status: [
         "unassigned",

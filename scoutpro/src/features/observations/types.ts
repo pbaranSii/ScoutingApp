@@ -29,6 +29,9 @@ export type Observation = {
   motor_acceleration_rating?: number | null;
   motor_strength_rating?: number | null;
   competition?: string | null;
+  league?: string | null;
+  home_team?: string | null;
+  away_team?: string | null;
   match_result?: string | null;
   location?: string | null;
   positions?: string[] | null;
@@ -90,6 +93,9 @@ export type ObservationInput = {
   motor_acceleration_rating?: number | null;
   motor_strength_rating?: number | null;
   competition?: string | null;
+  league?: string | null;
+  home_team?: string | null;
+  away_team?: string | null;
   match_result?: string | null;
   location?: string | null;
   positions?: string[] | null;
@@ -116,6 +122,9 @@ export type ObservationInput = {
   motor_description?: string | null;
 };
 
+/** Match observation per-player form type (Akademia = full simplified fields, Senior = reduced). */
+export type MatchFormType = "academy" | "senior";
+
 /** One player slot in match observation flow (before save). */
 export type MatchPlayerSlot = {
   id: string;
@@ -135,4 +144,12 @@ export type MatchPlayerSlot = {
   weaknesses?: string;
   potential_now?: number;
   potential_future?: number;
+  /** Academy: ratings 1–5 for section "4. Oceny ogólne". */
+  technical_rating?: number;
+  speed_rating?: number;
+  motor_rating?: number;
+  tactical_rating?: number;
+  mental_rating?: number;
+  /** Used when saving observation (academy | senior). */
+  form_type?: MatchFormType;
 };

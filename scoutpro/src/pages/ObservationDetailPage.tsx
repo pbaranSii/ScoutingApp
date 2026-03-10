@@ -5,8 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useDeleteObservation, useObservation } from "@/features/observations/hooks/useObservations";
 import {
   fetchPlayerEvaluationsByObservation,
-  fetchEvaluationCriteriaByPositionCode,
+  fetchCriteriaForObservationForm,
+  type ObservationFormElement,
 } from "@/features/observations/api/evaluationCriteria.api";
+import { fetchObservationCriterionNotes } from "@/features/observations/api/observationCriterionNotes.api";
+import { fetchMatchObservationById } from "@/features/observations/api/matchObservations.api";
 import { usePlayerSources } from "@/features/dictionaries/hooks/useDictionaries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,8 +42,8 @@ export function ObservationDetailPage() {
         ? mapLegacyPosition(observation.player.primary_position)
         : "";
   const { data: positionCriteria = [] } = useQuery({
-    queryKey: ["evaluation-criteria", primaryPositionCode],
-    queryFn: () => fetchEvaluationCriteriaByPositionCode(primaryPositionCode),
+    queryKey: ["evaluation-criteria-form", primaryPositionCode],
+    queryFn: () => fetchCriteriaForObservationForm(primaryPositionCode),
     enabled: Boolean(primaryPositionCode) && Boolean(observationId),
   });
   const { data: positionEvaluations = [] } = useQuery({
@@ -48,10 +51,23 @@ export function ObservationDetailPage() {
     queryFn: () => fetchPlayerEvaluationsByObservation(observationId),
     enabled: Boolean(observationId),
   });
+  const { data: criterionNotesList = [] } = useQuery({
+    queryKey: ["observation-criterion-notes", observationId],
+    queryFn: () => fetchObservationCriterionNotes(observationId),
+    enabled: Boolean(observationId) && observation?.form_type === "senior",
+  });
+  const criterionNotesByCriteriaId = useMemo(() => {
+    const m: Record<string, string | null> = {};
+    for (const n of criterionNotesList) {
+      m[n.criteria_id] = n.description;
+    }
+    return m;
+  }, [criterionNotesList]);
   const criteriaById = useMemo(() => {
     const m: Record<string, string> = {};
-    for (const c of positionCriteria) {
-      m[c.id] = c.name;
+    const elements = positionCriteria as ObservationFormElement[];
+    for (const el of elements) {
+      if (el.type === "criterion") m[el.criterion.id] = el.criterion.name;
     }
     return m;
   }, [positionCriteria]);
@@ -70,6 +86,14 @@ export function ObservationDetailPage() {
   );
   const deleteObservation = useDeleteObservation();
   const canUseDom = typeof document !== "undefined";
+
+  const { data: matchHeader = null } = useQuery({
+    queryKey: ["match-observation", observation?.match_observation_id],
+    queryFn: () => fetchMatchObservationById(observation!.match_observation_id!),
+    enabled:
+      Boolean(observation?.match_observation_id) &&
+      observation?.observation_category === "match_player",
+  });
 
   if (isLoading) {
     return <p className="text-sm text-slate-500">Ładowanie...</p>;
@@ -120,6 +144,29 @@ export function ObservationDetailPage() {
     ? roleLabels[observation.updated_by_role] ?? observation.updated_by_role
     : "-";
 
+  const rawFormType = observation.form_type ?? "academy";
+  const effectiveFormType =
+    rawFormType === "simplified" || rawFormType === "extended" ? "academy" : rawFormType;
+  const playerWithSocial = observation.player as
+    | { transfermarkt_url?: string | null; facebook_url?: string | null; instagram_url?: string | null; other_social_url?: string | null }
+    | undefined;
+  const hasAnySocialUrl =
+    Boolean(playerWithSocial?.transfermarkt_url?.trim()) ||
+    Boolean(playerWithSocial?.facebook_url?.trim()) ||
+    Boolean(playerWithSocial?.instagram_url?.trim()) ||
+    Boolean(playerWithSocial?.other_social_url?.trim());
+
+  const competitionLabel =
+    observation.competition?.trim() || matchHeader?.competition?.trim() || "—";
+  const leagueLabel = observation.league?.trim() || matchHeader?.league?.trim() || "";
+  const homeTeamLabel = observation.home_team?.trim() || matchHeader?.home_team?.trim() || "";
+  const awayTeamLabel = observation.away_team?.trim() || matchHeader?.away_team?.trim() || "";
+  const matchResultLabel =
+    observation.match_result?.trim() || matchHeader?.match_result?.trim() || "—";
+  const locationLabel =
+    observation.location?.trim() || matchHeader?.location?.trim() || "—";
+  const matchNotesLabel = matchHeader?.match_notes?.trim() || "";
+
   return (
     <div className="mx-auto w-full max-w-[960px] space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
@@ -168,12 +215,6 @@ export function ObservationDetailPage() {
           >
             <Trash2 className="h-4 w-4" />
             Usuń
-          </Button>
-          <Button asChild variant="outline" className="gap-2">
-            <Link to={`/observations/new?playerId=${observation.player_id}`}>
-              <Plus className="h-4 w-4" />
-              Nowa obserwacja dla tego zawodnika
-            </Link>
           </Button>
           <Button asChild variant="outline" className="gap-2">
             <Link to={`/players/${observation.player_id}`}>
@@ -321,25 +362,51 @@ export function ObservationDetailPage() {
           <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
             <div>
               <span className="font-medium text-slate-700">Rozgrywki: </span>
-              <span className="text-slate-600">{observation.competition?.trim() || "—"}</span>
+              <span className="text-slate-600">{competitionLabel}</span>
             </div>
+            {leagueLabel && (
+              <div>
+                <span className="font-medium text-slate-700">Liga: </span>
+                <span className="text-slate-600">{leagueLabel}</span>
+              </div>
+            )}
             <div>
               <span className="font-medium text-slate-700">Data meczu: </span>
               <span className="text-slate-600">{dateLabel}</span>
             </div>
+            {(homeTeamLabel || awayTeamLabel) && (
+              <>
+                <div>
+                  <span className="font-medium text-slate-700">Gospodarz: </span>
+                  <span className="text-slate-600">{homeTeamLabel || "—"}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-700">Gość: </span>
+                  <span className="text-slate-600">{awayTeamLabel || "—"}</span>
+                </div>
+              </>
+            )}
             <div>
               <span className="font-medium text-slate-700">Wynik meczu: </span>
-              <span className="text-slate-600">{observation.match_result?.trim() || "—"}</span>
+              <span className="text-slate-600">{matchResultLabel}</span>
             </div>
             <div>
               <span className="font-medium text-slate-700">Lokalizacja: </span>
-              <span className="text-slate-600">{observation.location?.trim() || "—"}</span>
+              <span className="text-slate-600">{locationLabel}</span>
             </div>
             <div>
               <span className="font-medium text-slate-700">Źródło: </span>
               <span className="text-slate-600">{sourceLabel}</span>
             </div>
           </div>
+          {matchNotesLabel && (
+            <div className="pt-2">
+              <span className="font-medium text-slate-700">Notatki do meczu: </span>
+              <div className="mt-1 rounded bg-slate-50 p-2 text-sm text-slate-600 whitespace-pre-wrap">
+                {matchNotesLabel}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -367,47 +434,49 @@ export function ObservationDetailPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-slate-800">4. Oceny ogólne</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {typeof observation.technical_rating === "number" && (
-            <RatingBar label="Technika" value={observation.technical_rating} max={10} />
-          )}
-          {typeof observation.speed_rating === "number" && (
-            <RatingBar label="Szybkość" value={observation.speed_rating} max={10} />
-          )}
-          {typeof observation.motor_rating === "number" && (
-            <RatingBar label="Motoryka" value={observation.motor_rating} max={10} />
-          )}
-          {typeof observation.tactical_rating === "number" && (
-            <RatingBar label="Taktyka" value={observation.tactical_rating} max={10} />
-          )}
-          {typeof observation.mental_rating === "number" && (
-            <RatingBar label="Mentalność" value={observation.mental_rating} max={10} />
-          )}
-          {typeof observation.potential_now === "number" && (
-            <RatingBar label="Potencjał teraz" value={observation.potential_now} max={10} />
-          )}
-          {typeof observation.potential_future === "number" && (
-            <RatingBar label="Potencjał przyszły" value={observation.potential_future} max={10} />
-          )}
-          {typeof observation.overall_rating === "number" && (
-            <RatingBar label="Ocena ogólna (1–10)" value={observation.overall_rating} max={10} />
-          )}
-          {observation.observation_category === "match_player" &&
-            typeof observation.match_performance_rating === "number" && (
-              <RatingBar
-                label="Ocena za występ (1–5)"
-                value={observation.match_performance_rating}
-                max={5}
-              />
+      {(effectiveFormType === "academy" || observation.observation_category === "match_player") && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-slate-800">4. Oceny ogólne</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {typeof observation.technical_rating === "number" && (
+              <RatingBar label="Technika" value={observation.technical_rating} max={10} />
             )}
-        </CardContent>
-      </Card>
+            {typeof observation.speed_rating === "number" && (
+              <RatingBar label="Szybkość" value={observation.speed_rating} max={10} />
+            )}
+            {typeof observation.motor_rating === "number" && (
+              <RatingBar label="Motoryka" value={observation.motor_rating} max={10} />
+            )}
+            {typeof observation.tactical_rating === "number" && (
+              <RatingBar label="Taktyka" value={observation.tactical_rating} max={10} />
+            )}
+            {typeof observation.mental_rating === "number" && (
+              <RatingBar label="Mentalność" value={observation.mental_rating} max={10} />
+            )}
+            {typeof observation.potential_now === "number" && (
+              <RatingBar label="Performance" value={observation.potential_now} max={10} />
+            )}
+            {typeof observation.potential_future === "number" && (
+              <RatingBar label="Potencjał przyszły" value={observation.potential_future} max={10} />
+            )}
+            {typeof observation.overall_rating === "number" && (
+              <RatingBar label="Ocena ogólna (1–10)" value={observation.overall_rating} max={10} />
+            )}
+            {observation.observation_category === "match_player" &&
+              typeof observation.match_performance_rating === "number" && (
+                <RatingBar
+                  label="Ocena za występ (1–5)"
+                  value={observation.match_performance_rating}
+                  max={5}
+                />
+              )}
+          </CardContent>
+        </Card>
+      )}
 
-      {positionEvaluations.length > 0 && (
+      {effectiveFormType === "senior" && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg font-semibold text-slate-800">
@@ -415,14 +484,77 @@ export function ObservationDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {positionEvaluations.map(({ criteria_id, score }) => (
-              <RatingBar
-                key={criteria_id}
-                label={criteriaById[criteria_id] ?? criteria_id}
-                value={typeof score === "number" ? score : 0}
-                max={10}
-              />
-            ))}
+            {(typeof observation.motor_speed_rating === "number" ||
+              typeof observation.motor_endurance_rating === "number" ||
+              typeof observation.motor_jump_rating === "number" ||
+              typeof observation.motor_agility_rating === "number" ||
+              typeof observation.motor_acceleration_rating === "number" ||
+              typeof observation.motor_strength_rating === "number") && (
+              <>
+                <h3 className="text-sm font-semibold text-slate-700">ZDOLNOŚCI MOTORYCZNE (skala 1–5)</h3>
+                <div className="space-y-2">
+                  {typeof observation.motor_speed_rating === "number" && (
+                    <RatingBar label="Szybkość" value={observation.motor_speed_rating} max={5} />
+                  )}
+                  {typeof observation.motor_endurance_rating === "number" && (
+                    <RatingBar label="Wytrzymałość" value={observation.motor_endurance_rating} max={5} />
+                  )}
+                  {typeof observation.motor_jump_rating === "number" && (
+                    <RatingBar label="Skoczność" value={observation.motor_jump_rating} max={5} />
+                  )}
+                  {typeof observation.motor_agility_rating === "number" && (
+                    <RatingBar label="Zwrotność" value={observation.motor_agility_rating} max={5} />
+                  )}
+                  {typeof observation.motor_acceleration_rating === "number" && (
+                    <RatingBar label="Szybkość startowa" value={observation.motor_acceleration_rating} max={5} />
+                  )}
+                  {typeof observation.motor_strength_rating === "number" && (
+                    <RatingBar label="Siła" value={observation.motor_strength_rating} max={5} />
+                  )}
+                </div>
+                {observation.motor_description?.trim() && (
+                  <div className="rounded bg-slate-50 p-2 text-sm text-slate-600">
+                    {observation.motor_description.trim()}
+                  </div>
+                )}
+              </>
+            )}
+            {positionEvaluations.length > 0 && (
+              <>
+                {positionEvaluations.some(() => true) && (
+                  <h3 className="text-sm font-semibold text-slate-700 pt-2">Kryteria pozycyjne</h3>
+                )}
+                {positionEvaluations.map(({ criteria_id, score }) => (
+                  <RatingBar
+                    key={criteria_id}
+                    label={criteriaById[criteria_id] ?? criteria_id}
+                    value={typeof score === "number" ? score : 0}
+                    max={10}
+                  />
+                ))}
+              </>
+            )}
+            {(positionCriteria as ObservationFormElement[]).length > 0 && (
+              <>
+                <h3 className="text-sm font-semibold text-slate-700 pt-4">Notatki do kryteriów (formularz rozszerzony)</h3>
+                {(positionCriteria as ObservationFormElement[]).map((el, idx) =>
+                  el.type === "header" ? (
+                    el.label ? (
+                      <h4 key={`h-${idx}`} className="text-sm font-semibold text-slate-700 pt-2">
+                        {el.label}
+                      </h4>
+                    ) : null
+                  ) : (
+                    <div key={el.criterion.id} className="space-y-1 pt-2">
+                      <span className="text-sm font-medium text-slate-700">{el.criterion.name}</span>
+                      <div className="rounded bg-slate-50 p-2 text-sm text-slate-600">
+                        {criterionNotesByCriteriaId[el.criterion.id]?.trim() ?? "—"}
+                      </div>
+                    </div>
+                  )
+                )}
+              </>
+            )}
           </CardContent>
         </Card>
       )}
@@ -432,10 +564,19 @@ export function ObservationDetailPage() {
           <CardTitle className="text-lg font-semibold text-slate-800">6. Analiza i notatki</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
-          <div>
-            <span className="font-medium text-slate-700">Ranga: </span>
-            <span className="text-slate-600">{observation.rank ?? "—"}</span>
-          </div>
+          {effectiveFormType === "academy" && (
+            <div>
+              <span className="font-medium text-slate-700">Ranga: </span>
+              <span className="text-slate-600">{observation.rank ?? "—"}</span>
+            </div>
+          )}
+          {(effectiveFormType === "senior" || observation.observation_category === "match_player") &&
+            typeof observation.match_performance_rating === "number" && (
+              <div>
+                <span className="font-medium text-slate-700">Ocena za występ (1–5): </span>
+                <span className="text-slate-600">{observation.match_performance_rating}</span>
+              </div>
+            )}
           <div>
             <span className="font-medium text-slate-700">Mocne strony: </span>
             <span className="text-slate-600">{observation.strengths?.trim() || "Brak"}</span>
@@ -454,12 +595,82 @@ export function ObservationDetailPage() {
               </div>
             )}
           </div>
+          {observation.summary?.trim() && (
+            <div>
+              <span className="font-medium text-slate-700">Podsumowanie: </span>
+              <span className="text-slate-600">{observation.summary.trim()}</span>
+            </div>
+          )}
+          {observation.recommendation && (
+            <div>
+              <span className="font-medium text-slate-700">Rekomendacja: </span>
+              <span className="text-slate-600">
+                {observation.recommendation === "positive"
+                  ? "Pozytywna"
+                  : observation.recommendation === "negative"
+                    ? "Negatywna"
+                    : "Do obserwacji"}
+              </span>
+            </div>
+          )}
           <div>
             <span className="font-medium text-slate-700">Dodatkowe notatki: </span>
             <span className="text-slate-600">{observation.notes?.trim() || "Brak"}</span>
           </div>
         </CardContent>
       </Card>
+
+      {(effectiveFormType === "academy" || effectiveFormType === "senior") && hasAnySocialUrl && observation.player && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-slate-800">Portale społecznościowe</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <div className="flex flex-wrap gap-3 text-sm">
+              {playerWithSocial?.transfermarkt_url?.trim() && (
+                <a
+                  href={playerWithSocial.transfermarkt_url.trim()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-600 hover:underline"
+                >
+                  TransferMarkt
+                </a>
+              )}
+              {playerWithSocial?.facebook_url?.trim() && (
+                <a
+                  href={playerWithSocial.facebook_url.trim()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-600 hover:underline"
+                >
+                  Facebook
+                </a>
+              )}
+              {playerWithSocial?.instagram_url?.trim() && (
+                <a
+                  href={playerWithSocial.instagram_url.trim()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-600 hover:underline"
+                >
+                  Instagram
+                </a>
+              )}
+              {playerWithSocial?.other_social_url?.trim() && (
+                <a
+                  href={playerWithSocial.other_social_url.trim()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-600 hover:underline"
+                >
+                  Inne
+                </a>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>

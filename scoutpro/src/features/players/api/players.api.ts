@@ -71,17 +71,77 @@ export type DuplicateCandidate = {
   score: number;
 };
 
-/** Check for potential duplicate players (strict + fuzzy). Returns candidates with score >= 40. */
+function stripDiacritics(input: string): string {
+  const s = input ?? "";
+  // Prefer Unicode normalization when available; then apply explicit PL mapping.
+  const normalized = typeof s.normalize === "function" ? s.normalize("NFD") : s;
+  const withoutCombining = normalized.replace(/[\u0300-\u036f]/g, "");
+  return withoutCombining
+    .replace(/[ąĄ]/g, "a")
+    .replace(/[ćĆ]/g, "c")
+    .replace(/[ęĘ]/g, "e")
+    .replace(/[łŁ]/g, "l")
+    .replace(/[ńŃ]/g, "n")
+    .replace(/[óÓ]/g, "o")
+    .replace(/[śŚ]/g, "s")
+    .replace(/[źŹ]/g, "z")
+    .replace(/[żŻ]/g, "z");
+}
+
+function normalizeName(input: string | null | undefined): string {
+  return stripDiacritics((input ?? ""))
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a) return b.length;
+  if (!b) return a.length;
+
+  const m = a.length;
+  const n = b.length;
+  const dp = new Array<number>(n + 1);
+  for (let j = 0; j <= n; j++) dp[j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    let prev = dp[0]!;
+    dp[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = dp[j]!;
+      const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+      dp[j] = Math.min(
+        dp[j]! + 1, // deletion
+        dp[j - 1]! + 1, // insertion
+        prev + cost // substitution
+      );
+      prev = tmp;
+    }
+  }
+  return dp[n]!;
+}
+
+function similarity01(aRaw: string, bRaw: string): number {
+  const a = normalizeName(aRaw);
+  const b = normalizeName(bRaw);
+  const maxLen = Math.max(a.length, b.length);
+  if (maxLen === 0) return 1;
+  const d = levenshtein(a, b);
+  return Math.max(0, Math.min(1, 1 - d / maxLen));
+}
+
+/** Check for potential duplicate players (strict + fuzzy). Returns candidates with score >= 50. */
 export async function checkDuplicatePlayers(candidate: {
   first_name: string;
   last_name: string;
   birth_year: number;
   current_club?: string | null;
 }): Promise<DuplicateCandidate[]> {
-  const fn = (candidate.first_name ?? "").trim().toLowerCase();
-  const ln = (candidate.last_name ?? "").trim().toLowerCase();
+  const fn = normalizeName(candidate.first_name);
+  const ln = normalizeName(candidate.last_name);
   const by = candidate.birth_year;
-  const club = (candidate.current_club ?? "").trim().toLowerCase();
+  const club = normalizeName(candidate.current_club ?? "");
   if (!fn || !ln || !by) return [];
 
   const { data: strict, error: e1 } = await supabase
@@ -95,7 +155,7 @@ export async function checkDuplicatePlayers(candidate: {
   const strictRows = (strict ?? []) as (DuplicateCandidate & { club?: { name: string } | null })[];
   const withScore: DuplicateCandidate[] = strictRows.map((row) => {
     let score = 80;
-    if (row.club?.name && club && row.club.name.toLowerCase().includes(club)) score += 15;
+    if (row.club?.name && club && normalizeName(row.club.name).includes(club)) score += 20;
     return {
       ...row,
       club: row.club,
@@ -108,7 +168,7 @@ export async function checkDuplicatePlayers(candidate: {
   const { data: fuzzy } = await supabase
     .from("players")
     .select("id, first_name, last_name, birth_year, primary_position, club:clubs(name)")
-    .or(`first_name.ilike.%${fn}%,last_name.ilike.%${ln}%`)
+    .or(`first_name.ilike.%${fn}%,last_name.ilike.%${ln}%,first_name.ilike.%${ln}%,last_name.ilike.%${fn}%`)
     .gte("birth_year", by - 1)
     .lte("birth_year", by + 1)
     .limit(20);
@@ -117,13 +177,36 @@ export async function checkDuplicatePlayers(candidate: {
   for (const row of fuzzyRows) {
     if (seen.has(row.id)) continue;
     let score = 0;
-    if (row.first_name?.toLowerCase() === fn) score += 30;
-    else if (row.first_name?.toLowerCase().includes(fn)) score += 15;
-    if (row.last_name?.toLowerCase() === ln) score += 30;
-    else if (row.last_name?.toLowerCase().includes(ln)) score += 15;
-    if (row.birth_year === by) score += 20;
-    if (row.club?.name && club && row.club.name.toLowerCase().includes(club)) score += 15;
-    if (score >= 40) {
+
+    const rowFirst = normalizeName(row.first_name);
+    const rowLast = normalizeName(row.last_name);
+
+    // Consider swapped first/last as well.
+    const nameSim =
+      Math.max(
+        similarity01(rowFirst, fn) * 0.5 + similarity01(rowLast, ln) * 0.5,
+        similarity01(rowFirst, ln) * 0.5 + similarity01(rowLast, fn) * 0.5
+      ) || 0;
+    const firstPoints = Math.round(Math.max(similarity01(rowFirst, fn), similarity01(rowFirst, ln)) * 40);
+    const lastPoints = Math.round(Math.max(similarity01(rowLast, ln), similarity01(rowLast, fn)) * 40);
+    score += Math.min(40, Math.max(0, firstPoints));
+    score += Math.min(40, Math.max(0, lastPoints));
+
+    const birthDiff = Math.abs((row.birth_year ?? 0) - by);
+    if (birthDiff === 0) score += 20;
+    else if (birthDiff === 1) score += 10;
+
+    const rowClub = row.club?.name ? normalizeName(row.club.name) : "";
+    if (club && rowClub) {
+      if (rowClub === club) score += 20;
+      else if (rowClub.includes(club) || club.includes(rowClub)) score += 15;
+      else if (similarity01(rowClub, club) >= 0.8) score += 10;
+    }
+
+    // If the similarity is very low, avoid noisy matches even in aggressive mode.
+    if (nameSim < 0.45) continue;
+
+    if (score >= 50) {
       seen.add(row.id);
       withScore.push({ ...row, club: row.club, score });
     }
@@ -136,6 +219,12 @@ export type PlayersFilters = {
   search?: string;
   birthYear?: number;
   birthYears?: number[];
+  birthYearFrom?: number;
+  birthYearTo?: number;
+  contractEndBefore?: string;
+  recommendation?: "positive" | "to_observe" | "negative";
+  performanceMin?: number;
+  performanceMax?: number;
   status?: PipelineStatus;
   primary_position?: string;
   clubIds?: string[];
@@ -167,6 +256,27 @@ export async function fetchPlayers(filters?: PlayersFilters): Promise<FetchPlaye
   }
   if (filters?.birthYears && filters.birthYears.length > 0) {
     query = query.in("birth_year", filters.birthYears);
+  }
+  if (filters?.birthYearFrom != null) {
+    query = query.gte("birth_year", filters.birthYearFrom);
+  }
+  if (filters?.birthYearTo != null) {
+    query = query.lte("birth_year", filters.birthYearTo);
+  }
+  if (filters?.contractEndBefore) {
+    query = query.lte("contract_end_date", filters.contractEndBefore);
+  }
+  if (filters?.recommendation != null || filters?.performanceMin != null || filters?.performanceMax != null) {
+    const { data: ids } = await supabase.rpc("get_player_ids_by_last_observation", {
+      p_recommendation: filters.recommendation ?? null,
+      p_potential_now_min: filters.performanceMin ?? null,
+      p_potential_now_max: filters.performanceMax ?? null,
+    });
+    const playerIds = (ids ?? []) as string[];
+    if (playerIds.length === 0) {
+      return usePagination ? { data: [], total: 0 } : [];
+    }
+    query = query.in("id", playerIds);
   }
   if (filters?.status) {
     query = query.eq("pipeline_status", filters.status);

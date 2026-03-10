@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePositionDictionary } from "@/features/tactical/hooks/usePositionDictionary";
 import { getPositionIdFromCode, getPositionOptionsFromDictionary } from "@/features/players/components/PositionDictionarySelect";
+import { PositionPickerDialog } from "@/features/players/components/PositionPickerDialog";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
 import { useStrengths, useWeaknesses } from "@/features/dictionaries/hooks/useDictionaries";
 import { StrengthsWeaknessesTagField } from "./StrengthsWeaknessesTagField";
@@ -14,18 +15,28 @@ import { DuplicateWarningDialog } from "./DuplicateWarningDialog";
 import { checkDuplicatePlayers, type DuplicateCandidate } from "@/features/players/api/players.api";
 import type { PlayerSearchItem } from "@/features/players/api/players.api";
 import { mapLegacyPosition } from "@/features/players/positions";
-import type { MatchPlayerSlot } from "@/features/observations/types";
+import type { MatchPlayerSlot, MatchFormType } from "@/features/observations/types";
 
 const DEFAULT_BIRTH_YEAR = 2010;
 const CURRENT_YEAR = new Date().getFullYear();
 
 export type MatchObservationPlayerFormInitial = Partial<Omit<MatchPlayerSlot, "id">> & { id?: string };
 
+/** Ustalenie domyślnego trybu (Akademia/Senior) z rozgrywek: U8–U19 → Akademia, Seniorzy → Senior. */
+function defaultMatchFormType(competition?: string | null): MatchFormType {
+  if (!competition || !competition.trim()) return "academy";
+  const c = competition.trim().toLowerCase();
+  if (c.includes("senior") || c === "seniorzy") return "senior";
+  return "academy";
+}
+
 type MatchObservationPlayerFormProps = {
   initialData?: MatchObservationPlayerFormInitial | null;
   onSave: (data: Omit<MatchPlayerSlot, "id">) => void;
   onCancel: () => void;
   headerTeamNames?: string[];
+  /** Rozgrywki (kategoria) z nagłówka meczu — używane do domyślnego trybu Akademia/Senior. */
+  competition?: string | null;
 };
 
 const defaultSlotData: Omit<MatchPlayerSlot, "id"> = {
@@ -44,6 +55,11 @@ const defaultSlotData: Omit<MatchPlayerSlot, "id"> = {
   weaknesses: "",
   potential_now: 3,
   potential_future: 3,
+  technical_rating: 3,
+  speed_rating: 3,
+  motor_rating: 3,
+  tactical_rating: 3,
+  mental_rating: 3,
 };
 
 function toFormState(data: MatchObservationPlayerFormInitial | null | undefined): Omit<MatchPlayerSlot, "id"> {
@@ -64,6 +80,11 @@ function toFormState(data: MatchObservationPlayerFormInitial | null | undefined)
     weaknesses: data.weaknesses ?? "",
     potential_now: data.potential_now ?? 3,
     potential_future: data.potential_future ?? 3,
+    technical_rating: data.technical_rating ?? 3,
+    speed_rating: data.speed_rating ?? 3,
+    motor_rating: data.motor_rating ?? 3,
+    tactical_rating: data.tactical_rating ?? 3,
+    mental_rating: data.mental_rating ?? 3,
   };
 }
 
@@ -72,6 +93,7 @@ export function MatchObservationPlayerForm({
   onSave,
   onCancel,
   headerTeamNames = [],
+  competition,
 }: MatchObservationPlayerFormProps) {
   const { data: positions = [] } = usePositionDictionary(true);
   const positionOptions = getPositionOptionsFromDictionary(positions);
@@ -82,6 +104,10 @@ export function MatchObservationPlayerForm({
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
   const [duplicateCandidates, setDuplicateCandidates] = useState<DuplicateCandidate[]>([]);
   const [ignoreDuplicates, setIgnoreDuplicates] = useState(false);
+
+  const [formType, setFormType] = useState<MatchFormType>(() =>
+    initialData?.form_type ?? defaultMatchFormType(competition)
+  );
 
   const [player_id, setPlayer_id] = useState<string | undefined>(defaultSlotData.player_id);
   const [first_name, setFirst_name] = useState(defaultSlotData.first_name);
@@ -98,6 +124,11 @@ export function MatchObservationPlayerForm({
   const [weaknesses, setWeaknesses] = useState(defaultSlotData.weaknesses ?? "");
   const [potential_now, setPotential_now] = useState(defaultSlotData.potential_now ?? 3);
   const [potential_future, setPotential_future] = useState(defaultSlotData.potential_future ?? 3);
+  const [technical_rating, setTechnical_rating] = useState(defaultSlotData.technical_rating ?? 3);
+  const [speed_rating, setSpeed_rating] = useState(defaultSlotData.speed_rating ?? 3);
+  const [motor_rating, setMotor_rating] = useState(defaultSlotData.motor_rating ?? 3);
+  const [tactical_rating, setTactical_rating] = useState(defaultSlotData.tactical_rating ?? 3);
+  const [mental_rating, setMental_rating] = useState(defaultSlotData.mental_rating ?? 3);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -117,7 +148,17 @@ export function MatchObservationPlayerForm({
     setWeaknesses(state.weaknesses ?? "");
     setPotential_now(state.potential_now ?? 3);
     setPotential_future(state.potential_future ?? 3);
+    setTechnical_rating((state as MatchPlayerSlot).technical_rating ?? 3);
+    setSpeed_rating((state as MatchPlayerSlot).speed_rating ?? 3);
+    setMotor_rating((state as MatchPlayerSlot).motor_rating ?? 3);
+    setTactical_rating((state as MatchPlayerSlot).tactical_rating ?? 3);
+    setMental_rating((state as MatchPlayerSlot).mental_rating ?? 3);
+    if (initialData?.form_type) setFormType(initialData.form_type);
   }, [initialData]);
+
+  useEffect(() => {
+    if (!initialData?.form_type && competition) setFormType(defaultMatchFormType(competition));
+  }, [competition, initialData?.form_type]);
 
   const handleSelectPlayer = useCallback((player: PlayerSearchItem) => {
     setPlayer_id(player.id);
@@ -183,6 +224,12 @@ export function MatchObservationPlayerForm({
   }, []);
 
   const performSave = useCallback(() => {
+    const computedOverall =
+      formType === "academy"
+        ? Math.round(
+            ((technical_rating ?? 3) + (speed_rating ?? 3) + (motor_rating ?? 3) + (tactical_rating ?? 3) + (mental_rating ?? 3) + (potential_now ?? 3) + (potential_future ?? 3)) / 7 * 2
+          )
+        : 6;
     const data: Omit<MatchPlayerSlot, "id"> = {
       player_id,
       first_name: first_name.trim(),
@@ -191,20 +238,28 @@ export function MatchObservationPlayerForm({
       birth_date: birth_date.trim() || undefined,
       club_name: club_name.trim() || undefined,
       primary_position,
-      overall_rating,
+      overall_rating: formType === "senior" ? 6 : computedOverall,
       match_performance_rating,
       recommendation,
       summary: summary.trim(),
       strengths: strengths.trim() || undefined,
       weaknesses: weaknesses.trim() || undefined,
-      potential_now,
-      potential_future,
+      potential_now: formType === "senior" ? undefined : potential_now,
+      potential_future: formType === "senior" ? undefined : potential_future,
+      technical_rating: formType === "senior" ? undefined : (technical_rating ?? 3),
+      speed_rating: formType === "senior" ? undefined : (speed_rating ?? 3),
+      motor_rating: formType === "senior" ? undefined : (motor_rating ?? 3),
+      tactical_rating: formType === "senior" ? undefined : (tactical_rating ?? 3),
+      mental_rating: formType === "senior" ? undefined : (mental_rating ?? 3),
+      form_type: formType,
     };
     onSave(data);
   }, [
     player_id, first_name, last_name, birth_year, birth_date, club_name, primary_position,
-    overall_rating, match_performance_rating, recommendation, summary,
-    strengths, weaknesses, potential_now, potential_future, onSave,
+    formType, match_performance_rating, recommendation, summary,
+    strengths, weaknesses, potential_now, potential_future,
+    technical_rating, speed_rating, motor_rating, tactical_rating, mental_rating,
+    onSave,
   ]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -330,35 +385,116 @@ export function MatchObservationPlayerForm({
             </div>
             <div className="space-y-1">
               <Label>Pozycja główna <span className="text-red-600">*</span></Label>
-              <Select
-                value={getPositionIdFromCode(positions, primary_position) || "__none__"}
-                onValueChange={(id) => {
-                  setErrors((prev) => ({ ...prev, primary_position: "" }));
-                  if (id === "__none__") setPrimary_position("");
-                  else {
-                    const p = positions.find((x) => x.id === id);
-                    if (p) setPrimary_position(p.position_code);
-                  }
-                }}
-              >
-                <SelectTrigger className={errors.primary_position ? "border-red-500" : undefined}>
-                  <SelectValue placeholder="Wybierz pozycję" />
-                </SelectTrigger>
-                <SelectContent>
-                  {positionOptions.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={getPositionIdFromCode(positions, primary_position) || "__none__"}
+                  onValueChange={(id) => {
+                    setErrors((prev) => ({ ...prev, primary_position: "" }));
+                    if (id === "__none__") setPrimary_position("");
+                    else {
+                      const p = positions.find((x) => x.id === id);
+                      if (p) setPrimary_position(p.position_code);
+                    }
+                  }}
+                >
+                  <SelectTrigger className={errors.primary_position ? "border-red-500" : undefined}>
+                    <SelectValue placeholder="Wybierz pozycję" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {positionOptions.map((opt) => (
+                      <SelectItem key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <PositionPickerDialog
+                  value={primary_position || null}
+                  onSelect={(code) => {
+                    setPrimary_position(mapLegacyPosition(code) || code);
+                    setErrors((prev) => ({ ...prev, primary_position: "" }));
+                  }}
+                  buttonLabel="Wybierz na boisku"
+                />
+              </div>
               {errors.primary_position && <p className="text-sm text-red-600">{errors.primary_position}</p>}
             </div>
           </div>
         </section>
 
         <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="text-lg font-semibold text-slate-800">2. Oceny i analiza</h2>
+          <h2 className="text-lg font-semibold text-slate-800">2. Typ formularza</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <Label className="shrink-0">Typ formularza</Label>
+            <div className="flex rounded-lg border border-slate-200 p-0.5">
+              <button
+                type="button"
+                onClick={() => setFormType("academy")}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                  formType === "academy" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                Akademia
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormType("senior")}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                  formType === "senior" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                Senior
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {formType === "academy" && (
+          <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="text-lg font-semibold text-slate-800">3. Oceny ogólne</h2>
+            <p className="text-xs text-slate-500">Skala 1–5. Ogólna ocena (1–10) jest wyliczana automatycznie.</p>
+            {(
+              [
+                { label: "Technika", value: technical_rating, setter: setTechnical_rating },
+                { label: "Szybkość", value: speed_rating, setter: setSpeed_rating },
+                { label: "Motoryka", value: motor_rating, setter: setMotor_rating },
+                { label: "Taktyka", value: tactical_rating, setter: setTactical_rating },
+                { label: "Mentalność", value: mental_rating, setter: setMental_rating },
+              ] as const
+            ).map(({ label, value, setter }) => (
+              <div key={label}>
+                <Label>{label}</Label>
+                <div className="flex w-full gap-2 mt-1">
+                  {[1, 2, 3, 4, 5].map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setter(v)}
+                      className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition ${
+                        (value ?? 3) === v ? "border-red-600 bg-red-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
+                      }`}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div className="rounded-lg bg-slate-50 p-3">
+              <p className="text-sm font-medium text-slate-700">
+                Ogólna ocena:{" "}
+                {Math.round(
+                  ((technical_rating ?? 3) + (speed_rating ?? 3) + (motor_rating ?? 3) + (tactical_rating ?? 3) + (mental_rating ?? 3) + (potential_now ?? 3) + (potential_future ?? 3)) / 7 * 2
+                )}
+                /10
+              </p>
+              <p className="text-xs text-slate-500">(wyliczana z powyższych ocen)</p>
+            </div>
+          </section>
+        )}
+
+        <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-lg font-semibold text-slate-800">4. Oceny i analiza</h2>
           <div>
             <StrengthsWeaknessesTagField
               label="Mocne strony"
@@ -377,8 +513,21 @@ export function MatchObservationPlayerForm({
               variant="weaknesses"
             />
           </div>
+          <div className="space-y-1">
+            <Label>Podsumowanie (min. 10 znaków) <span className="text-red-600">*</span></Label>
+            <Textarea
+              rows={4}
+              value={summary}
+              onChange={(e) => { setSummary(e.target.value); setErrors((prev) => ({ ...prev, summary: "" })); }}
+              placeholder={formType === "senior" ? "Opis występu, mocne i słabe strony, rekomendacja, porównanie do zawodnika KS Polonia" : "Opis występu, mocne i słabe strony..."}
+              className={errors.summary ? "border-red-500" : undefined}
+            />
+            {errors.summary && <p className="text-sm text-red-600">{errors.summary}</p>}
+          </div>
+            {formType === "academy" && (
+            <>
           <div>
-            <Label>Potencjał obecny</Label>
+            <Label>Performance</Label>
             <div className="flex w-full gap-2">
               {[1, 2, 3, 4, 5].map((v) => (
                 <button
@@ -411,23 +560,9 @@ export function MatchObservationPlayerForm({
               ))}
             </div>
           </div>
-          <div>
-            <Label>Ocena ogólna (1–10) <span className="text-red-600">*</span></Label>
-            <div className="flex flex-wrap gap-2">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setOverall_rating(v)}
-                  className={`min-h-12 min-w-10 flex-1 rounded-lg border-2 text-base font-medium transition ${
-                    overall_rating === v ? "border-red-600 bg-red-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
-                  }`}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-          </div>
+            </>
+            )}
+          {formType === "senior" && (
           <div>
             <Label>Ocena za występ (1–5) <span className="text-red-600">*</span></Label>
             <div className="flex w-full gap-2">
@@ -445,6 +580,7 @@ export function MatchObservationPlayerForm({
               ))}
             </div>
           </div>
+          )}
           <div>
             <Label>Rekomendacja <span className="text-red-600">*</span></Label>
             <div className="flex gap-2">
@@ -460,17 +596,6 @@ export function MatchObservationPlayerForm({
                 </Button>
               ))}
             </div>
-          </div>
-          <div className="space-y-1">
-            <Label>Podsumowanie (min. 10 znaków) <span className="text-red-600">*</span></Label>
-            <Textarea
-              rows={4}
-              value={summary}
-              onChange={(e) => { setSummary(e.target.value); setErrors((prev) => ({ ...prev, summary: "" })); }}
-              placeholder="Opis występu, mocne i słabe strony..."
-              className={errors.summary ? "border-red-500" : undefined}
-            />
-            {errors.summary && <p className="text-sm text-red-600">{errors.summary}</p>}
           </div>
         </section>
 

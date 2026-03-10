@@ -1,21 +1,25 @@
 import { useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/common/PageHeader";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
 import { MatchObservationHeaderForm, type MatchObservationHeaderFormRef } from "@/features/observations/components/MatchObservationHeaderForm";
 import { fetchMatchObservationById, updateMatchObservation } from "@/features/observations/api/matchObservations.api";
 import { fetchObservationsByMatchObservation } from "@/features/observations/api/observations.api";
+import { useDeleteObservation } from "@/features/observations/hooks/useObservations";
+import { formatPosition } from "@/features/players/positions";
 import { toast } from "@/hooks/use-toast";
 
 export function MatchObservationEditPage() {
   const { matchId } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const headerFormRef = useRef<MatchObservationHeaderFormRef>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const deleteObservation = useDeleteObservation();
 
   const { data: match, isLoading } = useQuery({
     queryKey: ["match-observation", matchId],
@@ -31,14 +35,18 @@ export function MatchObservationEditPage() {
 
   const initialValues = match
     ? {
-        context_type: match.context_type as "match" | "tournament",
         observation_date: format(new Date(match.observation_date), "yyyy-MM-dd"),
         competition: match.competition,
+        league: match.league ?? "",
         home_team: match.home_team ?? "",
         away_team: match.away_team ?? "",
         match_result: match.match_result ?? "",
         location: match.location ?? "",
-        source: match.source,
+        source: (["live_match", "video_match", "video_clips", "tournament"] as const).includes(match.source as "live_match")
+          ? (match.source as "live_match" | "video_match" | "video_clips" | "tournament")
+          : match.context_type === "tournament"
+            ? "tournament"
+            : "live_match",
         home_team_formation: match.home_team_formation ?? "",
         away_team_formation: match.away_team_formation ?? "",
         match_notes: match.match_notes ?? "",
@@ -58,9 +66,9 @@ export function MatchObservationEditPage() {
     setIsSaving(true);
     try {
       await updateMatchObservation(matchId, {
-        context_type: values.context_type,
         observation_date: values.observation_date,
         competition: values.competition,
+        league: values.league?.trim() || null,
         home_team: values.home_team?.trim() || null,
         away_team: values.away_team?.trim() || null,
         match_result: values.match_result?.trim() || null,
@@ -80,6 +88,21 @@ export function MatchObservationEditPage() {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteObservation = async (observationId: string) => {
+    if (!window.confirm("Czy na pewno chcesz usunąć obserwację tego zawodnika z meczu?")) return;
+    try {
+      await deleteObservation.mutateAsync(observationId);
+      await queryClient.invalidateQueries({ queryKey: ["observations-by-match", matchId] });
+      toast({ title: "Obserwacja usunięta." });
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "Błąd",
+        description: e instanceof Error ? e.message : "Nie udało się usunąć obserwacji.",
+      });
     }
   };
 
@@ -130,23 +153,59 @@ export function MatchObservationEditPage() {
           </Button>
         </CardHeader>
         <CardContent>
-          <ul className="space-y-2">
-            {observations.map((obs) => (
-              <li key={obs.id}>
-                <Link
-                  to={`/observations/${obs.id}/edit`}
-                  className="text-red-600 hover:underline"
-                >
-                  {obs.player
-                    ? `${(obs.player as { first_name?: string }).first_name} ${(obs.player as { last_name?: string }).last_name}`
-                    : obs.id}
-                </Link>
-                {obs.overall_rating != null && (
-                  <span className="ml-2 text-slate-500">· Ocena {obs.overall_rating}</span>
-                )}
-              </li>
-            ))}
-          </ul>
+          {observations.length === 0 ? (
+            <p className="text-sm text-slate-500">Brak dodanych zawodników. Kliknij „Dodaj zawodnika”, aby dodać pierwszą obserwację.</p>
+          ) : (
+            <ul className="divide-y divide-slate-200 rounded-md border border-slate-200">
+              {observations.map((obs) => {
+                const player = obs.player as { first_name?: string; last_name?: string; primary_position?: string } | undefined;
+                const fullName = player
+                  ? `${player.first_name ?? ""} ${player.last_name ?? ""}`.trim() || "Zawodnik"
+                  : "Zawodnik";
+                const positionCode = obs.positions?.[0] ?? player?.primary_position ?? null;
+                const positionLabel = positionCode ? formatPosition(positionCode) : null;
+                return (
+                  <li
+                    key={obs.id}
+                    className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 hover:bg-slate-50 sm:flex-nowrap"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        to={`/observations/${obs.id}/edit`}
+                        className="font-medium text-red-600 hover:underline"
+                      >
+                        {fullName}
+                      </Link>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0 text-sm text-slate-500">
+                        {positionLabel && <span>{positionLabel}</span>}
+                        {obs.overall_rating != null && (
+                          <span>Ocena: {obs.overall_rating}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button asChild variant="ghost" size="icon" className="h-8 w-8" title="Edytuj obserwację">
+                        <Link to={`/observations/${obs.id}/edit`}>
+                          <Pencil className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-slate-400 hover:text-red-600"
+                        title="Usuń obserwację"
+                        disabled={deleteObservation.isPending}
+                        onClick={() => handleDeleteObservation(obs.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </div>

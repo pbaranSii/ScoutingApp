@@ -7,12 +7,12 @@ import {
   CheckSquare,
   Settings,
   BarChart3,
-  Heart,
   Star,
   LogOut,
   ChevronDown,
   Target,
 } from "lucide-react";
+import { ShadowTeamIcon } from "@/components/icons/ShadowTeamIcon";
 import { useAuthStore } from "@/stores/authStore";
 import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 import { canViewAnalytics, canAccessSettings, canAccessPipeline } from "@/features/users/types";
@@ -36,7 +36,7 @@ export function Sidebar() {
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/players", label: "Zawodnicy", icon: Users },
     { to: "/observations", label: "Obserwacje", icon: ClipboardList },
-    { to: "/favorites", label: "Ulubione", icon: Heart },
+    { to: "/favorites", label: "Shadow Team", icon: ShadowTeamIcon },
     { to: "/demands", label: "Zapotrzebowania", icon: Target },
     ...(showPipeline ? [{ to: "/pipeline", label: "Pipeline", icon: KanbanSquare }] : []),
     { to: "/tasks", label: "Zadania", icon: CheckSquare },
@@ -47,7 +47,7 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="hidden h-full w-60 flex-shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
+    <aside className="hidden h-full max-h-full min-h-0 w-60 flex-shrink-0 overflow-hidden border-r border-slate-200 bg-white lg:flex lg:flex-col">
       <div className="flex min-h-0 flex-1 flex-col p-4">
         <div className="flex flex-1 flex-col gap-6 min-h-0">
           <div className="flex items-center gap-3 flex-shrink-0">

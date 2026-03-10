@@ -9,15 +9,22 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useCategories } from "@/features/dictionaries/hooks/useDictionaries";
-import { usePlayerSources } from "@/features/dictionaries/hooks/useDictionaries";
 import { useFormations } from "@/features/tactical/hooks/useFormations";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
 
+/** Źródło obserwacji meczowej (jedno pole zamiast context_type + source). */
+export const MATCH_SOURCE_OPTIONS = [
+  { value: "live_match", label: "Mecz na żywo" },
+  { value: "video_match", label: "Mecz wideo" },
+  { value: "video_clips", label: "Fragmenty wideo" },
+  { value: "tournament", label: "Turniej" },
+] as const;
+
 const headerSchema = z
   .object({
-    context_type: z.enum(["match", "tournament"]),
     observation_date: z.string().min(1, "Wybierz datę"),
     competition: z.string().min(1, "Wybierz rozgrywki"),
+    league: z.string().max(200).optional(),
     home_team: z.string().optional(),
     away_team: z.string().optional(),
     match_result: z
@@ -25,13 +32,13 @@ const headerSchema = z
       .optional()
       .refine((s) => s === undefined || s === "" || /^\d{1,2}[-:]\d{1,2}$/.test(s), "Format: X:Y (np. 2:1)"),
     location: z.string().max(200).optional(),
-    source: z.string().min(1, "Wybierz źródło"),
+    source: z.enum(["live_match", "video_match", "video_clips", "tournament"]),
     home_team_formation: z.string().optional(),
     away_team_formation: z.string().optional(),
     match_notes: z.string().max(2000).optional(),
   })
   .superRefine((data, ctx) => {
-    if (data.context_type === "match") {
+    if (data.source !== "tournament") {
       if (!(data.home_team ?? "").trim() || (data.home_team ?? "").trim().length < 2) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Min. 2 znaki", path: ["home_team"] });
       }
@@ -68,20 +75,19 @@ export const MatchObservationHeaderForm = forwardRef<
   MatchObservationHeaderFormProps
 >(function MatchObservationHeaderForm({ initialValues, onValuesChange }, ref) {
   const { data: categories = [] } = useCategories();
-  const { data: playerSources = [] } = usePlayerSources();
   const { data: formations = [] } = useFormations();
 
   const form = useForm<MatchHeaderFormValues>({
     resolver: zodResolver(headerSchema),
     defaultValues: {
-      context_type: "match",
       observation_date: format(new Date(), "yyyy-MM-dd"),
       competition: "",
+      league: "",
       home_team: "",
       away_team: "",
       match_result: "",
       location: "",
-      source: "scouting",
+      source: "live_match",
       home_team_formation: "",
       away_team_formation: "",
       match_notes: "",
@@ -89,8 +95,8 @@ export const MatchObservationHeaderForm = forwardRef<
     },
   });
 
-  const contextType = form.watch("context_type");
-  const isMatch = contextType === "match";
+  const source = form.watch("source");
+  const isMatchLike = source !== "tournament";
   const allValues = form.watch();
 
   useEffect(() => {
@@ -112,14 +118,14 @@ export const MatchObservationHeaderForm = forwardRef<
   }));
 
   const defaults = {
-    context_type: "match" as const,
     observation_date: format(new Date(), "yyyy-MM-dd"),
     competition: "",
+    league: "",
     home_team: "",
     away_team: "",
     match_result: "",
     location: "",
-    source: "scouting",
+    source: "live_match" as const,
     home_team_formation: "",
     away_team_formation: "",
     match_notes: "",
@@ -144,22 +150,22 @@ export const MatchObservationHeaderForm = forwardRef<
         <div className="grid gap-4 sm:grid-cols-3">
           <FormField
             control={form.control}
-            name="context_type"
+            name="source"
             render={({ field }) => (
               <FormItem>
-                <Label>Typ kontekstu</Label>
-                <Select
-                  value={field.value}
-                  onValueChange={field.onChange}
-                >
+                <Label>Źródło <span className="text-red-600">*</span></Label>
+                <Select value={field.value} onValueChange={field.onChange}>
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue placeholder="Wybierz źródło" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="match">Mecz</SelectItem>
-                    <SelectItem value="tournament">Turniej</SelectItem>
+                    {MATCH_SOURCE_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -179,32 +185,8 @@ export const MatchObservationHeaderForm = forwardRef<
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="source"
-            render={({ field }) => (
-              <FormItem>
-                <Label>Źródło <span className="text-red-600">*</span></Label>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Wybierz źródło" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {(playerSources as { source_code?: string; name_pl?: string }[]).map((s) => (
-                      <SelectItem key={String(s.source_code)} value={String(s.source_code)}>
-                        {String(s.name_pl ?? s.source_code)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <FormField
             control={form.control}
             name="competition"
@@ -231,6 +213,19 @@ export const MatchObservationHeaderForm = forwardRef<
           />
           <FormField
             control={form.control}
+            name="league"
+            render={({ field }) => (
+              <FormItem>
+                <Label>Liga</Label>
+                <FormControl>
+                  <Input placeholder="np. Ekstraklasa, 1. Liga" {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
             name="location"
             render={({ field }) => (
               <FormItem>
@@ -243,7 +238,7 @@ export const MatchObservationHeaderForm = forwardRef<
             )}
           />
         </div>
-        {isMatch && (
+        {isMatchLike && (
           <div className="grid gap-4 sm:grid-cols-3">
             <FormField
               control={form.control}
@@ -294,6 +289,7 @@ export const MatchObservationHeaderForm = forwardRef<
             />
           </div>
         )}
+        {isMatchLike && (
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             control={form.control}
@@ -311,7 +307,7 @@ export const MatchObservationHeaderForm = forwardRef<
                     <SelectItem value="__none__">— Brak —</SelectItem>
                     {formations.map((f: { id: string; name: string; code: string }) => (
                       <SelectItem key={f.id} value={f.code}>
-                        {f.name} ({f.code})
+                        {f.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -336,7 +332,7 @@ export const MatchObservationHeaderForm = forwardRef<
                     <SelectItem value="__none__">— Brak —</SelectItem>
                     {formations.map((f: { id: string; name: string; code: string }) => (
                       <SelectItem key={f.id} value={f.code}>
-                        {f.name} ({f.code})
+                        {f.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -346,6 +342,7 @@ export const MatchObservationHeaderForm = forwardRef<
             )}
           />
         </div>
+        )}
         <FormField
           control={form.control}
           name="match_notes"

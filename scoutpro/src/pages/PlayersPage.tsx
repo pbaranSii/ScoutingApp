@@ -23,8 +23,23 @@ export function PlayersPage() {
     position: "",
     status: "",
     birthYear: "",
+    birthYearFrom: "",
+    birthYearTo: "",
+    contractEndBefore: "",
+    recommendation: "",
+    performanceMin: "",
+    performanceMax: "",
   });
-  const hasActiveFilters = filters.position || filters.status || filters.birthYear;
+  const hasActiveFilters =
+    filters.position ||
+    filters.status ||
+    filters.birthYear ||
+    filters.birthYearFrom ||
+    filters.birthYearTo ||
+    filters.contractEndBefore ||
+    filters.recommendation ||
+    filters.performanceMin ||
+    filters.performanceMax;
 
   const { data = [], total = 0, isLoading } = usePlayers({
     search: search || undefined,
@@ -33,12 +48,29 @@ export function PlayersPage() {
     primary_position: filters.position || undefined,
     status: (filters.status || undefined) as PipelineStatus | undefined,
     birthYear: filters.birthYear ? Number(filters.birthYear) : undefined,
+    birthYearFrom: filters.birthYearFrom ? Number(filters.birthYearFrom) : undefined,
+    birthYearTo: filters.birthYearTo ? Number(filters.birthYearTo) : undefined,
+    contractEndBefore: filters.contractEndBefore || undefined,
+    recommendation: (filters.recommendation || undefined) as "positive" | "to_observe" | "negative" | undefined,
+    performanceMin: filters.performanceMin ? Number(filters.performanceMin) : undefined,
+    performanceMax: filters.performanceMax ? Number(filters.performanceMax) : undefined,
     ...(profile?.business_role === "scout" && profile?.id ? { createdBy: profile.id } : {}),
   });
 
   useEffect(() => {
     setPage(1);
-  }, [search, filters.position, filters.status, filters.birthYear]);
+  }, [
+    search,
+    filters.position,
+    filters.status,
+    filters.birthYear,
+    filters.birthYearFrom,
+    filters.birthYearTo,
+    filters.contractEndBefore,
+    filters.recommendation,
+    filters.performanceMin,
+    filters.performanceMax,
+  ]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -120,12 +152,91 @@ export function PlayersPage() {
                 placeholder="np. 2008"
               />
             </div>
+            <div className="space-y-2 sm:col-span-2">
+              <label className="text-sm font-medium text-slate-700">Rocznik od – do</label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={filters.birthYearFrom}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, birthYearFrom: e.target.value }))}
+                  placeholder="od (np. 2005)"
+                />
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={filters.birthYearTo}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, birthYearTo: e.target.value }))}
+                  placeholder="do (np. 2010)"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Kontrakt kończy się przed</label>
+              <Input
+                type="date"
+                value={filters.contractEndBefore}
+                onChange={(e) => setFilters((prev) => ({ ...prev, contractEndBefore: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Rekomendacja (ostatnia obserwacja)</label>
+              <Select
+                value={filters.recommendation}
+                onValueChange={(v) => setFilters((prev) => ({ ...prev, recommendation: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Dowolna" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Dowolna</SelectItem>
+                  <SelectItem value="positive">Pozytywna</SelectItem>
+                  <SelectItem value="to_observe">Do obserwacji</SelectItem>
+                  <SelectItem value="negative">Negatywna</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <label className="text-sm font-medium text-slate-700">Performance (ostatnia obserwacja, 1–5)</label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  inputMode="numeric"
+                  value={filters.performanceMin}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, performanceMin: e.target.value }))}
+                  placeholder="min"
+                />
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  inputMode="numeric"
+                  value={filters.performanceMax}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, performanceMax: e.target.value }))}
+                  placeholder="max"
+                />
+              </div>
+            </div>
           </div>
           <div className="mt-4 flex flex-wrap justify-end gap-2">
             <Button
               type="button"
               variant="outline"
-              onClick={() => setFilters({ position: "", status: "", birthYear: "" })}
+              onClick={() =>
+                setFilters({
+                  position: "",
+                  status: "",
+                  birthYear: "",
+                  birthYearFrom: "",
+                  birthYearTo: "",
+                  contractEndBefore: "",
+                  recommendation: "",
+                  performanceMin: "",
+                  performanceMax: "",
+                })
+              }
             >
               Wyczyść
             </Button>

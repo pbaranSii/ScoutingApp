@@ -8,9 +8,9 @@ type MatchObservationUpdate = Database["public"]["Tables"]["match_observations"]
 export type MatchObservation = MatchObservationRow;
 
 export type MatchObservationInput = {
-  context_type?: "match" | "tournament";
   observation_date: string;
   competition: string;
+  league?: string | null;
   home_team?: string | null;
   away_team?: string | null;
   match_result?: string | null;
@@ -27,9 +27,10 @@ export async function createMatchObservation(
   input: MatchObservationInput
 ): Promise<MatchObservation> {
   const row: MatchObservationInsert = {
-    context_type: input.context_type ?? "match",
+    context_type: input.source === "tournament" ? "tournament" : "match",
     observation_date: input.observation_date,
     competition: input.competition,
+    league: input.league ?? null,
     home_team: input.home_team ?? null,
     away_team: input.away_team ?? null,
     match_result: input.match_result ?? null,
@@ -77,9 +78,10 @@ export async function updateMatchObservation(
   const payload: MatchObservationUpdate = {
     updated_at: new Date().toISOString(),
   };
-  if (input.context_type !== undefined) payload.context_type = input.context_type;
+  if (input.source !== undefined) payload.context_type = input.source === "tournament" ? "tournament" : "match";
   if (input.observation_date !== undefined) payload.observation_date = input.observation_date;
   if (input.competition !== undefined) payload.competition = input.competition;
+  if (input.league !== undefined) payload.league = input.league;
   if (input.home_team !== undefined) payload.home_team = input.home_team;
   if (input.away_team !== undefined) payload.away_team = input.away_team;
   if (input.match_result !== undefined) payload.match_result = input.match_result;

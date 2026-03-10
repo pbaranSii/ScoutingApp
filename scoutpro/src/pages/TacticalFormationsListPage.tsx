@@ -62,6 +62,11 @@ export function TacticalFormationsListPage() {
                 Słownik pozycji
               </Link>
             </Button>
+            <Button variant="outline" asChild>
+              <Link to="/settings/tactical/form-templates">
+                Wzory formularzy
+              </Link>
+            </Button>
             <Button asChild>
               <Link to="/settings/tactical/formations/new">
                 <Plus className="mr-2 h-4 w-4" />

@@ -17,6 +17,12 @@ const TYPE_CONFIG: Record<
   observation: { bg: "bg-green-100", icon: ClipboardList },
 };
 
+const OBSERVATION_SOURCE_LABELS: Record<string, string> = {
+  live_match: "Mecz na żywo",
+  video_match: "Mecz wideo",
+  video_clips: "Fragmenty wideo",
+};
+
 type TaskCardProps = {
   task: Task;
   assignedToName?: string | null;
@@ -149,7 +155,7 @@ export function TaskCard({
               <p>Zawodnicy: {task.player_names.join(", ")}</p>
             ) : null}
             {task.observation_source && (
-              <p>Źródło zaproszenia: {task.observation_source}</p>
+              <p>Źródło: {OBSERVATION_SOURCE_LABELS[task.observation_source] ?? task.observation_source}</p>
             )}
           </div>
         )}
