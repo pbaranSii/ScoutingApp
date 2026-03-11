@@ -49,7 +49,7 @@ export type OfflineObservation = {
     recommendations?: string;
     summary?: string;
     recommendation?: "positive" | "to_observe" | "negative";
-    form_type?: "simplified" | "extended";
+    form_type?: "simplified" | "extended" | "academy" | "senior";
     match_performance_rating?: number;
     match_observation_id?: string | null;
     observation_category?: "match_player" | "individual";
