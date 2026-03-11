@@ -62,7 +62,7 @@ export function EditObservationPage() {
       photo_url: observation.photo_url ?? "",
       rank: observation.rank ?? "B",
       source: observation.source ?? "live_match",
-      form_type: observation.form_type ?? "simplified",
+      form_type: observation.form_type === "extended" ? "senior" : observation.form_type === "simplified" ? "academy" : (observation.form_type ?? "academy"),
       summary: observation.summary ?? "",
       recommendation: observation.recommendation ?? undefined,
       match_performance_rating: observation.match_performance_rating ?? undefined,

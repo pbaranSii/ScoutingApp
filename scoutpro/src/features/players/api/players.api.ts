@@ -351,11 +351,17 @@ export async function fetchPlayerById(id: string) {
 }
 
 export async function createPlayer(input: PlayerInput) {
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  const userId = authData.user?.id;
+  if (!userId) throw new Error("Brak zalogowanego użytkownika.");
+
   const { data, error } = await supabase
     .from("players")
     .insert({
       ...input,
       pipeline_status: input.pipeline_status ?? "unassigned",
+      created_by: userId,
     })
     .select("id")
     .single();

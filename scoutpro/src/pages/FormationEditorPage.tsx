@@ -158,12 +158,12 @@ export function FormationEditorPage() {
 
     if (isNew) {
       try {
-        const created = await createFormation.mutateAsync({
+        await createFormation.mutateAsync({
           input: { name, code, description, is_default, is_system: false },
           slots: slotPayload,
         });
         toast({ title: "Utworzono schemat" });
-        navigate(`/settings/tactical/formations/${created.id}`, { replace: true });
+        navigate("/settings/tactical/formations", { replace: true });
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Błąd zapisu";
         toast({ variant: "destructive", title: "Błąd", description: msg });
@@ -173,6 +173,7 @@ export function FormationEditorPage() {
         await updateFormation.mutateAsync({ id, input: { name, code, description, is_default } });
         await replaceSlots.mutateAsync({ formationId: id, slots: slotPayload });
         toast({ title: "Zapisano schemat" });
+        navigate("/settings/tactical/formations", { replace: true });
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Błąd zapisu";
         toast({ variant: "destructive", title: "Błąd", description: msg });

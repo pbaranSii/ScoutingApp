@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -130,6 +130,7 @@ export function MatchObservationPlayerForm({
   const [tactical_rating, setTactical_rating] = useState(defaultSlotData.tactical_rating ?? 3);
   const [mental_rating, setMental_rating] = useState(defaultSlotData.mental_rating ?? 3);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     const state = toFormState(initialData ?? null);
@@ -297,7 +298,7 @@ export function MatchObservationPlayerForm({
   const duplicateCandidateDisplay = `${first_name} ${last_name}, ${birth_year}, ${club_name || "—"}`;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 lg:pb-0">
       <PlayerSearchDialog
         open={searchDialogOpen}
         onClose={() => setSearchDialogOpen(false)}
@@ -313,7 +314,7 @@ export function MatchObservationPlayerForm({
         onClose={() => setDuplicateDialogOpen(false)}
       />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
         <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
           <h2 className="text-lg font-semibold text-slate-800">1. Dane zawodnika</h2>
           <div className="flex flex-wrap gap-2">
@@ -599,7 +600,7 @@ export function MatchObservationPlayerForm({
           </div>
         </section>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2 max-lg:hidden">
           <Button type="button" variant="outline" onClick={onCancel}>
             Anuluj
           </Button>
@@ -608,6 +609,15 @@ export function MatchObservationPlayerForm({
           </Button>
         </div>
       </form>
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white p-4 lg:hidden">
+        <Button
+          type="button"
+          className="w-full"
+          onClick={() => formRef.current?.requestSubmit()}
+        >
+          Zapisz i wróć
+        </Button>
+      </div>
     </div>
   );
 }

@@ -104,14 +104,14 @@ export function TacticalPositionDictionaryPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
         <div className="flex items-center gap-3">
           <Link
-            to="/settings/tactical/formations"
+            to="/settings/dictionaries"
             className="inline-flex items-center gap-2 hover:text-slate-900"
           >
             <ArrowLeft className="h-4 w-4" />
-            Powrót do ustawień taktycznych
+            Powrót do słowników
           </Link>
           <Link
-            to="/settings/tactical/form-templates"
+            to="/settings/form-templates"
             className="inline-flex items-center gap-2 hover:text-slate-900"
           >
             Wzory formularzy

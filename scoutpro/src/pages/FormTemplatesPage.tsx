@@ -204,9 +204,9 @@ export function FormTemplatesPage() {
   return (
     <div className="mx-auto w-full max-w-[960px] space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
-        <Link to="/settings/tactical/formations" className="inline-flex items-center gap-2 hover:text-slate-900">
+        <Link to="/settings" className="inline-flex items-center gap-2 hover:text-slate-900">
           <ArrowLeft className="h-4 w-4" />
-          Powrót do ustawień taktycznych
+          Powrót do ustawień
         </Link>
       </div>
       <PageHeader

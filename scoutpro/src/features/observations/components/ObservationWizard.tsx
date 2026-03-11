@@ -396,24 +396,6 @@ export function ObservationWizard({
   }, [isEditMode, existingCriterionNotes]);
 
   useEffect(() => {
-    if (isEditMode) return;
-    const stored = localStorage.getItem("scoutpro-observation-draft");
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as Record<string, unknown>;
-        if (parsed.full_name != null && (parsed.first_name == null || parsed.last_name == null)) {
-          const parts = String(parsed.full_name).trim().split(/\s+/).filter(Boolean);
-          parsed.first_name = parts.length >= 2 ? parts.slice(0, -1).join(" ") : parts[0] ?? "";
-          parsed.last_name = parts.length >= 2 ? (parts.pop() ?? "") : parts[0] ?? "";
-        }
-        form.reset(parsed as WizardFormValues);
-      } catch {
-        localStorage.removeItem("scoutpro-observation-draft");
-      }
-    }
-  }, [form, isEditMode]);
-
-  useEffect(() => {
     if (!prefillPlayer) return;
     form.setValue("player_id", prefillPlayer.id);
     form.setValue("first_name", prefillPlayer.first_name ?? "");
@@ -609,7 +591,7 @@ export function ObservationWizard({
             updated_at: nowIso,
             updated_by_name: auditName,
             updated_by_role: auditRole,
-            form_type: (values.form_type === "simplified" || values.form_type === "extended" ? "academy" : values.form_type) ?? "academy",
+            form_type: (values.form_type === "senior" ? "senior" : "academy"),
             summary: values.summary?.trim() || null,
             recommendation: values.recommendation ?? null,
             match_performance_rating: values.match_performance_rating ?? null,
@@ -758,7 +740,7 @@ export function ObservationWizard({
             photo_url: values.photo_url?.trim(),
             summary: values.summary?.trim(),
             recommendation: values.recommendation ?? undefined,
-            form_type: (values.form_type === "senior" ? "extended" : "simplified"),
+            form_type: (values.form_type === "senior" ? "senior" : "academy"),
             match_performance_rating: values.match_performance_rating ?? undefined,
             created_by: user.id,
             created_by_name: auditName,
@@ -865,7 +847,7 @@ export function ObservationWizard({
           updated_by_name: auditName,
           updated_by_role: auditRole,
           updated_at: nowIso,
-          form_type: (values.form_type === "senior" ? "extended" : "simplified"),
+          form_type: (values.form_type === "senior" ? "senior" : "academy"),
           summary: values.summary?.trim() || null,
           recommendation: values.recommendation ?? null,
           match_performance_rating: values.match_performance_rating ?? null,
@@ -935,11 +917,6 @@ export function ObservationWizard({
     }
   };
 
-  const handleSaveDraft = () => {
-    const values = form.getValues();
-    localStorage.setItem("scoutpro-observation-draft", JSON.stringify(values));
-  };
-
   const handleInvalid = (errors: FieldErrors<WizardFormValues>) => {
     const firstField = Object.keys(errors)[0] as keyof WizardFormValues | undefined;
     if (firstField) {
@@ -954,7 +931,7 @@ export function ObservationWizard({
   const showPlayerActions = !lockPlayerFields && !prefillPlayer;
 
   return (
-    <div className="min-h-0 space-y-4">
+    <div className="min-h-0 space-y-4 pb-24 lg:pb-0">
       <PlayerSearchDialog
         open={searchDialogOpen}
         onClose={() => setSearchDialogOpen(false)}
@@ -2023,13 +2000,8 @@ export function ObservationWizard({
 
           {submitError && <p className="text-sm text-red-600">{submitError}</p>}
 
-          <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="hidden flex-wrap items-center justify-between gap-2 lg:flex">
             <div className="flex flex-wrap items-center gap-2">
-              {!isEditMode && (
-                <Button type="button" variant="secondary" onClick={handleSaveDraft}>
-                  Zapisz szkic
-                </Button>
-              )}
               <Button asChild type="button" variant="outline">
                 <Link to={cancelHref}>Anuluj</Link>
               </Button>
@@ -2040,6 +2012,16 @@ export function ObservationWizard({
           </div>
         </form>
       </Form>
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white p-4 lg:hidden">
+        <Button
+          type="button"
+          className="w-full"
+          disabled={isSaving}
+          onClick={() => form.handleSubmit(onSubmit)()}
+        >
+          {isSaving ? "Zapisywanie..." : isEditMode ? "Zapisz zmiany" : "Zapisz obserwację"}
+        </Button>
+      </div>
     </div>
   );
 }

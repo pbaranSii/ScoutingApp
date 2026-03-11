@@ -28,6 +28,13 @@ const SETTING_ITEMS = [
     adminOnly: false,
   },
   {
+    to: "/settings/form-templates",
+    label: "Wzory formularzy pozycji",
+    description: "Zarządzaj wzorami formularzy opisu pozycji (sekcja 4b).",
+    icon: BookOpen,
+    adminOnly: true,
+  },
+  {
     to: "/admin/settings/analytics",
     label: "Analytics Settings",
     description: "Cele, limity i sezon dla Recruitment Analytics.",
@@ -51,7 +58,7 @@ const SETTING_ITEMS = [
   {
     to: "/settings/tactical/formations",
     label: "Schematy taktyczne",
-    description: "Słownik pozycji i schematy taktyczne (formacje).",
+    description: "Schematy taktyczne (formacje) używane w modułach obserwacji.",
     icon: LayoutGrid,
     adminOnly: true,
   },

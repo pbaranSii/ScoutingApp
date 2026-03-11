@@ -245,7 +245,7 @@ export function MatchObservationNewPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[960px] space-y-6">
+    <div className="mx-auto w-full max-w-[960px] space-y-6 pb-24 lg:pb-0">
       <PageHeader
         title="Obserwacja meczowa"
         subtitle="Nagłówek spotkania i wyróżniający się zawodnicy"
@@ -321,11 +321,21 @@ export function MatchObservationNewPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end max-lg:hidden">
         <Button
           onClick={handleSaveMatchObservation}
           disabled={isSaving || players.length === 0}
           className="gap-2"
+        >
+          {isSaving ? "Zapisywanie…" : "Zapisz obserwację meczową"}
+        </Button>
+      </div>
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white p-4 lg:hidden">
+        <Button
+          type="button"
+          className="w-full"
+          disabled={isSaving || players.length === 0}
+          onClick={handleSaveMatchObservation}
         >
           {isSaving ? "Zapisywanie…" : "Zapisz obserwację meczową"}
         </Button>

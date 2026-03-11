@@ -54,19 +54,9 @@ export function TacticalFormationsListPage() {
       </div>
       <PageHeader
         title="Schematy taktyczne"
-        subtitle="Zarządzaj schematami (formacjami) i ustawieniem domyślnym. Można edytować i usuwać schematy utworzone przez użytkownika."
+        subtitle="Zarządzaj schematami (formacjami) i ustawieniem domyślnym."
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link to="/settings/tactical/positions">
-                Słownik pozycji
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/settings/tactical/form-templates">
-                Wzory formularzy
-              </Link>
-            </Button>
             <Button asChild>
               <Link to="/settings/tactical/formations/new">
                 <Plus className="mr-2 h-4 w-4" />
@@ -138,18 +128,16 @@ export function TacticalFormationsListPage() {
                           Edytuj
                         </Link>
                       </Button>
-                      {!isSystem && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(f.id, f.name)}
-                          disabled={deleteFormation.isPending}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          title="Usuń schemat"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(f.id, f.name)}
+                        disabled={deleteFormation.isPending}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        title="Usuń schemat"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 );

@@ -33,8 +33,11 @@ create index if not exists idx_dict_body_build_display_order on public.dict_body
 
 alter table public.dict_body_build enable row level security;
 
+drop policy if exists "Dict body build viewable by authenticated" on public.dict_body_build;
 create policy "Dict body build viewable by authenticated"
   on public.dict_body_build for select to authenticated using (true);
+
+drop policy if exists "Admin can manage dict body build" on public.dict_body_build;
 create policy "Admin can manage dict body build"
   on public.dict_body_build for all to authenticated
   using (public.is_admin()) with check (public.is_admin());

@@ -115,6 +115,9 @@ export default function App() {
               <Route path="tactical/formations/new" element={<FormationEditorPage />} />
               <Route path="tactical/formations/:id" element={<FormationEditorPage />} />
               <Route path="tactical/positions" element={<TacticalPositionDictionaryPage />} />
+              {/* Nowy, bardziej intuicyjny adres dla Wzorów formularzy */}
+              <Route path="form-templates" element={<FormTemplatesPage />} />
+              {/* Zachowanie starej ścieżki dla kompatybilności */}
               <Route path="tactical/form-templates" element={<FormTemplatesPage />} />
             </Route>
             <Route path="dictionaries" element={<DictionaryListPage />} />

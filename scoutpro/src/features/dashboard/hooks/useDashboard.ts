@@ -13,27 +13,37 @@ import { fetchTasksForUser } from "@/features/tasks/api/tasks.api";
 import { fetchRecentDemands } from "@/features/demands/api/demands.api";
 
 export function useObservationStats() {
+  const { data: profile } = useCurrentUserProfile();
+  const scoutId =
+    profile?.business_role === "scout" && profile?.id ? profile.id : undefined;
   return useQuery({
-    queryKey: ["dashboard", "observations"],
+    queryKey: ["dashboard", "observations", scoutId],
     queryFn: () =>
       fetchObservationCounts(
         format(startOfMonth(new Date()), "yyyy-MM-dd"),
-        format(subDays(new Date(), 7), "yyyy-MM-dd")
+        format(subDays(new Date(), 7), "yyyy-MM-dd"),
+        scoutId
       ),
   });
 }
 
 export function usePlayerCount() {
+  const { data: profile } = useCurrentUserProfile();
+  const createdBy =
+    profile?.business_role === "scout" && profile?.id ? profile.id : undefined;
   return useQuery({
-    queryKey: ["dashboard", "players-count"],
-    queryFn: fetchPlayerCount,
+    queryKey: ["dashboard", "players-count", createdBy],
+    queryFn: () => fetchPlayerCount(createdBy),
   });
 }
 
 export function usePlayersByStatus() {
+  const { data: profile } = useCurrentUserProfile();
+  const createdBy =
+    profile?.business_role === "scout" && profile?.id ? profile.id : undefined;
   return useQuery({
-    queryKey: ["dashboard", "players-status"],
-    queryFn: fetchPlayersByStatus,
+    queryKey: ["dashboard", "players-status", createdBy],
+    queryFn: () => fetchPlayersByStatus(createdBy),
   });
 }
 
