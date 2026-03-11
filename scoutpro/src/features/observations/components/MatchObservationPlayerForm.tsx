@@ -525,45 +525,6 @@ export function MatchObservationPlayerForm({
             />
             {errors.summary && <p className="text-sm text-red-600">{errors.summary}</p>}
           </div>
-            {formType === "academy" && (
-            <>
-          <div>
-            <Label>Performance</Label>
-            <div className="flex w-full gap-2">
-              {[1, 2, 3, 4, 5].map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setPotential_now(v)}
-                  className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition ${
-                    potential_now === v ? "border-red-600 bg-red-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
-                  }`}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <Label>Potencjał przyszły</Label>
-            <div className="flex w-full gap-2">
-              {[1, 2, 3, 4, 5].map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setPotential_future(v)}
-                  className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition ${
-                    potential_future === v ? "border-red-600 bg-red-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
-                  }`}
-                >
-                  {v}
-                </button>
-              ))}
-            </div>
-          </div>
-            </>
-            )}
-          {formType === "senior" && (
           <div>
             <Label>Ocena za występ (1–5) <span className="text-red-600">*</span></Label>
             <div className="flex w-full gap-2">
@@ -581,20 +542,20 @@ export function MatchObservationPlayerForm({
               ))}
             </div>
           </div>
-          )}
           <div>
             <Label>Rekomendacja <span className="text-red-600">*</span></Label>
-            <div className="flex gap-2">
+            <div className="flex w-full gap-2">
               {(["positive", "to_observe", "negative"] as const).map((r) => (
-                <Button
+                <button
                   key={r}
                   type="button"
-                  variant={recommendation === r ? "default" : "outline"}
-                  size="sm"
                   onClick={() => setRecommendation(r)}
+                  className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition ${
+                    recommendation === r ? "border-red-600 bg-red-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
+                  }`}
                 >
                   {r === "positive" ? "Pozytywna" : r === "to_observe" ? "Do obserwacji" : "Negatywna"}
-                </Button>
+                </button>
               ))}
             </div>
           </div>

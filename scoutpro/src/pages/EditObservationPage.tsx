@@ -1,8 +1,10 @@
 import { useParams } from "react-router-dom";
 import { useMemo } from "react";
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
 import { useObservation } from "@/features/observations/hooks/useObservations";
 import { ObservationWizard } from "@/features/observations/components/ObservationWizard";
+import { fetchMatchObservationById } from "@/features/observations/api/matchObservations.api";
 import { mapLegacyPosition } from "@/features/players/positions";
 import { useMultimediaByObservation, useDeleteMultimedia } from "@/features/multimedia";
 
@@ -12,6 +14,12 @@ export function EditObservationPage() {
   const { data: observation, isLoading } = useObservation(observationId);
   const { data: savedMedia = [] } = useMultimediaByObservation(observationId);
   const deleteMultimedia = useDeleteMultimedia(observation?.player_id ?? "");
+  const matchObservationId = observation?.match_observation_id ?? null;
+  const { data: matchObservation } = useQuery({
+    queryKey: ["match-observation", matchObservationId],
+    queryFn: () => fetchMatchObservationById(matchObservationId!),
+    enabled: !!matchObservationId,
+  });
 
   const currentYear = useMemo(() => new Date().getFullYear(), []);
 
@@ -27,6 +35,7 @@ export function EditObservationPage() {
       observation.positions?.slice(1).map((p) => mapLegacyPosition(p)) ?? [];
     return {
       player_id: observation.player_id,
+      observation_category: (observation.observation_category === "match_player" ? "match_player" : "individual") as "match_player" | "individual",
       first_name: observation.player?.first_name ?? "",
       last_name: observation.player?.last_name ?? "",
       age: observation.player?.birth_year ?? currentYear - 16,
@@ -66,8 +75,10 @@ export function EditObservationPage() {
       summary: observation.summary ?? "",
       recommendation: observation.recommendation ?? undefined,
       match_performance_rating: observation.match_performance_rating ?? undefined,
+      home_team_formation: matchObservation?.home_team_formation ?? "",
+      away_team_formation: matchObservation?.away_team_formation ?? "",
     };
-  }, [observation, currentYear]);
+  }, [observation, matchObservation, currentYear]);
 
   const prefillPlayer = useMemo(() => {
     if (!observation?.player) return undefined;
@@ -100,6 +111,7 @@ export function EditObservationPage() {
       <ObservationWizard
         mode="edit"
         observationId={observationId}
+        matchObservationId={matchObservationId ?? undefined}
         initialValues={initialValues}
         prefillPlayer={prefillPlayer}
         lockPlayerFields={true}

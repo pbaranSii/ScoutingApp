@@ -24,6 +24,13 @@ function getFormTypeLabel(formType: Observation["form_type"]): string {
   return "";
 }
 
+/** Dla obserwacji meczowych: zawsze pokazujemy „Akademia” lub „Senior”, także gdy w bazie jest simplified/extended. */
+function getMatchFormLabel(formType: Observation["form_type"]): string {
+  if (formType === "senior") return "Senior";
+  if (formType === "academy" || formType === "simplified" || formType === "extended") return "Akademia";
+  return "";
+}
+
 function getRecommendationLabel(recommendation: Observation["recommendation"]): string {
   if (recommendation === "positive") return "Pozytywna";
   if (recommendation === "negative") return "Negatywna";
@@ -50,12 +57,11 @@ export function ObservationCard({ observation }: ObservationCardProps) {
 
   const category = observation.observation_category;
   const categoryLabel = getCategoryLabel(category);
-  const showFormType =
-    (category === "individual" &&
-      (observation.form_type === "simplified" || observation.form_type === "extended")) ||
-    (category === "match_player" &&
-      (observation.form_type === "academy" || observation.form_type === "senior"));
-  const formTypeLabel = getFormTypeLabel(observation.form_type);
+  const formTypeLabel =
+    category === "match_player"
+      ? getMatchFormLabel(observation.form_type)
+      : getFormTypeLabel(observation.form_type);
+  const showFormType = Boolean(formTypeLabel);
   const recommendationLabel = getRecommendationLabel(observation.recommendation);
   const hasRecommendation = Boolean(observation.recommendation);
   const recommendationClass =
