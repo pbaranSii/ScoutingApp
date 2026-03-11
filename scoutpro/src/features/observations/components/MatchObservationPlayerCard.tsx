@@ -43,7 +43,7 @@ export function MatchObservationPlayerCard({
   const [birth_date, setBirth_date] = useState(slot.birth_date ?? "");
   const [club_name, setClub_name] = useState(slot.club_name ?? "");
   const [primary_position, setPrimary_position] = useState(slot.primary_position);
-  const [overall_rating, setOverall_rating] = useState(slot.overall_rating);
+  const [overall_rating] = useState(slot.overall_rating);
   const [match_performance_rating, setMatch_performance_rating] = useState(slot.match_performance_rating);
   const [recommendation, setRecommendation] = useState<MatchPlayerSlot["recommendation"]>(slot.recommendation);
   const [summary, setSummary] = useState(slot.summary);
