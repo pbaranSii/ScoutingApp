@@ -16,6 +16,7 @@ import {
   fetchObservationCriterionNotes,
   replaceObservationCriterionNotes,
 } from "../api/observationCriterionNotes.api";
+import { updateMatchObservation } from "../api/matchObservations.api";
 import { useQuery } from "@tanstack/react-query";
 import { useCreatePlayer, useUpdatePlayer } from "@/features/players/hooks/usePlayers";
 import { fetchPlayerById } from "@/features/players/api/players.api";
@@ -37,6 +38,7 @@ import {
   codeForLookup,
 } from "@/features/players/components/PositionDictionarySelect";
 import { usePositionDictionary } from "@/features/tactical/hooks/usePositionDictionary";
+import { useFormations } from "@/features/tactical/hooks/useFormations";
 import { mapLegacyPosition } from "@/features/players/positions";
 import { checkDuplicatePlayers } from "@/features/players/api/players.api";
 import type { DuplicateCandidate } from "@/features/players/api/players.api";
@@ -91,6 +93,8 @@ const wizardSchema = z
         (s) => s === "" || /^\d{1,2}[-:]\d{1,2}$/.test(s),
         "Format: X-Y lub X:Y (np. 2-1 lub 2:1)"
       ),
+    home_team_formation: z.string().optional(),
+    away_team_formation: z.string().optional(),
     location: z.string().max(200).optional(),
     notes: z.string().max(2000).optional(),
     observation_category: z.enum(["match_player", "individual"]).optional(),
@@ -197,14 +201,6 @@ const wizardSchema = z
         });
       }
     }
-    const ft = data.form_type === "simplified" || data.form_type === "extended" ? "academy" : data.form_type;
-    if (ft === "senior" && !(String(data.rank ?? "").trim())) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Wybierz range",
-        path: ["rank"],
-      });
-    }
   });
 
 type WizardFormValues = z.infer<typeof wizardSchema>;
@@ -221,6 +217,8 @@ type PrefillPlayer = {
 type ObservationWizardProps = {
   mode?: "create" | "edit";
   observationId?: string;
+  /** Id nagłówka meczu (dla obserwacji meczowej w trybie edycji) – do zapisu formacji. */
+  matchObservationId?: string;
   initialValues?: Partial<WizardFormValues>;
   prefillPlayer?: PrefillPlayer;
   lockPlayerFields?: boolean;
@@ -236,6 +234,7 @@ type ObservationWizardProps = {
 export function ObservationWizard({
   mode = "create",
   observationId,
+  matchObservationId,
   initialValues,
   prefillPlayer,
   lockPlayerFields = false,
@@ -334,6 +333,8 @@ export function ObservationWizard({
       summary: "",
       recommendation: undefined,
       match_performance_rating: undefined,
+      home_team_formation: "",
+      away_team_formation: "",
       birth_date: "",
       motor_description: "",
       transfermarkt_url: "",
@@ -348,6 +349,7 @@ export function ObservationWizard({
   const rawFormType = form.watch("form_type") ?? "academy";
   const formType = (String(rawFormType) === "simplified" || String(rawFormType) === "extended") ? "academy" : (rawFormType as "academy" | "senior");
   const { data: positions = [] } = usePositionDictionary(true);
+  const { data: formations = [] } = useFormations();
   const positionOptions = useMemo(() => {
     const all = getPositionOptionsFromDictionary(positions);
     const seen = new Set<string>();
@@ -597,6 +599,12 @@ export function ObservationWizard({
             match_performance_rating: values.match_performance_rating ?? null,
           },
         });
+        if (matchObservationId) {
+          await updateMatchObservation(matchObservationId, {
+            home_team_formation: values.home_team_formation?.trim() || null,
+            away_team_formation: values.away_team_formation?.trim() || null,
+          });
+        }
         if (values.form_type === "senior" && criteria.length > 0) {
           try {
             await replaceObservationCriterionNotes(
@@ -740,7 +748,7 @@ export function ObservationWizard({
             photo_url: values.photo_url?.trim(),
             summary: values.summary?.trim(),
             recommendation: values.recommendation ?? undefined,
-            form_type: (values.form_type === "senior" ? "senior" : "academy"),
+            form_type: (values.form_type === "senior" ? "extended" : "simplified"),
             match_performance_rating: values.match_performance_rating ?? undefined,
             created_by: user.id,
             created_by_name: auditName,
@@ -1350,6 +1358,66 @@ export function ObservationWizard({
                 />
               </div>
             )}
+            {isMatchPlayer && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="home_team_formation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Formacja gospodarzy</FormLabel>
+                      <Select
+                        value={field.value || "__none__"}
+                        onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                      >
+                        <FormControl>
+                          <SelectTrigger ref={field.ref}>
+                            <SelectValue placeholder="Wybierz schemat" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="__none__">— Brak —</SelectItem>
+                          {(formations as { id: string; name: string; code: string }[]).map((f) => (
+                            <SelectItem key={f.id} value={f.code}>
+                              {f.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="away_team_formation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Formacja gości</FormLabel>
+                      <Select
+                        value={field.value || "__none__"}
+                        onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                      >
+                        <FormControl>
+                          <SelectTrigger ref={field.ref}>
+                            <SelectValue placeholder="Wybierz schemat" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="__none__">— Brak —</SelectItem>
+                          {(formations as { id: string; name: string; code: string }[]).map((f) => (
+                            <SelectItem key={f.id} value={f.code}>
+                              {f.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
             <FormField
               control={form.control}
               name="notes"
@@ -1561,70 +1629,10 @@ export function ObservationWizard({
                 </p>
                 <p className="text-xs text-slate-500">(wyliczana z powyższych ocen)</p>
               </div>
-              {isEditMode && (
-                <>
-                  <FormField
-                    control={form.control}
-                    name="overall_rating"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Ocena ogólna (1–10)</FormLabel>
-                        <FormControl>
-                          <div className="flex w-full flex-wrap gap-2">
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
-                              <button
-                                key={v}
-                                type="button"
-                                onClick={() => field.onChange(v)}
-                                className={`min-h-10 w-12 rounded-lg border-2 text-sm font-medium transition touch-manipulation ${
-                                  (field.value ?? 0) === v
-                                    ? "border-red-600 bg-red-600 text-white"
-                                    : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
-                                }`}
-                              >
-                                {v}
-                              </button>
-                            ))}
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="match_performance_rating"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Ocena za występ (1–5)</FormLabel>
-                        <FormControl>
-                          <div className="flex w-full gap-2">
-                            {[1, 2, 3, 4, 5].map((v) => (
-                              <button
-                                key={v}
-                                type="button"
-                                onClick={() => field.onChange(v)}
-                                className={`min-h-10 flex-1 rounded-lg border-2 text-sm font-medium transition touch-manipulation ${
-                                  (field.value ?? 0) === v
-                                    ? "border-red-600 bg-red-600 text-white"
-                                    : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
-                                }`}
-                              >
-                                {v}
-                              </button>
-                            ))}
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </>
-              )}
             </section>
           )}
 
-          {formType === "senior" && primaryPosition && (
+          {formType === "senior" && primaryPosition && !isMatchPlayer && (
             <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="text-lg font-semibold text-slate-800">
                 4b. Oceny specyficzne dla pozycji — Kryteria pozycyjne — {getPositionLabelFromDictionary(positions, primaryPosition)}
@@ -1732,36 +1740,6 @@ export function ObservationWizard({
 
           <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
             <h2 className="text-lg font-semibold text-slate-800">5. Analiza i notatki</h2>
-            {formType === "senior" && (
-              <FormField
-                control={form.control}
-                name="match_performance_rating"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Ocena za występ (1–5) <span className="text-red-600">*</span></FormLabel>
-                    <FormControl>
-                      <div className="flex w-full gap-2">
-                        {[1, 2, 3, 4, 5].map((v) => (
-                          <button
-                            key={v}
-                            type="button"
-                            onClick={() => field.onChange(v)}
-                            className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition touch-manipulation ${
-                              (field.value ?? 0) === v
-                                ? "border-red-600 bg-red-600 text-white"
-                                : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
-                            }`}
-                          >
-                            {v}
-                          </button>
-                        ))}
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
             <div className="space-y-4">
               <FormField
                 control={form.control}
@@ -1821,7 +1799,66 @@ export function ObservationWizard({
                 </FormItem>
               )}
             />
-            {formType === "academy" && (
+            {isEditMode && isMatchPlayer ? (
+              <>
+                <FormField
+                  control={form.control}
+                  name="match_performance_rating"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Ocena za występ (1–5)</FormLabel>
+                      <FormControl>
+                        <div className="flex w-full gap-2">
+                          {[1, 2, 3, 4, 5].map((v) => (
+                            <button
+                              key={v}
+                              type="button"
+                              onClick={() => field.onChange(v)}
+                              className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition touch-manipulation ${
+                                (field.value ?? 0) === v
+                                  ? "border-red-600 bg-red-600 text-white"
+                                  : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+                              }`}
+                            >
+                              {v}
+                            </button>
+                          ))}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="recommendation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Rekomendacja</FormLabel>
+                      <FormControl>
+                        <div className="flex w-full gap-2">
+                          {(["positive", "to_observe", "negative"] as const).map((r) => (
+                            <button
+                              key={r}
+                              type="button"
+                              onClick={() => field.onChange(r)}
+                              className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition touch-manipulation ${
+                                (field.value ?? "to_observe") === r
+                                  ? "border-red-600 bg-red-600 text-white"
+                                  : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+                              }`}
+                            >
+                              {r === "positive" ? "Pozytywna" : r === "to_observe" ? "Do obserwacji" : "Negatywna"}
+                            </button>
+                          ))}
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            ) : (
               <>
                 <FormField
                   control={form.control}
@@ -1880,81 +1917,6 @@ export function ObservationWizard({
                   )}
                 />
               </>
-            )}
-            <FormField
-              control={form.control}
-              name="recommendation"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Rekomendacja</FormLabel>
-                  <FormControl>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        { value: "positive" as const, label: "Pozytywna" },
-                        { value: "to_observe" as const, label: "Do obserwacji" },
-                        { value: "negative" as const, label: "Negatywna" },
-                      ].map((opt) => {
-                        const selected = field.value === opt.value;
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => field.onChange(opt.value)}
-                            className={`rounded-lg border-2 px-4 py-2 text-sm font-medium transition touch-manipulation ${
-                              selected
-                                ? "border-red-600 bg-red-600 text-white"
-                                : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {formType === "senior" && (
-            <FormField
-              control={form.control}
-              name="rank"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    Ranga <span className="text-red-600">*</span>
-                  </FormLabel>
-                  <FormControl>
-                    <div className="flex w-full gap-2">
-                      {[
-                        { value: "A", label: "A - TOP" },
-                        { value: "B", label: "B - Dobry" },
-                        { value: "C", label: "C - Szeroka kadra" },
-                        { value: "D", label: "D - Slaby" },
-                      ].map((opt) => {
-                        const selected = field.value === opt.value;
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => field.onChange(opt.value)}
-                            className={`min-h-12 flex-1 rounded-lg border-2 px-3 py-3 text-sm font-medium transition touch-manipulation ${
-                              selected
-                                ? "border-red-600 bg-red-600 text-white"
-                                : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
-                            }`}
-                          >
-                            {opt.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             )}
           </section>
 
