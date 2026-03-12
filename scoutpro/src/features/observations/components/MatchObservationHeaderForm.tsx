@@ -305,7 +305,9 @@ export const MatchObservationHeaderForm = forwardRef<
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="__none__">— Brak —</SelectItem>
-                    {formations.map((f: { id: string; name: string; code: string }) => (
+                    {formations
+                      .filter((f: { code?: string | null }) => String(f.code ?? "").trim() !== "")
+                      .map((f: { id: string; name: string; code: string }) => (
                       <SelectItem key={f.id} value={f.code}>
                         {f.name}
                       </SelectItem>
@@ -330,7 +332,9 @@ export const MatchObservationHeaderForm = forwardRef<
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="__none__">— Brak —</SelectItem>
-                    {formations.map((f: { id: string; name: string; code: string }) => (
+                    {formations
+                      .filter((f: { code?: string | null }) => String(f.code ?? "").trim() !== "")
+                      .map((f: { id: string; name: string; code: string }) => (
                       <SelectItem key={f.id} value={f.code}>
                         {f.name}
                       </SelectItem>
