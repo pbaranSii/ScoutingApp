@@ -1377,8 +1377,10 @@ export function ObservationWizard({
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="__none__">— Brak —</SelectItem>
-                          {(formations as { id: string; name: string; code: string }[]).map((f) => (
-                            <SelectItem key={f.id} value={f.code}>
+                          {(formations as { id: string; name: string; code?: string | null }[])
+                            .filter((f) => String(f.code ?? "").trim() !== "")
+                            .map((f) => (
+                            <SelectItem key={f.id} value={String(f.code)}>
                               {f.name}
                             </SelectItem>
                           ))}
@@ -1405,8 +1407,10 @@ export function ObservationWizard({
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="__none__">— Brak —</SelectItem>
-                          {(formations as { id: string; name: string; code: string }[]).map((f) => (
-                            <SelectItem key={f.id} value={f.code}>
+                          {(formations as { id: string; name: string; code?: string | null }[])
+                            .filter((f) => String(f.code ?? "").trim() !== "")
+                            .map((f) => (
+                            <SelectItem key={f.id} value={String(f.code)}>
                               {f.name}
                             </SelectItem>
                           ))}
