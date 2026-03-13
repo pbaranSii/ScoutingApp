@@ -593,7 +593,8 @@ export function ObservationWizard({
             updated_at: nowIso,
             updated_by_name: auditName,
             updated_by_role: auditRole,
-            form_type: (values.form_type === "senior" ? "senior" : "academy"),
+            // form_type w offline obserwacjach: academy | senior (zgodnie z typem MatchFormType)
+            form_type: values.form_type === "senior" ? "senior" : "academy",
             summary: values.summary?.trim() || null,
             recommendation: values.recommendation ?? null,
             match_performance_rating: values.match_performance_rating ?? null,
