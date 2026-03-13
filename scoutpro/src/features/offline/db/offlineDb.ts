@@ -49,6 +49,7 @@ export type OfflineObservation = {
     recommendations?: string;
     summary?: string;
     recommendation?: "positive" | "to_observe" | "negative";
+    // Typ formularza obserwacji – zgodny z enumem form_type w bazie.
     form_type?: "simplified" | "extended" | "academy" | "senior";
     match_performance_rating?: number;
     match_observation_id?: string | null;
