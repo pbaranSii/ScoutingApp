@@ -182,14 +182,14 @@ export function PlayersPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Rekomendacja (ostatnia obserwacja)</label>
               <Select
-                value={filters.recommendation}
-                onValueChange={(v) => setFilters((prev) => ({ ...prev, recommendation: v }))}
+                value={filters.recommendation || "__all__"}
+                onValueChange={(v) => setFilters((prev) => ({ ...prev, recommendation: v === "__all__" ? "" : v }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Dowolna" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Dowolna</SelectItem>
+                  <SelectItem value="__all__">Dowolna</SelectItem>
                   <SelectItem value="positive">Pozytywna</SelectItem>
                   <SelectItem value="to_observe">Do obserwacji</SelectItem>
                   <SelectItem value="negative">Negatywna</SelectItem>

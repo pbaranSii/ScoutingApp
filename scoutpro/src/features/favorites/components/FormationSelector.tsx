@@ -55,7 +55,7 @@ export function FormationSelector({ value, onChange, disabled }: FormationSelect
         ) : (
           orderedFormations.map((f) => (
             <SelectItem key={f.id} value={f.id}>
-              {f.name} ({f.code}){f.id === defaultId ? " · domyślny" : ""}
+              {f.name}
             </SelectItem>
           ))
         )}

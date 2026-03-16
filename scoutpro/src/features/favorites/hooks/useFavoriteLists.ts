@@ -32,7 +32,6 @@ export function useCreateFavoriteList() {
       description?: string | null;
       formation?: string;
       formation_id?: string | null;
-      region_id?: string | null;
     }) => createFavoriteList(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["favorite-lists"] });
@@ -53,7 +52,6 @@ export function useUpdateFavoriteList() {
         description?: string | null;
         formation?: string;
         formation_id?: string | null;
-        region_id?: string | null;
         slot_assignments?: Record<string, string> | null;
       };
     }) => updateFavoriteList(id, input),

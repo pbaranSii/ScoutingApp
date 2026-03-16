@@ -134,6 +134,8 @@ export type MatchPlayerSlot = {
   birth_year: number;
   /** Optional ISO date string (yyyy-MM-dd). */
   birth_date?: string | null;
+  /** Optional ISO date string (yyyy-MM-dd). */
+  contract_end_date?: string | null;
   club_name?: string;
   primary_position: string;
   overall_rating: number;

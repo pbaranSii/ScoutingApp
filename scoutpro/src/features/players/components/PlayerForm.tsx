@@ -54,6 +54,13 @@ const playerSchema = z.object({
       (s) => !s || /^\d{4}-\d{2}-\d{2}$/.test(s),
       "Podaj datę urodzenia w formacie RRRR-MM-DD"
     ),
+  contract_end_date: z
+    .string()
+    .optional()
+    .refine(
+      (s) => !s || /^\d{4}-\d{2}-\d{2}$/.test(s),
+      "Podaj datę końca kontraktu w formacie RRRR-MM-DD"
+    ),
   nationality: optionalText,
   club_name: optionalText,
   primary_position: optionalText,
@@ -141,6 +148,7 @@ export function PlayerForm({
       last_name: initialValues?.last_name ?? "",
       birth_year: initialValues?.birth_year ?? new Date().getFullYear() - 14,
       birth_date: initialValues?.birth_date ?? "",
+      contract_end_date: (initialValues as { contract_end_date?: string | null } | undefined)?.contract_end_date ?? "",
       nationality: initialValues?.nationality ?? "Polska",
       club_name: initialValues?.club_name ?? "",
       primary_position: mapLegacyPosition(initialValues?.primary_position ?? ""),
@@ -167,6 +175,7 @@ export function PlayerForm({
       last_name: "",
       birth_year: new Date().getFullYear() - 14,
       birth_date: "",
+      contract_end_date: "",
       nationality: "Polska",
       club_name: "",
       primary_position: "",
@@ -239,6 +248,7 @@ export function PlayerForm({
         last_name: values.last_name,
         birth_year: values.birth_year,
         birth_date: toNullable(values.birth_date),
+        contract_end_date: toNullable(values.contract_end_date),
         club_id: clubId ?? null,
         nationality: toNullable(values.nationality),
         primary_position: toNullable(codeForLookup(values.primary_position) || values.primary_position?.trim()),
@@ -368,9 +378,22 @@ export function PlayerForm({
                 name="birth_date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data urodzenia (opcjonalnie)</FormLabel>
+                    <FormLabel>Data urodzenia</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="contract_end_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Koniec kontraktu</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

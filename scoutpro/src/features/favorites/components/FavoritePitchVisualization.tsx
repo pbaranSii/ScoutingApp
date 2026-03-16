@@ -66,10 +66,11 @@ function getSlotCoordinates(formation: FormationCode): { positionCode: string; x
 }
 
 function slotColor(count: number): string {
-  if (count === 0) return "bg-red-100 border-red-500 text-red-900";
-  if (count === 1) return "bg-amber-100 border-amber-500 text-amber-900";
-  if (count >= 2 && count <= 3) return "bg-green-100 border-green-600 text-green-900";
-  return "bg-blue-100 border-blue-600 text-blue-900";
+  // Tailwind classes for SVG: use fill/stroke (not bg/text).
+  if (count === 0) return "fill-red-200 stroke-red-700";
+  if (count === 1) return "fill-amber-200 stroke-amber-700";
+  if (count >= 2 && count <= 3) return "fill-green-200 stroke-green-700";
+  return "fill-blue-200 stroke-blue-700";
 }
 
 export function FavoritePitchVisualization({
@@ -112,11 +113,17 @@ export function FavoritePitchVisualization({
   const canAssign = Boolean(onAssignSlot && slotKeys.length === slotCoords.length);
 
   const handleSlotClick = (index: number, positionCode: string) => {
+    const isSelected = selectedPositionCode === positionCode;
+    // First click selects (filters). Second click on the same slot opens assign dialog (if enabled).
+    if (!isSelected) {
+      onSelectPosition(positionCode);
+      return;
+    }
     if (canAssign && slotKeys[index]) {
       setAssignDialog({ slotKey: slotKeys[index], positionCode });
-    } else {
-      onSelectPosition(selectedPositionCode === positionCode ? null : positionCode);
+      return;
     }
+    onSelectPosition(null);
   };
 
   const handleAssign = (playerId: string | null) => {
@@ -174,14 +181,29 @@ export function FavoritePitchVisualization({
                 cx={x}
                 cy={y}
                 r="36"
-                className={`fill-current stroke-2 transition-all ${slotColor(count)} ${isSelected ? "ring-4 ring-primary ring-offset-2" : ""}`}
-                stroke="white"
-                strokeWidth="2"
+                className={`transition-all ${slotColor(count)} ${isSelected ? "ring-4 ring-primary ring-offset-2" : ""}`}
+                strokeWidth="3"
               />
-              <text x={x} y={y - 6} textAnchor="middle" className="text-sm font-bold fill-current">
+              <text
+                x={x}
+                y={y - 6}
+                textAnchor="middle"
+                className="text-sm font-bold fill-white"
+                stroke="rgba(0,0,0,0.55)"
+                strokeWidth="3"
+                paintOrder="stroke"
+              >
                 {positionCode}
               </text>
-              <text x={x} y={y + 12} textAnchor="middle" className="text-xs font-bold fill-current">
+              <text
+                x={x}
+                y={y + 12}
+                textAnchor="middle"
+                className="text-xs font-bold fill-white"
+                stroke="rgba(0,0,0,0.55)"
+                strokeWidth="3"
+                paintOrder="stroke"
+              >
                 ({count})
               </text>
               <title>{names || `Brak zawodników`}</title>

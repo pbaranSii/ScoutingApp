@@ -3,8 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useRegions } from "@/features/dictionaries/hooks/useDictionaries";
 import { FormationSelector, type FormationSelection } from "@/features/favorites/components/FormationSelector";
 import { useDefaultFormation } from "@/features/tactical/hooks/useFormations";
 import type { FavoriteList } from "../types";
@@ -18,7 +16,6 @@ type EditListDialogProps = {
     description?: string | null;
     formation?: string;
     formation_id?: string | null;
-    region_id?: string | null;
   }) => Promise<void>;
   isSubmitting: boolean;
 };
@@ -30,8 +27,6 @@ export function EditListDialog({ open, list, onClose, onSubmit, isSubmitting }: 
     formation_id: null,
     formation: "4-4-2",
   });
-  const [regionId, setRegionId] = useState<string | null>(null);
-  const { data: regions = [] } = useRegions();
   const { data: defaultFormation } = useDefaultFormation();
 
   useEffect(() => {
@@ -55,7 +50,6 @@ export function EditListDialog({ open, list, onClose, onSubmit, isSubmitting }: 
           formation: list.formation || "4-4-2",
         });
       }
-      setRegionId(list.region_id ?? null);
     }
   }, [list, defaultFormation]);
 
@@ -67,7 +61,6 @@ export function EditListDialog({ open, list, onClose, onSubmit, isSubmitting }: 
       description: description.trim() || null,
       formation: formationSelection.formation,
       formation_id: formationSelection.formation_id,
-      region_id: regionId ?? null,
     });
     onClose();
   };
@@ -91,7 +84,7 @@ export function EditListDialog({ open, list, onClose, onSubmit, isSubmitting }: 
               />
             </div>
             <div>
-              <Label htmlFor="edit-list-desc">Opis (opcjonalnie)</Label>
+              <Label htmlFor="edit-list-desc">Opis</Label>
               <Input
                 id="edit-list-desc"
                 value={description}
@@ -102,22 +95,6 @@ export function EditListDialog({ open, list, onClose, onSubmit, isSubmitting }: 
             <div>
               <Label>Schemat taktyczny</Label>
               <FormationSelector value={formationSelection} onChange={setFormationSelection} />
-            </div>
-            <div>
-              <Label>Udostępnij regionowi</Label>
-              <Select value={regionId ?? "none"} onValueChange={(v) => setRegionId(v === "none" ? null : v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Wybierz województwo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">— Nie udostępniaj —</SelectItem>
-                  {regions.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      {(r as { name?: string }).name ?? r.id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClose}>
