@@ -102,7 +102,7 @@ export function DictionaryEntryForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       {showCode && (
         <div>
-          <Label htmlFor="code">Kod (opcjonalnie)</Label>
+          <Label htmlFor="code">Kod</Label>
           <Input
             id="code"
             value={code}
@@ -159,7 +159,7 @@ export function DictionaryEntryForm({
             <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} />
           </div>
           <div>
-            <Label htmlFor="region_id">Województwo (opcjonalnie)</Label>
+            <Label htmlFor="region_id">Województwo</Label>
             <Select value={regionId || "_none"} onValueChange={(v) => setRegionId(v === "_none" ? "" : v)}>
               <SelectTrigger id="region_id">
                 <SelectValue placeholder="Wybierz województwo" />

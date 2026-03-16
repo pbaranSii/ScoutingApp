@@ -156,6 +156,13 @@ const wizardSchema = z
         (s) => !s || /^\d{4}-\d{2}-\d{2}$/.test(s),
         "Podaj datę urodzenia w formacie RRRR-MM-DD"
       ),
+    contract_end_date: z
+      .string()
+      .optional()
+      .refine(
+        (s) => !s || /^\d{4}-\d{2}-\d{2}$/.test(s),
+        "Podaj datę końca kontraktu w formacie RRRR-MM-DD"
+      ),
     transfermarkt_url: z.string().max(500).optional(),
     instagram_url: z.string().max(500).optional(),
     facebook_url: z.string().max(500).optional(),
@@ -336,6 +343,7 @@ export function ObservationWizard({
       home_team_formation: "",
       away_team_formation: "",
       birth_date: "",
+      contract_end_date: "",
       motor_description: "",
       transfermarkt_url: "",
       instagram_url: "",
@@ -373,7 +381,7 @@ export function ObservationWizard({
   const { data: selectedPlayerFull } = useQuery({
     queryKey: ["player-for-links", selectedPlayerId],
     queryFn: () => fetchPlayerById(selectedPlayerId!),
-    enabled: Boolean(selectedPlayerId) && formType === "academy",
+    enabled: Boolean(selectedPlayerId),
   });
   const { data: existingCriterionNotes } = useQuery({
     queryKey: ["observation-criterion-notes", observationId],
@@ -417,11 +425,13 @@ export function ObservationWizard({
     const i = (selectedPlayerFull as { instagram_url?: string | null }).instagram_url?.trim() ?? "";
     const f = (selectedPlayerFull as { facebook_url?: string | null }).facebook_url?.trim() ?? "";
     const o = (selectedPlayerFull as { other_social_url?: string | null }).other_social_url?.trim() ?? "";
+    const ce = (selectedPlayerFull as { contract_end_date?: string | null }).contract_end_date?.trim() ?? "";
     const cur = form.getValues();
     if (!(cur.transfermarkt_url ?? "").trim() && t) form.setValue("transfermarkt_url", t);
     if (!(cur.instagram_url ?? "").trim() && i) form.setValue("instagram_url", i);
     if (!(cur.facebook_url ?? "").trim() && f) form.setValue("facebook_url", f);
     if (!(cur.other_social_url ?? "").trim() && o) form.setValue("other_social_url", o);
+    if (!(cur.contract_end_date ?? "").trim() && ce) form.setValue("contract_end_date", ce);
   }, [selectedPlayerFull, formType, form]);
 
   const handleSelectPlayer = (player: PlayerSearchItem) => {
@@ -778,6 +788,7 @@ export function ObservationWizard({
               birth_year: birthYear,
               club_id: clubId ?? null,
               primary_position: values.primary_position,
+              contract_end_date: values.contract_end_date?.trim() || null,
               transfermarkt_url: values.transfermarkt_url?.trim() || null,
               instagram_url: values.instagram_url?.trim() || null,
               facebook_url: values.facebook_url?.trim() || null,
@@ -794,6 +805,7 @@ export function ObservationWizard({
             club_id: clubId,
             primary_position: values.primary_position,
             pipeline_status: "unassigned",
+            contract_end_date: values.contract_end_date?.trim() || null,
             transfermarkt_url: values.transfermarkt_url?.trim() || null,
             instagram_url: values.instagram_url?.trim() || null,
             facebook_url: values.facebook_url?.trim() || null,
@@ -1089,12 +1101,24 @@ export function ObservationWizard({
                 name="birth_date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data urodzenia (opcjonalnie)</FormLabel>
+                    <FormLabel>Data urodzenia</FormLabel>
                     <FormControl>
                       <Input
                         type="date"
                         {...field}
                       />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="contract_end_date"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Koniec kontraktu</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value ?? ""} />
                     </FormControl>
                   </FormItem>
                 )}
@@ -1310,10 +1334,10 @@ export function ObservationWizard({
                     <FormItem>
                       <FormLabel>Gospodarz</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Nazwa drużyny gospodarzy"
-                          {...field}
+                        <ClubSelect
                           value={field.value ?? ""}
+                          onChange={field.onChange}
+                          placeholder="Wpisz lub wybierz klub..."
                           disabled={isMatchPlayer}
                         />
                       </FormControl>
@@ -1328,10 +1352,10 @@ export function ObservationWizard({
                     <FormItem>
                       <FormLabel>Gość</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Nazwa drużyny gości"
-                          {...field}
+                        <ClubSelect
                           value={field.value ?? ""}
+                          onChange={field.onChange}
+                          placeholder="Wpisz lub wybierz klub..."
                           disabled={isMatchPlayer}
                         />
                       </FormControl>
@@ -1359,7 +1383,7 @@ export function ObservationWizard({
                 />
               </div>
             )}
-            {isMatchPlayer && (
+            {form.watch("source") !== "tournament" && (
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
@@ -1370,6 +1394,7 @@ export function ObservationWizard({
                       <Select
                         value={field.value || "__none__"}
                         onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                        disabled={isMatchPlayer}
                       >
                         <FormControl>
                           <SelectTrigger ref={field.ref}>
@@ -1400,6 +1425,7 @@ export function ObservationWizard({
                       <Select
                         value={field.value || "__none__"}
                         onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                        disabled={isMatchPlayer}
                       >
                         <FormControl>
                           <SelectTrigger ref={field.ref}>
@@ -1431,7 +1457,7 @@ export function ObservationWizard({
                   <FormLabel>
                     {isMatchPlayer
                       ? "Notatki do meczu (wspólne – edytuj w nagłówku meczu)"
-                      : "Notatki do meczu (opcjonalnie, max 2000 znaków)"}
+                        : "Notatki do meczu (max 2000 znaków)"}
                   </FormLabel>
                   <FormControl>
                     <Textarea

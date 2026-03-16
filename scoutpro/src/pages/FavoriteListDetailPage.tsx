@@ -16,7 +16,6 @@ import {
 } from "@/features/favorites/utils/formations";
 import type { FormationCode } from "@/features/favorites/types";
 import { useFormationById, useDefaultFormation } from "@/features/tactical/hooks/useFormations";
-import { codeForLookup } from "@/features/players/components/PositionDictionarySelect";
 import { mapLegacyPosition } from "@/features/players/positions";
 import { ALL_PIPELINE_STATUSES, getStatusBadgeClass } from "@/features/pipeline/types";
 import { toast } from "@/hooks/use-toast";
@@ -106,19 +105,22 @@ export function FavoriteListDetailPage() {
     return Math.round((sum / withRating.length) * 10) / 10;
   }, [members]);
 
+  const selectedAssignedPlayerIds = useMemo(() => {
+    if (!selectedPositionCode) return null;
+    const ids = new Set<string>();
+    for (const s of slots) {
+      if (s.positionCode === selectedPositionCode) {
+        for (const pid of s.playerIds ?? []) ids.add(pid);
+      }
+    }
+    return ids;
+  }, [selectedPositionCode, slots]);
+
   const filteredMembers = useMemo(() => {
     if (!selectedPositionCode) return members;
-    return members.filter((m) => {
-      const pos = m.player?.primary_position;
-      const normalized = codeForLookup(pos ?? "");
-      const legacy = mapLegacyPosition(pos ?? "").toUpperCase();
-      const code = normalized || legacy || (pos ?? "").toUpperCase();
-      return (
-        code === selectedPositionCode ||
-        (selectedPositionCode === "ST" && (code === "LS" || code === "RS"))
-      );
-    });
-  }, [members, selectedPositionCode]);
+    if (!selectedAssignedPlayerIds) return [];
+    return members.filter((m) => selectedAssignedPlayerIds.has(m.player_id));
+  }, [members, selectedPositionCode, selectedAssignedPlayerIds]);
 
   const handleFormationChange = (value: { formation_id: string | null; formation: string }) => {
     if (!id) return;
@@ -257,7 +259,13 @@ export function FavoriteListDetailPage() {
                         }
                       >
                         <td className="px-2 py-1.5 font-medium">
-                          {p?.first_name} {p?.last_name}
+                          <Link
+                            to={`/players/${mem.player_id}`}
+                            className="hover:underline"
+                            title="Przejdź do szczegółów zawodnika"
+                          >
+                            {p?.first_name} {p?.last_name}
+                          </Link>
                         </td>
                         <td className="px-2 py-1.5 text-slate-600">{posCode}</td>
                         <td className="px-2 py-1.5 text-slate-600">{age}</td>
@@ -288,7 +296,6 @@ export function FavoriteListDetailPage() {
         </div>
 
         <div className="hidden lg:block lg:sticky lg:top-4">
-          <h3 className="font-semibold text-slate-900 mb-2">Boisko</h3>
           <FavoritePitchVisualization
             formation={formation}
             slots={slots}

@@ -231,7 +231,7 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
               name="league_ids"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Ligi (opcjonalnie)</FormLabel>
+                  <FormLabel>Ligi</FormLabel>
                   <Select
                     value={field.value?.[0] ?? "none"}
                     onValueChange={(v) => field.onChange(v === "none" ? [] : [v])}
@@ -300,7 +300,7 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
                 name="age_min"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Wiek od (opcjonalnie)</FormLabel>
+                    <FormLabel>Wiek od</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -320,7 +320,7 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
                 name="age_max"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Wiek do (opcjonalnie)</FormLabel>
+                    <FormLabel>Wiek do</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
@@ -370,7 +370,7 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
                 name="style_notes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Wymagania stylu gry (opcjonalnie)</FormLabel>
+                    <FormLabel>Wymagania stylu gry</FormLabel>
                     <FormControl>
                       <Input placeholder="np. pressing, budowanie od tyłu" {...field} />
                     </FormControl>
@@ -384,7 +384,7 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notatki (opcjonalnie)</FormLabel>
+                  <FormLabel>Notatki</FormLabel>
                   <FormControl>
                     <Input placeholder="Dodatkowe uwagi" {...field} />
                   </FormControl>

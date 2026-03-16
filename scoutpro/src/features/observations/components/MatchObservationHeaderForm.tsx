@@ -352,7 +352,7 @@ export const MatchObservationHeaderForm = forwardRef<
           name="match_notes"
           render={({ field }) => (
             <FormItem>
-              <Label>Notatki do meczu (opcjonalnie, max 2000 znaków)</Label>
+              <Label>Notatki do meczu (max 2000 znaków)</Label>
               <FormControl>
                 <Textarea rows={3} {...field} />
               </FormControl>
