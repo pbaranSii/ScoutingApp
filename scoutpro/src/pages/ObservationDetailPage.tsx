@@ -437,29 +437,29 @@ export function ObservationDetailPage() {
       {(effectiveFormType === "academy" || observation.observation_category === "match_player") && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-slate-800">4. Oceny ogólne</CardTitle>
+          <CardTitle className="text-lg font-semibold text-slate-800">4. Oceny ogólne</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {typeof observation.technical_rating === "number" && (
-              <RatingBar label="Technika" value={observation.technical_rating} max={10} />
+              <RatingBar label="Technika (1–5)" value={observation.technical_rating} max={5} />
             )}
             {typeof observation.speed_rating === "number" && (
-              <RatingBar label="Szybkość" value={observation.speed_rating} max={10} />
+              <RatingBar label="Szybkość (1–5)" value={observation.speed_rating} max={5} />
             )}
             {typeof observation.motor_rating === "number" && (
-              <RatingBar label="Motoryka" value={observation.motor_rating} max={10} />
+              <RatingBar label="Motoryka (1–5)" value={observation.motor_rating} max={5} />
             )}
             {typeof observation.tactical_rating === "number" && (
-              <RatingBar label="Taktyka" value={observation.tactical_rating} max={10} />
+              <RatingBar label="Taktyka (1–5)" value={observation.tactical_rating} max={5} />
             )}
             {typeof observation.mental_rating === "number" && (
-              <RatingBar label="Mentalność" value={observation.mental_rating} max={10} />
+              <RatingBar label="Mentalność (1–5)" value={observation.mental_rating} max={5} />
             )}
             {typeof observation.potential_now === "number" && (
-              <RatingBar label="Performance" value={observation.potential_now} max={10} />
+              <RatingBar label="Performance (1–5)" value={observation.potential_now} max={5} />
             )}
             {typeof observation.potential_future === "number" && (
-              <RatingBar label="Potencjał przyszły" value={observation.potential_future} max={10} />
+              <RatingBar label="Potencjał przyszły (1–5)" value={observation.potential_future} max={5} />
             )}
             {typeof observation.overall_rating === "number" && (
               <RatingBar label="Ocena ogólna (1–10)" value={observation.overall_rating} max={10} />
