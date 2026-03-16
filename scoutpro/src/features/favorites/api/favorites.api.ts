@@ -96,7 +96,7 @@ export async function updateFavoriteList(
     description?: string | null;
     formation?: string;
     formation_id?: string | null;
-    slot_assignments?: Record<string, string> | null;
+    slot_assignments?: Record<string, string[]> | null;
   }
 ): Promise<FavoriteList> {
   const payload: Record<string, unknown> = {};

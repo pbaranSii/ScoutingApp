@@ -52,7 +52,7 @@ export function useUpdateFavoriteList() {
         description?: string | null;
         formation?: string;
         formation_id?: string | null;
-        slot_assignments?: Record<string, string> | null;
+        slot_assignments?: Record<string, string[]> | null;
       };
     }) => updateFavoriteList(id, input),
     onSuccess: (updated: FavoriteList) => {

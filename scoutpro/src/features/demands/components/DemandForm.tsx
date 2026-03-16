@@ -21,7 +21,6 @@ import { DEMAND_PRIORITY_LABELS, DEMAND_PREFERRED_FOOT_LABELS } from "@/features
 import { toast } from "@/hooks/use-toast";
 
 const demandSchema = z.object({
-  club_id: z.string().min(1, "Wybierz klub"),
   season: z.string().min(1, "Podaj okres (np. 2025/2026)"),
   league_ids: z.array(z.string()).default([]),
   positions: z.array(z.string()).min(1, "Wybierz co najmniej jedną pozycję"),
@@ -29,8 +28,6 @@ const demandSchema = z.object({
   priority: z.enum(["critical", "high", "standard"]),
   age_min: z.union([z.coerce.number().int().min(0).max(99), z.nan()]).optional().nullable(),
   age_max: z.union([z.coerce.number().int().min(0).max(99), z.nan()]).optional().nullable(),
-  preferred_foot: z.enum(["left", "right", "both", "any"]).optional().nullable(),
-  style_notes: z.string().optional(),
   notes: z.string().optional(),
   status: z.enum(["open", "in_progress", "filled", "cancelled"]).optional(),
 });
@@ -58,7 +55,6 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
   const form = useForm<DemandFormValues>({
     resolver: zodResolver(demandSchema) as Resolver<DemandFormValues>,
     defaultValues: {
-      club_id: "",
       season: "",
       league_ids: [],
       positions: [] as string[],
@@ -66,15 +62,12 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
       priority: "standard",
       age_min: 18,
       age_max: 23,
-      preferred_foot: "any",
-      style_notes: "",
       notes: "",
       status: "open",
     },
     values:
       mode === "edit" && demand
         ? {
-            club_id: demand.club_id,
             season: demand.season,
             league_ids: demand.league_ids ?? [],
             positions: (demand as { positions?: string[] }).positions?.length
@@ -84,8 +77,6 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
             priority: demand.priority,
             age_min: demand.age_min ?? undefined,
             age_max: demand.age_max ?? undefined,
-            preferred_foot: demand.preferred_foot ?? "any",
-            style_notes: demand.style_notes ?? "",
             notes: demand.notes ?? "",
             status: demand.status,
           }
@@ -96,7 +87,8 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
     try {
       if (mode === "create") {
         await createDemand.mutateAsync({
-          club_id: values.club_id,
+          // Pole klub zostało usunięte z formularza – backend może ustawiać je domyślnie lub na podstawie użytkownika.
+          club_id: demand?.club_id ?? "", // zachowanie wstecznej kompatybilności, jeśli wymagane
           season: values.season.trim(),
           league_ids: values.league_ids?.length ? values.league_ids : undefined,
           positions: values.positions,
@@ -104,8 +96,8 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
           priority: values.priority as DemandPriority,
           age_min: values.age_min ?? null,
           age_max: values.age_max ?? null,
-          preferred_foot: (values.preferred_foot as DemandPreferredFoot) ?? "any",
-          style_notes: values.style_notes?.trim() || null,
+          preferred_foot: null as DemandPreferredFoot | null,
+          style_notes: null,
           notes: values.notes?.trim() || null,
         });
         toast({ title: "Zapotrzebowanie utworzone" });
@@ -113,7 +105,7 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
         await updateDemand.mutateAsync({
           id: demandId,
           input: {
-            club_id: values.club_id,
+            club_id: demand.club_id,
             season: values.season.trim(),
             league_ids: values.league_ids,
             positions: values.positions,
@@ -121,8 +113,8 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
             priority: values.priority as DemandPriority,
             age_min: values.age_min ?? null,
             age_max: values.age_max ?? null,
-            preferred_foot: (values.preferred_foot as DemandPreferredFoot) ?? null,
-            style_notes: values.style_notes?.trim() || null,
+            preferred_foot: null,
+            style_notes: null,
             notes: values.notes?.trim() || null,
             status: values.status as DemandStatus,
           },
@@ -150,30 +142,7 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
             <CardTitle>Dane zapotrzebowania</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <FormField
-              control={form.control}
-              name="club_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Klub *</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Wybierz klub" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {clubs.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Pole „Klub” zostało usunięte z formularza zgodnie z wymaganiami. */}
             <FormField
               control={form.control}
               name="positions"
@@ -232,24 +201,17 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Ligi</FormLabel>
-                  <Select
-                    value={field.value?.[0] ?? "none"}
-                    onValueChange={(v) => field.onChange(v === "none" ? [] : [v])}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Wybierz ligę" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">— Brak —</SelectItem>
-                      {leagues.map((l) => (
-                        <SelectItem key={l.id} value={l.id}>
-                          {l.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Input
+                      placeholder="np. Ekstraklasa, 1. Liga"
+                      value={field.value?.[0] ?? ""}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value.trim() ? [e.target.value] : []
+                        )
+                      }
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -336,49 +298,7 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
                 )}
               />
             </div>
-            {/* Ukryte zgodnie z wymaganiami (P3): Noga wiodąca, Styl gry */}
-            <div className="hidden">
-              <FormField
-                control={form.control}
-                name="preferred_foot"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Noga wiodąca</FormLabel>
-                    <Select
-                      value={field.value ?? "any"}
-                      onValueChange={(v) => field.onChange(v as DemandPreferredFoot)}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {(["left", "right", "both", "any"] as const).map((p) => (
-                          <SelectItem key={p} value={p}>
-                            {DEMAND_PREFERRED_FOOT_LABELS[p]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="style_notes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Wymagania stylu gry</FormLabel>
-                    <FormControl>
-                      <Input placeholder="np. pressing, budowanie od tyłu" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+            {/* Pola „Noga wiodąca” oraz „Wymagania stylu gry” zostały usunięte z formularza. */}
             <FormField
               control={form.control}
               name="notes"
@@ -386,7 +306,13 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
                 <FormItem>
                   <FormLabel>Notatki</FormLabel>
                   <FormControl>
-                    <Input placeholder="Dodatkowe uwagi" {...field} />
+                    <textarea
+                      rows={4}
+                      className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                      placeholder="Dodatkowe uwagi"
+                      value={field.value ?? ""}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
