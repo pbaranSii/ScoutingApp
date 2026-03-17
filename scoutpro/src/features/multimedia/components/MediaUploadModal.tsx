@@ -304,7 +304,7 @@ export function MediaUploadModal({
               {observationOptions && onObservationIdChange && (
                 <div className="border-t border-slate-200 pt-4">
                   <p className="mb-2 text-sm font-medium text-slate-700">
-                    Powiąż z obserwacją (opcjonalnie)
+                    Powiąż z obserwacją
                   </p>
                   <Select
                     value={selectedObservationId ?? "none"}

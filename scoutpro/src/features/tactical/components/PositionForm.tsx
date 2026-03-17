@@ -109,7 +109,7 @@ export function PositionForm({
         />
       </div>
       <div>
-        <Label htmlFor="description">Opis (opcjonalnie)</Label>
+        <Label htmlFor="description">Opis</Label>
         <Textarea
           id="description"
           value={description}

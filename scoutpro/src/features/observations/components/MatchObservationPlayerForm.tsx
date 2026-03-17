@@ -45,6 +45,7 @@ const defaultSlotData: Omit<MatchPlayerSlot, "id"> = {
   last_name: "",
   birth_year: DEFAULT_BIRTH_YEAR,
   birth_date: undefined,
+  contract_end_date: undefined,
   club_name: "",
   primary_position: "",
   overall_rating: 6,
@@ -70,6 +71,7 @@ function toFormState(data: MatchObservationPlayerFormInitial | null | undefined)
     last_name: data.last_name ?? "",
     birth_year: data.birth_year ?? DEFAULT_BIRTH_YEAR,
     birth_date: data.birth_date ?? undefined,
+    contract_end_date: (data as { contract_end_date?: string | null }).contract_end_date ?? undefined,
     club_name: data.club_name ?? "",
     primary_position: data.primary_position ?? "",
     overall_rating: data.overall_rating ?? 6,
@@ -114,6 +116,7 @@ export function MatchObservationPlayerForm({
   const [last_name, setLast_name] = useState(defaultSlotData.last_name);
   const [birth_year, setBirth_year] = useState(defaultSlotData.birth_year);
   const [birth_date, setBirth_date] = useState(defaultSlotData.birth_date ?? "");
+  const [contract_end_date, setContract_end_date] = useState(defaultSlotData.contract_end_date ?? "");
   const [club_name, setClub_name] = useState(defaultSlotData.club_name ?? "");
   const [primary_position, setPrimary_position] = useState(defaultSlotData.primary_position);
   const [, setOverall_rating] = useState(defaultSlotData.overall_rating);
@@ -139,6 +142,7 @@ export function MatchObservationPlayerForm({
     setLast_name(state.last_name);
     setBirth_year(state.birth_year);
     setBirth_date(state.birth_date ?? "");
+    setContract_end_date(state.contract_end_date ?? "");
     setClub_name(state.club_name ?? "");
     setPrimary_position(state.primary_position);
     setOverall_rating(state.overall_rating);
@@ -167,6 +171,7 @@ export function MatchObservationPlayerForm({
     setLast_name(player.last_name ?? "");
     setBirth_year(player.birth_year);
     setBirth_date("");
+    setContract_end_date("");
     setClub_name(player.club?.name ?? "");
     setPrimary_position(player.primary_position ? mapLegacyPosition(player.primary_position) : "");
     setSearchDialogOpen(false);
@@ -178,6 +183,7 @@ export function MatchObservationPlayerForm({
     setLast_name("");
     setBirth_year(DEFAULT_BIRTH_YEAR);
     setBirth_date("");
+    setContract_end_date("");
     setClub_name("");
     setPrimary_position("");
     setSearchDialogOpen(true);
@@ -213,6 +219,7 @@ export function MatchObservationPlayerForm({
     setFirst_name(player.first_name ?? "");
     setLast_name(player.last_name ?? "");
     setBirth_year(player.birth_year);
+    setContract_end_date("");
     setClub_name(player.club?.name ?? "");
     setPrimary_position(player.primary_position ? mapLegacyPosition(player.primary_position) : "");
     setDuplicateDialogOpen(false);
@@ -237,6 +244,7 @@ export function MatchObservationPlayerForm({
       last_name: last_name.trim(),
       birth_year,
       birth_date: birth_date.trim() || undefined,
+      contract_end_date: contract_end_date.trim() || undefined,
       club_name: club_name.trim() || undefined,
       primary_position,
       overall_rating: formType === "senior" ? 6 : computedOverall,
@@ -256,7 +264,7 @@ export function MatchObservationPlayerForm({
     };
     onSave(data);
   }, [
-    player_id, first_name, last_name, birth_year, birth_date, club_name, primary_position,
+    player_id, first_name, last_name, birth_year, birth_date, contract_end_date, club_name, primary_position,
     formType, match_performance_rating, recommendation, summary,
     strengths, weaknesses, potential_now, potential_future,
     technical_rating, speed_rating, motor_rating, tactical_rating, mental_rating,
@@ -278,6 +286,9 @@ export function MatchObservationPlayerForm({
       if (!Number.isNaN(yearFromDate) && yearFromDate !== birth_year) {
         nextErrors.birth_date = "Rok z daty urodzenia musi być zgodny z polem Rok urodzenia.";
       }
+    }
+    if (contract_end_date.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(contract_end_date.trim())) {
+      nextErrors.contract_end_date = "Podaj datę końca kontraktu w formacie RRRR-MM-DD.";
     }
     if (!primary_position) nextErrors.primary_position = "Wybierz pozycję główną.";
     if (summary.trim().length < 10) {
@@ -363,7 +374,7 @@ export function MatchObservationPlayerForm({
               {errors.birth_year && <p className="text-sm text-red-600">{errors.birth_year}</p>}
             </div>
             <div className="space-y-1">
-              <Label>Data urodzenia (opcjonalnie)</Label>
+              <Label>Data urodzenia</Label>
               <Input
                 type="date"
                 value={birth_date}
@@ -372,6 +383,19 @@ export function MatchObservationPlayerForm({
                 className={errors.birth_date ? "border-red-500" : undefined}
               />
               {errors.birth_date && <p className="text-sm text-red-600">{errors.birth_date}</p>}
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label>Koniec kontraktu</Label>
+              <Input
+                type="date"
+                value={contract_end_date}
+                onChange={(e) => { setContract_end_date(e.target.value); setErrors((prev) => ({ ...prev, contract_end_date: "" })); }}
+                placeholder="RRRR-MM-DD"
+                className={errors.contract_end_date ? "border-red-500" : undefined}
+              />
+              {errors.contract_end_date && <p className="text-sm text-red-600">{errors.contract_end_date}</p>}
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
