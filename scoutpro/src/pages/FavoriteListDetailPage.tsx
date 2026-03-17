@@ -17,7 +17,6 @@ import {
 import type { FormationCode } from "@/features/favorites/types";
 import { useFormationById, useDefaultFormation } from "@/features/tactical/hooks/useFormations";
 import { mapLegacyPosition } from "@/features/players/positions";
-import { ALL_PIPELINE_STATUSES, getStatusBadgeClass } from "@/features/pipeline/types";
 import { toast } from "@/hooks/use-toast";
 
 export function FavoriteListDetailPage() {

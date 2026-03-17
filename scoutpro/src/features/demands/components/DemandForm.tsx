@@ -14,10 +14,8 @@ import {
   useUpdatePlayerDemand,
   usePlayerDemand,
 } from "@/features/demands/hooks";
-import { fetchLeagues } from "@/features/demands/api/demands.api";
-import { useQuery } from "@tanstack/react-query";
 import type { DemandPriority, DemandStatus, DemandPreferredFoot } from "@/features/demands/types";
-import { DEMAND_PRIORITY_LABELS, DEMAND_PREFERRED_FOOT_LABELS } from "@/features/demands/types";
+import { DEMAND_PRIORITY_LABELS } from "@/features/demands/types";
 import { toast } from "@/hooks/use-toast";
 
 const demandSchema = z.object({
@@ -41,13 +39,9 @@ type DemandFormProps = {
 };
 
 export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
-  const { data: clubs = [] } = useClubs();
+  useClubs();
   const { data: positionDictionary = [] } = usePositionDictionary(true);
   const positionOptions = getPositionOptionsFromDictionary(positionDictionary);
-  const { data: leagues = [] } = useQuery({
-    queryKey: ["leagues"],
-    queryFn: fetchLeagues,
-  });
   const { data: demand } = usePlayerDemand(mode === "edit" ? demandId ?? null : null);
   const createDemand = useCreatePlayerDemand();
   const updateDemand = useUpdatePlayerDemand();
@@ -102,6 +96,14 @@ export function DemandForm({ mode, demandId, onSuccess }: DemandFormProps) {
         });
         toast({ title: "Zapotrzebowanie utworzone" });
       } else if (demandId) {
+        if (!demand) {
+          toast({
+            variant: "destructive",
+            title: "Błąd",
+            description: "Nie udało się pobrać danych zapotrzebowania do edycji. Odśwież stronę i spróbuj ponownie.",
+          });
+          return;
+        }
         await updateDemand.mutateAsync({
           id: demandId,
           input: {
