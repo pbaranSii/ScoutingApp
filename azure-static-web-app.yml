@@ -3,7 +3,7 @@
 # Variable group "scoutapp-swadeploy" must contain: DEPLOYMENT_TOKEN, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_APP_URL
 
 trigger:
-  - main
+  - master
   - develop
 
 variables:

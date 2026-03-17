@@ -15,15 +15,18 @@ Produkcja frontendu hostowana jest na **Azure Static Web Apps**. Baza danych, au
 - **Zmienne i sekrety** są w Azure DevOps, **nie** w repozytorium:
   - **Pipelines** → **Library** → variable group `scoutapp-swadeploy`:
     - `DEPLOYMENT_TOKEN` – token z Azure Portal (Static Web App → Manage deployment token), wartość oznaczona jako secret.
-    - `VITE_SUPABASE_URL` – URL **PROD** projektu z Supabase (Settings → API, Project REF `digrvtbfonatvytwpbbn`).
-    - `VITE_SUPABASE_ANON_KEY` – klucz anon **PROD** z Supabase (Settings → API).
+    - `VITE_SUPABASE_URL` – URL **PROD (Azure)** projektu z Supabase (Settings → API, Project REF `oilillvaatchsyvqbyxo`).
+    - `VITE_SUPABASE_ANON_KEY` – klucz anon **PROD (Azure)** z Supabase (Settings → API).
     - `VITE_APP_URL` – URL aplikacji po wdrożeniu (np. `https://scoutapp-polonia.azurestaticapps.net`).
 
 Nie commituj tych wartości do repo; używane są wyłącznie w pipeline.
 
 ## Supabase (produkcja)
 
-Ten sam projekt Supabase co dotychczas. W **Authentication → URL Configuration** muszą być ustawione:
+Azure SWA korzysta z **dedykowanego** projektu Supabase: `oilillvaatchsyvqbyxo` (`https://oilillvaatchsyvqbyxo.supabase.co`).
+Vercel pozostaje na starym projekcie: `digrvtbfonatvytwpbbn`.
+
+W projekcie Supabase dla Azure, w **Authentication → URL Configuration** muszą być ustawione:
 
 - **Site URL:** ten sam co `VITE_APP_URL` (adres Static Web App).
 - **Redirect URLs:** m.in. `https://<twoja-app>.azurestaticapps.net/**` oraz `https://<twoja-app>.azurestaticapps.net/set-new-password`.

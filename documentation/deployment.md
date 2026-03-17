@@ -8,7 +8,12 @@ Instrukcja krok po kroku oraz lista zmian do weryfikacji: **[runbooks/deploy-dev
 
 Przed wdrożeniem w katalogu `scoutpro` uruchom: `npm run deploy:verify` (build + lista migracji).
 
-Środowisko produkcyjne: aplikacja na [Vercel (scouting-app)](https://vercel.com/pbaransiis-projects/scouting-app), baza na [Supabase PROD](https://supabase.com/dashboard/project/digrvtbfonatvytwpbbn). Przyszłe migracje i powtarzalny proces: **[future-migrations.md](future-migrations.md)**.
+Środowisko produkcyjne:
+
+- Vercel (scouting-app): [Vercel (scouting-app)](https://vercel.com/pbaransiis-projects/scouting-app), Supabase: [digrvtbfonatvytwpbbn](https://supabase.com/dashboard/project/digrvtbfonatvytwpbbn)
+- Azure Static Web Apps (SWA): Supabase: [oilillvaatchsyvqbyxo](https://supabase.com/dashboard/project/oilillvaatchsyvqbyxo)
+
+Przyszłe migracje i powtarzalny proces: **[future-migrations.md](future-migrations.md)**.
 
 > **Azure Static Web Apps (PROD):** ta sama wersja frontendu, która jest deployowana z brancha `master` na Vercel, powinna być również wdrażana na Azure Static Web Apps z tego samego commita (pipeline w Azure DevOps – zob. `docs/DEPLOYMENT-AZURE.md`).
 
@@ -21,7 +26,8 @@ Przed wdrożeniem w katalogu `scoutpro` uruchom: `npm run deploy:verify` (build 
 ### DEV vs PROD – baza danych
 
 - **DEV (lokalnie):** aplikacja uruchamiana przez `npm run dev` powinna korzystać z **oddzielnego projektu Supabase DEV**, skonfigurowanego w pliku `.env.local` (na bazie szablonu `scoutpro/.env.example`). Ten plik **nie jest commitowany** do repozytorium.
-- **PROD (Vercel + Azure):** korzysta z projektu Supabase PROD o `Project REF: digrvtbfonatvytwpbbn`, a wartości `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` / `VITE_APP_URL` są ustawione w panelach Vercel i Azure DevOps (variable group), a nie w plikach `.env` w repo.
+- **PROD (Vercel):** korzysta z projektu Supabase `Project REF: digrvtbfonatvytwpbbn` (ustawione w env Vercel).
+- **PROD (Azure SWA):** korzysta z projektu Supabase `Project REF: oilillvaatchsyvqbyxo` (ustawione w variable group/pipeline Azure).
 
 ## Stosowanie migracji: db push vs ręczne SQL
 
