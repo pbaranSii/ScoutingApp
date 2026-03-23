@@ -1,33 +1,36 @@
 # Rozwój aplikacji ScoutApp i dostarczanie funkcjonalności (Azure + Vercel)
 
-Instrukcja w aktualnym stanie: **dwa fronty** (Azure Static Web Apps + Vercel), **jedna baza** (Supabase). Jak rozwijać aplikację i wdrażać zmiany.
-
 ---
 
-## 1. Obecny stan
+## 1. Środowiska i bazy danych
 
-| Środowisko | Adres | Trigger / jak wdrażać |
-|------------|--------|------------------------|
-| **Vercel** | np. `scouting-app-gamma.vercel.app` | Automatyczny deploy po **push na `master`** (Vercel łączy się z repo i buduje z `master`). |
-| **Azure SWA** | `calm-hill-00bb9b203-preview.westeurope.2.azurestaticapps.net` | Ręczny deploy (build + SWA CLI z tokenem) **lub** pipeline Azure DevOps (trigger: `main` / `develop` – zależnie od konfiguracji). |
+| Środowisko | Adres | Gałąź | Supabase |
+|---|---|---|---|
+| **Azure SWA Production** | `scoutpro.kspolonia.pl` | `master` | `oilillvaatchsyvqbyxo` |
+| **Azure SWA Preview** | URL preview SWA | `develop` | `digrvtbfonatvytwpbbn` |
+| **Vercel** | `scouting-app-gamma.vercel.app` | `master` (auto) | `digrvtbfonatvytwpbbn` |
+| **Lokalny dev** | `http://localhost:5173` | dowolna | `digrvtbfonatvytwpbbn` |
 
-Oba fronty mogą korzystać z **tego samego projektu Supabase**. W Supabase (Authentication → URL Configuration) w **Redirect URLs** muszą być oba adresy (Vercel i Azure), żeby logowanie działało z obu.
+**Jak to działa automatycznie:**
+
+- Push na `master` → pipeline Azure DevOps uruchamia job `DeployProduction` z variable group `scoutapp-swadeploy-prod` (Supabase `oilillvaatchsyvqbyxo`) → wdraża na Production.
+- Push na `develop` → pipeline uruchamia job `DeployPreview` z variable group `scoutapp-swadeploy-preview` (Supabase `digrvtbfonatvytwpbbn`) → wdraża na Preview.
+- Vite wstrzykuje zmienne w czasie builda – nie trzeba zmieniać kodu.
 
 ---
 
 ## 2. Gałęzie i flow
 
-- **`develop`** – główna gałąź deweloperska: tu trafiają zmergowane feature.
-- **`master`** – gałąź „produkcyjna”: po pushu na `master` Vercel buduje i wdraża.
 - **`feature/...`** – praca nad nową funkcjonalnością.
+- **`develop`** – gałąź deweloperska / staging: tu trafiają zmergowane feature; push na `develop` → automatyczny deploy na Azure Preview.
+- **`master`** – gałąź produkcyjna: push na `master` → automatyczny deploy na Azure Production + Vercel.
 
-Flow:
+**Flow:**
 
 1. Pracuj na gałęzi **feature** (np. `feature/nazwa-funkcji`).
-2. Gdy skończysz: **merge do `develop`** → push `develop` → testy (lokalnie lub na preview).
-3. Gdy `develop` jest gotowy do „produkcji”: **merge `develop` do `master`** → push `master`.
-4. **Vercel** sam zbuduje i wdroży z `master`.
-5. **Azure** – w zależności od wyboru: ręczny deploy z `master` (lub z `develop`) albo pipeline w Azure DevOps.
+2. Gdy skończysz: merge do `develop` → push `develop` → pipeline buduje Preview z `digrvtbfonatvytwpbbn`.
+3. Gdy `develop` jest gotowy do produkcji: merge `develop` do `master` → push `master`.
+4. Pipeline buduje Production z `oilillvaatchsyvqbyxo`; Vercel buduje automatycznie z `master`.
 
 ---
 
@@ -44,105 +47,108 @@ git checkout -b feature/nazwa-funkcji
 
 ### Lokalne uruchomienie (dev)
 
-- W **`scoutpro/`** musisz mieć plik **`.env`** z:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_ANON_KEY`
-  - opcjonalnie `VITE_APP_URL` (np. `http://localhost:5173`).
-- **Uwaga:** jeśli istnieje **`.env.local`**, nadpisuje `.env`. Przy buildzie produkcyjnym albo ustaw w `.env.local` te same wartości co w `.env`, albo przemianuj `.env.local` (np. na `.env.local.bak`).  
-  Więcej: `scoutpro/docs/SUPABASE_CONNECTION.md`.
+Plik **`scoutpro/.env.local`** (nie commitowany) zawiera dane Supabase PREVIEW (`digrvtbfonatvytwpbbn`):
+
+```env
+VITE_SUPABASE_URL=https://digrvtbfonatvytwpbbn.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon key>
+VITE_APP_URL=http://localhost:5173
+```
+
+Plik **`scoutpro/.env`** zawiera dane PROD (`oilillvaatchsyvqbyxo`) i jest używany wyłącznie jako fallback przy ręcznym budowaniu produkcji (`.env.local` ma pierwszeństwo i nadpisuje `.env`).
 
 ```powershell
 cd scoutpro
 npm run dev
+# Aplikacja: http://localhost:5173 (łączy się z digrvtbfonatvytwpbbn)
 ```
-
-Aplikacja: `http://localhost:5173`.
 
 ### Zakończenie feature i wysłanie do develop
 
 ```powershell
-git add scoutpro/   # (i ewentualnie docs/, azure-static-web-app.yml – bez Materials/ i bez .env)
+git add scoutpro/   # bez .env i .env.local
 git commit -m "feat: opis zmiany"
 git push origin feature/nazwa-funkcji
+
 git checkout develop
 git pull origin develop
 git merge feature/nazwa-funkcji -m "Merge feature/nazwa-funkcji: opis"
 git push origin develop
+# → Pipeline automatycznie buduje Preview (digrvtbfonatvytwpbbn)
 ```
-
-Szczegóły i konwencje: `Materials/Instructions/Commit.md`.
 
 ---
 
-## 4. Wdrożenie na „produkcję”
+## 4. Wdrożenie na produkcję
 
-### 4.1 Vercel (automatycznie)
+### 4.1 Azure SWA Production (automatycznie przez pipeline)
 
-- Wypchnij zmiany na **`master`**:
-  - `git checkout master`
-  - `git pull origin master`
-  - `git merge develop -m "Merge develop: opis"`
-  - `git push origin master`
-- Vercel zbuduje i wdroży aplikację z brancha `master`. Nie musisz ręcznie budować ani wgrywać plików.
+```powershell
+git checkout master
+git pull origin master
+git merge develop -m "Merge develop: opis"
+git push origin master
+# → Pipeline automatycznie buduje Production (oilillvaatchsyvqbyxo) i wdraża na scoutpro.kspolonia.pl
+```
 
-### 4.2 Azure Static Web Apps
+### 4.2 Vercel (automatycznie)
 
-Masz dwie opcje.
+Vercel deployuje z `master` automatycznie. Korzysta z `digrvtbfonatvytwpbbn` (skonfigurowane w panelu Vercel → Environment Variables).
 
-#### A) Ręczny deploy (z własnego komputera)
+### 4.3 Azure SWA – ręczny deploy (awaryjnie)
 
-1. **Build** musi być z **poprawnymi danymi Supabase** (dla tej samej bazy, z której korzysta produkcja):
-   - W `scoutpro/.env`: poprawne `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, ewentualnie `VITE_APP_URL` = adres Azure SWA.
-   - Brak nadpisania przez `.env.local` (albo te same wartości w `.env.local`).
-
-2. Build i deploy:
+**Na PRODUKCJĘ:**
 
 ```powershell
 cd scoutpro
+# Wymuszamy env produkcyjne (nadpisuje .env.local)
+$env:VITE_SUPABASE_URL = "https://oilillvaatchsyvqbyxo.supabase.co"
+$env:VITE_SUPABASE_ANON_KEY = "<anon key oilillvaatchsyvqbyxo>"
+$env:VITE_APP_URL = "https://scoutpro.kspolonia.pl"
 npm run build
-$env:SWA_CLI_DEPLOYMENT_TOKEN = "token_z_Azure_Portal_Static_Web_App_Manage_deployment_token"
-npx -y @azure/static-web-apps-cli deploy ./dist
+
+$env:SWA_CLI_DEPLOYMENT_TOKEN = "<prod deployment token>"
+swa deploy .\dist --env production --deployment-token $env:SWA_CLI_DEPLOYMENT_TOKEN
 ```
 
-- Token **nie** commituj i **nie** wklejaj do repo. Po deployu warto wyczyścić zmienną w terminalu.
+**Na PREVIEW:**
 
-3. Po wdrożeniu: w Supabase (Authentication → URL Configuration) upewnij się, że w **Redirect URLs** jest adres Twojej aplikacji Azure (np. `https://calm-hill-00bb9b203-preview.westeurope.2.azurestaticapps.net/**`).
+```powershell
+cd scoutpro
+npm run build   # .env.local (digrvtbfonatvytwpbbn) jest używane automatycznie
 
-#### B) Pipeline Azure DevOps
+$env:SWA_CLI_DEPLOYMENT_TOKEN = "<token>"
+swa deploy .\dist --deployment-token $env:SWA_CLI_DEPLOYMENT_TOKEN
+```
 
-- Repo w Azure DevOps (np. mirror) + pipeline z pliku **`azure-static-web-app.yml`**.
-- W **Library** → variable group (np. `scoutapp-swadeploy`) ustaw:
-  - `DEPLOYMENT_TOKEN` (secret),
-  - `VITE_SUPABASE_URL`,
-  - `VITE_SUPABASE_ANON_KEY`,
-  - `VITE_APP_URL` (adres Azure SWA).
-- Przy pushu na gałąź obsługiwaną przez pipeline (np. `main` lub `develop`) pipeline zbuduje aplikację z tymi zmiennymi i wdroży na Azure SWA.  
-  Szczegóły: `docs/DEPLOYMENT-AZURE.md`.
+> **Uwaga:** bez flagi `--env production` SWA CLI zawsze wdraża na Preview. Używaj `--env production` wyłącznie dla produkcji.
 
 ---
 
 ## 5. Migracje bazy (Supabase)
 
-- Niezależnie od tego, czy wdrażasz na Vercel, czy na Azure, **baza** to Supabase.
 - Migracje opisane są w `scoutpro/supabase/README_MIGRATIONS.md`.
-- W **produkcyjnym** projekcie Supabase uruchamiasz te same migracje co w dev (zgodnie z przyjętą procedurą), żeby schemat był aktualny dla wersji wdrożonej na frontach.
+- Uruchamiasz je osobno na każdym projekcie Supabase (PROD i PREVIEW).
+- `supabase db push` stosuje migracje z `scoutpro/supabase/migrations/`.
 
 ---
 
 ## 6. Szybka ściąga
 
 | Chcę… | Działanie |
-|--------|-----------|
-| Pracować nad nową funkcją | `git checkout develop` → `git pull` → `git checkout -b feature/...` → kod w `scoutpro/` → `npm run dev` z poprawnym `.env`. |
-| Wysłać feature do develop | Merge feature → develop, `git push origin develop`. |
-| Wypuścić wersję na Vercel | Merge develop → master, `git push origin master`. Vercel zbuduje z `master`. |
-| Wgrać tę samą wersję na Azure | U siebie: poprawny `.env` w `scoutpro/`, `npm run build`, ustawić `SWA_CLI_DEPLOYMENT_TOKEN`, `npx @azure/static-web-apps-cli deploy ./dist`. Albo użyć pipeline Azure DevOps. |
-| Zmienić dane Supabase dla builda | Edytuj `scoutpro/.env` (i ewentualnie `.env.local`). Przy ręcznym buildzie Vite wczyta je przy `npm run build`. |
+|---|---|
+| Pracować nad nową funkcją | `git checkout develop` → `git pull` → `git checkout -b feature/...` → `npm run dev` (używa `.env.local` z `digrvtbfonatvytwpbbn`). |
+| Wysłać feature do develop | Merge feature → develop, `git push origin develop` → pipeline deployuje Preview. |
+| Wypuścić wersję na Production | Merge develop → master, `git push origin master` → pipeline deployuje Production + Vercel. |
+| Sprawdzić, do której bazy łączy się aplikacja | DevTools → Network → filtruj po `supabase.co` → sprawdź `Request URL`. |
+| Zmienić dane Supabase dla lokalnego dev | Edytuj `scoutpro/.env.local` (nie commituj). |
+| Zmienić dane Supabase dla produkcji | Zaktualizuj variable group `scoutapp-swadeploy-prod` w Azure DevOps. |
 
 ---
 
 Dokumenty powiązane:
 
 - **Połączenie z Supabase (gdzie trzymać URL i klucze):** `scoutpro/docs/SUPABASE_CONNECTION.md`
-- **Azure (pipeline, zmienne):** `docs/DEPLOYMENT-AZURE.md`
+- **Azure (pipeline, variable groups):** `docs/DEPLOYMENT-AZURE.md`
+- **CI/CD runbook:** `documentation/runbooks/azure-swa-ci-cd.md`
 - **Commit i merge do develop:** `Materials/Instructions/Commit.md`

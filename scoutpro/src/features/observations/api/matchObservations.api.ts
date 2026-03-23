@@ -11,7 +11,6 @@ export type MatchObservationInput = {
   observation_date: string;
   competition: string;
   league?: string | null;
-  location?: string | null;
   home_team?: string | null;
   away_team?: string | null;
   match_result?: string | null;
@@ -31,7 +30,6 @@ export async function createMatchObservation(
     observation_date: input.observation_date,
     competition: input.competition,
     league: input.league ?? null,
-    location: input.location ?? null,
     home_team: input.home_team ?? null,
     away_team: input.away_team ?? null,
     match_result: input.match_result ?? null,
@@ -82,7 +80,6 @@ export async function updateMatchObservation(
   if (input.observation_date !== undefined) payload.observation_date = input.observation_date;
   if (input.competition !== undefined) payload.competition = input.competition;
   if (input.league !== undefined) payload.league = input.league;
-  if (input.location !== undefined) payload.location = input.location;
   if (input.home_team !== undefined) payload.home_team = input.home_team;
   if (input.away_team !== undefined) payload.away_team = input.away_team;
   if (input.match_result !== undefined) payload.match_result = input.match_result;

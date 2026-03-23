@@ -110,7 +110,7 @@ export function useUpdatePlayer() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: PlayerInput }) =>
+    mutationFn: ({ id, input }: { id: string; input: Partial<PlayerInput> }) =>
       updatePlayer(id, input),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["players"] });

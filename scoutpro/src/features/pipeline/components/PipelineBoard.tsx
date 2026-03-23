@@ -45,6 +45,8 @@ function toPlayersFilters(filters: PipelineFiltersState): PlayersFilters {
   if (filters.scoutId) f.scoutId = filters.scoutId;
   if (filters.position) f.primary_position = filters.position;
   if (filters.clubId) f.clubIds = [filters.clubId];
+  // Pipeline nie wykorzystuje `observation_count`, więc wyłączamy koszt agregacji.
+  f.includeObservationCount = false;
   return f;
 }
 
@@ -85,9 +87,14 @@ export function PipelineBoard({ search = "", filters = DEFAULT_FILTERS }: Pipeli
   const initialColumns = useMemo(() => groupByStatus(filteredPlayers), [filteredPlayers]);
   const { statusSince, latestRating } = usePipelineEnrichment(filteredPlayers);
 
-  // Stable key so useEffect only runs when the actual player list (by id) changes, not when object reference changes
+  // Stable key so useEffect runs when the board content actually changes:
+  // - include pipeline_status so a programmatic update (e.g. modal "add") is reflected.
   const filteredPlayersKey = useMemo(
-    () => filteredPlayers.map((p) => p.id).sort().join(","),
+    () =>
+      filteredPlayers
+        .map((p) => `${p.id}:${p.pipeline_status ?? "unassigned"}`)
+        .sort()
+        .join(","),
     [filteredPlayers]
   );
   const filteredPlayersRef = useRef(filteredPlayers);

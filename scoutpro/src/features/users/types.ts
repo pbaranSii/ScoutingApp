@@ -3,6 +3,7 @@ import type { Tables } from "@/types/database.types";
 export type UserProfile = Tables<"users">;
 
 export type BusinessRole = "scout" | "coach" | "director" | "suspended" | "admin";
+export type AreaAccess = "AKADEMIA" | "SENIOR" | "ALL";
 
 /** Role uprawnione do modułu Analytics (lejka rekrutacji). Scout nie ma dostępu. */
 export const ROLES_CAN_VIEW_ANALYTICS: readonly BusinessRole[] = [

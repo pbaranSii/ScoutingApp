@@ -1,13 +1,15 @@
 # Azure DevOps pipeline: build ScoutApp (Vite) and deploy to Azure Static Web Apps
 # Repo: https://dev.azure.com/sii-ads-integration/Polonia/_git/scoutapp%20-%20Polonia
-# Variable group "scoutapp-swadeploy" must contain: DEPLOYMENT_TOKEN, VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_APP_URL
+#
+# Separacja środowisk:
+#   master  → Variable group "scoutapp-swadeploy-prod"    → Supabase oilillvaatchsyvqbyxo → Production
+#   develop → Variable group "scoutapp-swadeploy-preview" → Supabase digrvtbfonatvytwpbbn  → Preview
 
 trigger:
   - master
   - develop
 
 variables:
-  - group: scoutapp-swadeploy
   - name: app_location
     value: scoutpro
   - name: output_location
@@ -16,25 +18,60 @@ variables:
 pool:
   vmImage: ubuntu-latest
 
-steps:
-  - task: NodeTool@0
-    inputs:
-      versionSpec: '20.x'
-    displayName: 'Zainstaluj Node.js'
+jobs:
+  - job: DeployProduction
+    displayName: 'Deploy PROD (master → oilillvaatchsyvqbyxo)'
+    condition: eq(variables['Build.SourceBranch'], 'refs/heads/master')
+    variables:
+      - group: scoutapp-swadeploy-prod
+    steps:
+      - task: NodeTool@0
+        inputs:
+          versionSpec: '20.x'
+        displayName: 'Zainstaluj Node.js'
 
-  - script: |
-      cd $(app_location)
-      npm ci
-      npm run build
-    env:
-      VITE_SUPABASE_URL: $(VITE_SUPABASE_URL)
-      VITE_SUPABASE_ANON_KEY: $(VITE_SUPABASE_ANON_KEY)
-      VITE_APP_URL: $(VITE_APP_URL)
-    displayName: 'Build aplikacji (Vite)'
+      - script: |
+          cd $(app_location)
+          npm ci
+          npm run build
+        env:
+          VITE_SUPABASE_URL: $(VITE_SUPABASE_URL)
+          VITE_SUPABASE_ANON_KEY: $(VITE_SUPABASE_ANON_KEY)
+          VITE_APP_URL: $(VITE_APP_URL)
+        displayName: 'Build PROD (Vite)'
 
-  - task: AzureStaticWebApp@0
-    inputs:
-      app_location: $(app_location)
-      output_location: $(output_location)
-      azure_static_web_apps_api_token: $(DEPLOYMENT_TOKEN)
-    displayName: 'Deploy do Static Web App'
+      - task: AzureStaticWebApp@0
+        inputs:
+          app_location: $(app_location)
+          output_location: $(output_location)
+          azure_static_web_apps_api_token: $(DEPLOYMENT_TOKEN)
+          production_branch: master
+        displayName: 'Deploy PROD do Static Web App'
+
+  - job: DeployPreview
+    displayName: 'Deploy PREVIEW (develop → digrvtbfonatvytwpbbn)'
+    condition: eq(variables['Build.SourceBranch'], 'refs/heads/develop')
+    variables:
+      - group: scoutapp-swadeploy-preview
+    steps:
+      - task: NodeTool@0
+        inputs:
+          versionSpec: '20.x'
+        displayName: 'Zainstaluj Node.js'
+
+      - script: |
+          cd $(app_location)
+          npm ci
+          npm run build
+        env:
+          VITE_SUPABASE_URL: $(VITE_SUPABASE_URL)
+          VITE_SUPABASE_ANON_KEY: $(VITE_SUPABASE_ANON_KEY)
+          VITE_APP_URL: $(VITE_APP_URL)
+        displayName: 'Build PREVIEW (Vite)'
+
+      - task: AzureStaticWebApp@0
+        inputs:
+          app_location: $(app_location)
+          output_location: $(output_location)
+          azure_static_web_apps_api_token: $(DEPLOYMENT_TOKEN)
+        displayName: 'Deploy PREVIEW do Static Web App'

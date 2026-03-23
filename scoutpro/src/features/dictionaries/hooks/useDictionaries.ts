@@ -9,6 +9,7 @@ import {
   updateDictionaryEntry,
 } from "../api/dictionaries.api";
 import { getDictionaryById } from "../config";
+import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 
 export function useDictionaryCounts() {
   return useQuery({
@@ -99,6 +100,24 @@ export function useRegions() {
 export function useCategories() {
   const config = getDictionaryById("categories");
   return useDictionaryEntries(config ?? null, { activeOnly: true });
+}
+
+/** Kategorie wiekowe przefiltrowane do obszaru zalogowanego użytkownika. */
+export function useCategoriesForCurrentArea() {
+  const categoriesQuery = useCategories();
+  const { data: currentUser } = useCurrentUserProfile();
+  const areaAccess = (currentUser as { area_access?: "AKADEMIA" | "SENIOR" | "ALL" } | null)?.area_access ?? "AKADEMIA";
+
+  const filtered = (categoriesQuery.data ?? []).filter((c) => {
+    if (areaAccess === "ALL") return true;
+    const area = String((c as Record<string, unknown>).area ?? "AKADEMIA");
+    return area === areaAccess;
+  });
+
+  return {
+    ...categoriesQuery,
+    data: filtered,
+  };
 }
 
 /** Aktywne pozycje słownika Mocne strony – do tagów w formularzu obserwacji. */

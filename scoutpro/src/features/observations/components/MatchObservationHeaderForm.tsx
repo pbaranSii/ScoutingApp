@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
-import { useCategories } from "@/features/dictionaries/hooks/useDictionaries";
+import { useCategoriesForCurrentArea } from "@/features/dictionaries/hooks/useDictionaries";
 import { useFormations } from "@/features/tactical/hooks/useFormations";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
 
@@ -31,7 +31,6 @@ const headerSchema = z
       .string()
       .optional()
       .refine((s) => s === undefined || s === "" || /^\d{1,2}[-:]\d{1,2}$/.test(s), "Format: X:Y (np. 2:1)"),
-    location: z.string().max(200).optional(),
     source: z.enum(["live_match", "video_match", "video_clips", "tournament"]),
     home_team_formation: z.string().optional(),
     away_team_formation: z.string().optional(),
@@ -74,8 +73,23 @@ export const MatchObservationHeaderForm = forwardRef<
   MatchObservationHeaderFormRef,
   MatchObservationHeaderFormProps
 >(function MatchObservationHeaderForm({ initialValues, onValuesChange }, ref) {
-  const { data: categories = [] } = useCategories();
+  const { data: categories = [] } = useCategoriesForCurrentArea();
   const { data: formations = [] } = useFormations();
+  const formationSelect = formations as unknown as { id: string; code?: string | null; name: string }[];
+  const formationOptionValue = useCallback((f: { id: string; code?: string | null }) => {
+    const code = String(f.code ?? "").trim();
+    return code || f.id;
+  }, []);
+  const normalizeFormationForSelect = useCallback(
+    (value?: string) => {
+      const current = String(value ?? "").trim();
+      if (!current) return "";
+      const byId = formationSelect.find((f) => f.id === current);
+      if (byId) return formationOptionValue(byId);
+      return current;
+    },
+    [formationSelect, formationOptionValue]
+  );
 
   const form = useForm<MatchHeaderFormValues>({
     resolver: zodResolver(headerSchema),
@@ -86,7 +100,6 @@ export const MatchObservationHeaderForm = forwardRef<
       home_team: "",
       away_team: "",
       match_result: "",
-      location: "",
       source: "live_match",
       home_team_formation: "",
       away_team_formation: "",
@@ -124,7 +137,6 @@ export const MatchObservationHeaderForm = forwardRef<
     home_team: "",
     away_team: "",
     match_result: "",
-    location: "",
     source: "live_match" as const,
     home_team_formation: "",
     away_team_formation: "",
@@ -135,8 +147,13 @@ export const MatchObservationHeaderForm = forwardRef<
     if (!initialValues || Object.keys(initialValues).length === 0) return;
     if (initialValuesAppliedRef.current) return;
     initialValuesAppliedRef.current = true;
-    form.reset({ ...defaults, ...initialValues });
-  }, [initialValues, form]);
+    form.reset({
+      ...defaults,
+      ...initialValues,
+      home_team_formation: normalizeFormationForSelect(initialValues.home_team_formation),
+      away_team_formation: normalizeFormationForSelect(initialValues.away_team_formation),
+    });
+  }, [initialValues, form, normalizeFormationForSelect]);
 
   useEffect(() => {
     if (!initialValues || Object.keys(initialValues).length === 0) {
@@ -224,19 +241,6 @@ export const MatchObservationHeaderForm = forwardRef<
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="location"
-            render={({ field }) => (
-              <FormItem>
-                <Label>Lokalizacja</Label>
-                <FormControl>
-                  <Input placeholder="Miasto / stadion" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
         </div>
         {isMatchLike && (
           <div className="grid gap-4 sm:grid-cols-3">
@@ -297,7 +301,10 @@ export const MatchObservationHeaderForm = forwardRef<
             render={({ field }) => (
               <FormItem>
                 <Label>Formacja gospodarzy</Label>
-                <Select value={field.value || "__none__"} onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}>
+                <Select
+                  value={normalizeFormationForSelect(field.value) || "__none__"}
+                  onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Wybierz schemat" />
@@ -305,10 +312,10 @@ export const MatchObservationHeaderForm = forwardRef<
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="__none__">— Brak —</SelectItem>
-                    {formations
-                      .filter((f: { code?: string | null }) => String(f.code ?? "").trim() !== "")
-                      .map((f: { id: string; name: string; code: string }) => (
-                      <SelectItem key={f.id} value={f.code}>
+                    {formationSelect
+                      .filter((f) => formationOptionValue(f).trim() !== "")
+                      .map((f) => (
+                      <SelectItem key={f.id} value={formationOptionValue(f)}>
                         {f.name}
                       </SelectItem>
                     ))}
@@ -324,7 +331,10 @@ export const MatchObservationHeaderForm = forwardRef<
             render={({ field }) => (
               <FormItem>
                 <Label>Formacja gości</Label>
-                <Select value={field.value || "__none__"} onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}>
+                <Select
+                  value={normalizeFormationForSelect(field.value) || "__none__"}
+                  onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Wybierz schemat" />
@@ -332,10 +342,10 @@ export const MatchObservationHeaderForm = forwardRef<
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="__none__">— Brak —</SelectItem>
-                    {formations
-                      .filter((f: { code?: string | null }) => String(f.code ?? "").trim() !== "")
-                      .map((f: { id: string; name: string; code: string }) => (
-                      <SelectItem key={f.id} value={f.code}>
+                    {formationSelect
+                      .filter((f) => formationOptionValue(f).trim() !== "")
+                      .map((f) => (
+                      <SelectItem key={f.id} value={formationOptionValue(f)}>
                         {f.name}
                       </SelectItem>
                     ))}

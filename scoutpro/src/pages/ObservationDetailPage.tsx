@@ -10,6 +10,7 @@ import {
 } from "@/features/observations/api/evaluationCriteria.api";
 import { fetchObservationCriterionNotes } from "@/features/observations/api/observationCriterionNotes.api";
 import { fetchMatchObservationById } from "@/features/observations/api/matchObservations.api";
+import { fetchObservationMatches } from "@/features/observations/api/observationMatches.api";
 import { usePlayerSources } from "@/features/dictionaries/hooks/useDictionaries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,6 +95,11 @@ export function ObservationDetailPage() {
       Boolean(observation?.match_observation_id) &&
       observation?.observation_category === "match_player",
   });
+  const { data: observationMatches = [] } = useQuery({
+    queryKey: ["observation-matches", observationId],
+    queryFn: () => fetchObservationMatches(observationId),
+    enabled: Boolean(observationId),
+  });
 
   if (isLoading) {
     return <p className="text-sm text-slate-500">Ładowanie...</p>;
@@ -163,8 +169,6 @@ export function ObservationDetailPage() {
   const awayTeamLabel = observation.away_team?.trim() || matchHeader?.away_team?.trim() || "";
   const matchResultLabel =
     observation.match_result?.trim() || matchHeader?.match_result?.trim() || "—";
-  const locationLabel =
-    observation.location?.trim() || matchHeader?.location?.trim() || "—";
   const matchNotesLabel = matchHeader?.match_notes?.trim() || "";
 
   return (
@@ -391,14 +395,24 @@ export function ObservationDetailPage() {
               <span className="text-slate-600">{matchResultLabel}</span>
             </div>
             <div>
-              <span className="font-medium text-slate-700">Lokalizacja: </span>
-              <span className="text-slate-600">{locationLabel}</span>
-            </div>
-            <div>
               <span className="font-medium text-slate-700">Źródło: </span>
               <span className="text-slate-600">{sourceLabel}</span>
             </div>
           </div>
+          {observation.observation_category === "individual" && observationMatches.length > 0 && (
+            <div className="pt-2">
+              <span className="font-medium text-slate-700">Powiązane mecze: </span>
+              <div className="mt-1 space-y-1 rounded bg-slate-50 p-2 text-sm text-slate-600">
+                {observationMatches.map((m) => (
+                  <div key={m.id}>
+                    {m.match_date} — {(m.home_team ?? "—")} vs {(m.away_team ?? "—")}
+                    {m.match_result ? ` (${m.match_result})` : ""}
+                    {m.competition ? ` • ${m.competition}` : ""}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {matchNotesLabel && (
             <div className="pt-2">
               <span className="font-medium text-slate-700">Notatki do meczu: </span>
