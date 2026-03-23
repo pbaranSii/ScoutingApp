@@ -8,6 +8,7 @@ import { formatPosition } from "@/features/players/positions";
 
 type ObservationCardProps = {
   observation: Observation;
+  matchCount?: number;
 };
 
 function getCategoryLabel(category: Observation["observation_category"]): string {

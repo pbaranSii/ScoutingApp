@@ -232,6 +232,11 @@ export type PlayersFilters = {
   createdBy?: string;
   page?: number;
   pageSize?: number;
+  /**
+   * Optymalizacja: w widokach pipeline nie potrzebujemy licznika obserwacji.
+   * Domyślnie true (zachowuje dotychczasowe zachowanie dla PlayersPage).
+   */
+  includeObservationCount?: boolean;
 };
 
 export type FetchPlayersResult = {
@@ -244,11 +249,14 @@ export async function fetchPlayers(filters?: PlayersFilters): Promise<FetchPlaye
   const page = usePagination ? (filters?.page ?? 1) : 1;
   const pageSize = usePagination ? (filters?.pageSize ?? 100) : 100;
 
+  const includeObservationCount = filters?.includeObservationCount ?? true;
+  const baseSelect =
+    "*, club:clubs(name), region:regions(name), age_category:categories(id,name,area)";
+  const select = includeObservationCount ? `${baseSelect}, observations:observations(count)` : baseSelect;
+
   let query = supabase
     .from("players")
-    .select("*, club:clubs(name), region:regions(name), observations:observations(count)", {
-      count: usePagination ? "exact" : undefined,
-    })
+    .select(select, { count: usePagination ? "exact" : undefined })
     .order("created_at", { ascending: false });
 
   if (filters?.birthYear) {
@@ -316,15 +324,16 @@ export async function fetchPlayers(filters?: PlayersFilters): Promise<FetchPlaye
 
   const { data, error, count } = await query;
   if (error) throw error;
-
   const mapped = (data ?? []).map((player) => {
-    const { observations, ...rest } = player as Player & { observations?: { count: number }[] };
+    if (!includeObservationCount) {
+      return { ...(player as unknown as Player), observation_count: 0 };
+    }
+
+    const { observations, ...rest } = player as unknown as Player & { observations?: { count: number }[] };
     const observation_count =
       Array.isArray(observations) && observations.length > 0 ? observations[0]?.count ?? 0 : 0;
-    return {
-      ...rest,
-      observation_count,
-    };
+
+    return { ...rest, observation_count };
   });
 
   if (usePagination) {
@@ -334,20 +343,38 @@ export async function fetchPlayers(filters?: PlayersFilters): Promise<FetchPlaye
 }
 
 export async function fetchPlayerById(id: string) {
-  const { data, error } = await supabase
-    .from("players")
-    .select("*, club:clubs(name), region:regions(name), observations:observations(count)")
-    .eq("id", id)
-    .single();
+  const selectWithObservationCount =
+    "*, club:clubs(name), region:regions(name), age_category:categories(id,name,area), observations:observations(count)";
+  const selectWithoutObservationCount = "*, club:clubs(name), region:regions(name), age_category:categories(id,name,area)";
 
-  if (error) throw error;
-  const { observations, ...rest } = (data ?? {}) as Player & { observations?: { count: number }[] };
-  const observation_count =
-    Array.isArray(observations) && observations.length > 0 ? observations[0]?.count ?? 0 : 0;
-  return {
-    ...rest,
-    observation_count,
-  };
+  try {
+    const { data, error } = await supabase
+      .from("players")
+      .select(selectWithObservationCount)
+      .eq("id", id)
+      .single();
+
+    if (error) throw error;
+    const { observations, ...rest } = (data ?? {}) as unknown as Player & { observations?: { count: number }[] };
+    const observation_count =
+      Array.isArray(observations) && observations.length > 0 ? observations[0]?.count ?? 0 : 0;
+    return { ...rest, observation_count };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.toLowerCase().includes("406") && !msg.toLowerCase().includes("not acceptable")) {
+      throw err;
+    }
+
+    // Fallback: same request without nested aggregate count.
+    const { data, error } = await supabase
+      .from("players")
+      .select(selectWithoutObservationCount)
+      .eq("id", id)
+      .single();
+
+    if (error) throw error;
+    return { ...(data as unknown as Player), observation_count: 0 };
+  }
 }
 
 export async function createPlayer(input: PlayerInput) {
@@ -370,17 +397,21 @@ export async function createPlayer(input: PlayerInput) {
   return data as Pick<Player, "id">;
 }
 
-export async function updatePlayer(id: string, input: PlayerInput) {
+export async function updatePlayer(id: string, input: Partial<PlayerInput>) {
   const { pipeline_status, ...rest } = input;
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("players")
     .update({
       ...rest,
       pipeline_status: pipeline_status ?? undefined,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) throw error;
+  if (!data || (Array.isArray(data) ? data.length === 0 : false)) {
+    throw new Error("Nie udało się zaktualizować zawodnika (rekord nie został zaktualizowany).");
+  }
   return null;
 }
 
@@ -451,22 +482,23 @@ export async function updatePlayerStatusWithHistory(input: {
   changed_by?: string | null;
   from_status?: string | null;
 }): Promise<{ historyError?: string | null }> {
-  let previousStatus = input.from_status ?? null;
-  if (previousStatus === null) {
-    const { data: player, error: playerError } = await supabase
-      .from("players")
-      .select("pipeline_status")
-      .eq("id", input.id)
-      .single();
-    if (playerError) throw playerError;
-    previousStatus = (player?.pipeline_status as string | null) ?? null;
-  }
+  // Important: don't do extra SELECT when `from_status` is missing.
+  // It can be blocked by RLS for some roles/contexts and would cause the whole mutation to fail,
+  // producing "appears then disappears" in Pipeline.
+  const previousStatus = input.from_status ?? null;
 
-  const { error } = await supabase
+  // Important: do NOT ignore "0 rows updated".
+  // With RLS PostgREST can return no error but update 0 rows,
+  // causing optimistic UI to revert after invalidation.
+  const { data, error } = await supabase
     .from("players")
     .update({ pipeline_status: input.status })
-    .eq("id", input.id);
+    .eq("id", input.id)
+    .select("id");
   if (error) throw error;
+  if (!data || (Array.isArray(data) ? data.length === 0 : false)) {
+    throw new Error("Nie udało się zmienić statusu w pipeline (rekord nie został zaktualizowany).");
+  }
 
   let historyError: string | null = null;
   if (input.changed_by && previousStatus !== input.status) {
