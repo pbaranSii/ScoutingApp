@@ -10,7 +10,7 @@ import { Pagination } from "@/components/common/Pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_PIPELINE_STATUSES, type PipelineStatus } from "@/features/pipeline/types";
 import { POSITION_OPTIONS } from "@/features/players/positions";
-import { SlidersHorizontal } from "lucide-react";
+import { LayoutGrid, List, SlidersHorizontal } from "lucide-react";
 
 const PAGE_SIZE = 100;
 
@@ -19,6 +19,7 @@ export function PlayersPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [view, setView] = useState<"grid" | "list">("list");
   const [filters, setFilters] = useState({
     position: "",
     status: "",
@@ -94,6 +95,28 @@ export function PlayersPage() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant={view === "grid" ? "default" : "outline"}
+            className="gap-2"
+            onClick={() => setView("grid")}
+            title="Widok kafelków"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Siatka
+          </Button>
+          <Button
+            type="button"
+            variant={view === "list" ? "default" : "outline"}
+            className="gap-2"
+            onClick={() => setView("list")}
+            title="Widok listy"
+          >
+            <List className="h-4 w-4" />
+            Lista
+          </Button>
+        </div>
         <Button
           type="button"
           variant="outline"
@@ -203,6 +226,7 @@ export function PlayersPage() {
                   type="number"
                   min={1}
                   max={5}
+                  step={0.5}
                   inputMode="numeric"
                   value={filters.performanceMin}
                   onChange={(e) => setFilters((prev) => ({ ...prev, performanceMin: e.target.value }))}
@@ -212,6 +236,7 @@ export function PlayersPage() {
                   type="number"
                   min={1}
                   max={5}
+                  step={0.5}
                   inputMode="numeric"
                   value={filters.performanceMax}
                   onChange={(e) => setFilters((prev) => ({ ...prev, performanceMax: e.target.value }))}
@@ -247,7 +272,7 @@ export function PlayersPage() {
         </div>
       )}
 
-      <PlayerList players={data} isLoading={isLoading} />
+      <PlayerList players={data} isLoading={isLoading} variant={view} />
       {total > 0 && (
         <Pagination
           page={page}

@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import type { BusinessRole, UserProfile } from "../types";
+import type { AreaAccess, BusinessRole, UserProfile } from "../types";
 
 export async function fetchUsers() {
   const { data, error } = await supabase
@@ -17,12 +17,17 @@ export async function fetchUserProfile(userId: string): Promise<UserProfile | nu
 }
 
 /** List users with business_role = scout (for pipeline/observation filters). */
-export async function fetchScouts(): Promise<UserProfile[]> {
-  const { data, error } = await supabase
+export async function fetchScouts(areaAccess?: AreaAccess): Promise<UserProfile[]> {
+  let query = supabase
     .from("users")
     .select("*")
-    .eq("business_role", "scout")
-    .order("full_name", { ascending: true });
+    .eq("business_role", "scout");
+
+  if (areaAccess && areaAccess !== "ALL") {
+    query = query.eq("area_access", areaAccess);
+  }
+
+  const { data, error } = await query.order("full_name", { ascending: true });
   if (error) throw error;
   return (data ?? []) as UserProfile[];
 }
@@ -35,6 +40,7 @@ export async function createUserDirect(input: {
   first_name?: string | null;
   last_name?: string | null;
   business_role?: BusinessRole;
+  area_access?: AreaAccess;
 }) {
   const email = (input.email ?? "").trim();
   const password = input.password ?? "";
@@ -67,6 +73,7 @@ export async function createUserDirect(input: {
       first_name: input.first_name ?? null,
       last_name: input.last_name ?? null,
       business_role: input.business_role ?? "scout",
+      area_access: input.area_access ?? "AKADEMIA",
     }),
   });
   let body: { id?: string; error?: string } = {};
@@ -80,7 +87,22 @@ export async function createUserDirect(input: {
     const msg = body?.error ?? `Błąd ${res.status}. Zaloguj się ponownie i spróbuj jeszcze raz.`;
     throw new Error(msg);
   }
-  return { id: body?.id ?? "" };
+  const createdId = body?.id ?? "";
+  if (!createdId) {
+    throw new Error("Nie udało się odczytać identyfikatora utworzonego użytkownika.");
+  }
+
+  // Fallback persistence in public.users to guarantee area_access/business_role
+  // even when Edge Function deployment is stale.
+  await updateUserProfile(createdId, {
+    email,
+    first_name: input.first_name ?? null,
+    last_name: input.last_name ?? null,
+    business_role: input.business_role ?? "scout",
+    area_access: input.area_access ?? "AKADEMIA",
+  });
+
+  return { id: createdId };
 }
 
 /** Update user profile in public.users. RLS allows admin. Email in auth is not changed. */
@@ -91,21 +113,25 @@ export async function updateUserProfile(
     first_name?: string | null;
     last_name?: string | null;
     business_role?: BusinessRole;
+    area_access?: AreaAccess;
   }
 ) {
-  const fullName = [input.first_name, input.last_name].filter(Boolean).join(" ").trim() || null;
-  const businessRole = input.business_role ?? "scout";
-  const role = businessRole === "admin" ? "admin" : "user";
-  const isActive = businessRole !== "suspended";
+  const fullName =
+    input.first_name !== undefined || input.last_name !== undefined
+      ? [input.first_name, input.last_name].filter(Boolean).join(" ").trim() || null
+      : undefined;
 
   const { error } = await supabase
     .from("users")
     .update({
       ...(input.email != null && { email: input.email }),
-      full_name: fullName,
-      role,
-      business_role: businessRole,
-      is_active: isActive,
+      ...(fullName !== undefined && { full_name: fullName }),
+      ...(input.business_role !== undefined && {
+        business_role: input.business_role,
+        role: input.business_role === "admin" ? "admin" : "user",
+        is_active: input.business_role !== "suspended",
+      }),
+      area_access: input.area_access ?? undefined,
     })
     .eq("id", userId);
   if (error) throw error;
@@ -118,6 +144,7 @@ export async function adminUpdateUser(body: {
   first_name?: string | null;
   last_name?: string | null;
   business_role?: BusinessRole;
+  area_access?: AreaAccess;
 }) {
   const { data, error } = await supabase.functions.invoke("admin-update-user", { body });
   const errMsg = (data as { error?: string } | null)?.error;
@@ -133,8 +160,25 @@ export async function updateUserAsAdmin(body: {
   first_name?: string | null;
   last_name?: string | null;
   business_role?: BusinessRole;
+  area_access?: AreaAccess;
 }) {
-  return await adminUpdateUser(body);
+  // Primary write path: direct table update (RLS admin policy).
+  await updateUserProfile(body.user_id, {
+    email: body.email,
+    first_name: body.first_name,
+    last_name: body.last_name,
+    business_role: body.business_role,
+    area_access: body.area_access,
+  });
+
+  // Best effort metadata sync in auth.users (name/role/area in user_metadata).
+  // Do not block UI save if Edge Function is temporarily unavailable.
+  try {
+    await adminUpdateUser(body);
+  } catch {
+    // no-op on purpose
+  }
+  return { status: "ok" };
 }
 
 export async function adminSetUserPassword(input: { user_id: string; password: string }) {

@@ -33,7 +33,6 @@ export type Observation = {
   home_team?: string | null;
   away_team?: string | null;
   match_result?: string | null;
-  location?: string | null;
   positions?: string[] | null;
   photo_url?: string | null;
   potential_now?: number | null;
@@ -61,6 +60,7 @@ export type Observation = {
     first_name: string;
     last_name: string;
     birth_year?: number;
+    nationality?: string | null;
     primary_position?: string | null;
     pipeline_status?: string | null;
     club?: { name: string } | null;
@@ -97,7 +97,6 @@ export type ObservationInput = {
   home_team?: string | null;
   away_team?: string | null;
   match_result?: string | null;
-  location?: string | null;
   positions?: string[] | null;
   photo_url?: string | null;
   potential_now?: number | null;
@@ -132,11 +131,19 @@ export type MatchPlayerSlot = {
   first_name: string;
   last_name: string;
   birth_year: number;
+  nationality?: string | null;
   /** Optional ISO date string (yyyy-MM-dd). */
   birth_date?: string | null;
   /** Optional ISO date string (yyyy-MM-dd). */
   contract_end_date?: string | null;
   club_name?: string;
+  /** Body build (np. z słownika dict_body_build) */
+  body_build?: string | null;
+  /** Taktyczny schemat klubu zawodnika (formation) */
+  club_formation?: string | null;
+  agent_name?: string | null;
+  agent_phone?: string | null;
+  agent_email?: string | null;
   primary_position: string;
   overall_rating: number;
   match_performance_rating: number;

@@ -47,6 +47,9 @@ export function DictionaryEntryForm({
   const [description, setDescription] = useState(
     config.table === "dict_player_sources" ? String(initial?.description ?? "") : ""
   );
+  const [isDefaultSource, setIsDefaultSource] = useState(
+    config.table === "dict_player_sources" ? Boolean(initial?.is_default) : false
+  );
   const [decisionCategory, setDecisionCategory] = useState(
     config.table === "dict_recruitment_decisions" ? String(initial?.decision_category ?? "") : ""
   );
@@ -66,6 +69,9 @@ export function DictionaryEntryForm({
   const [ageUnder, setAgeUnder] = useState<string>(
     config.table === "categories" ? String(initial?.age_under ?? "") : ""
   );
+  const [categoryArea, setCategoryArea] = useState<string>(
+    config.table === "categories" ? String(initial?.area ?? "AKADEMIA") : "AKADEMIA"
+  );
 
   const { data: regions = [] } = useRegions();
 
@@ -80,6 +86,7 @@ export function DictionaryEntryForm({
     if (nameEnCol) payload[nameEnCol] = nameEn.trim();
     if (orderCol && orderCol !== "id") payload[orderCol] = 0;
     if (config.table === "dict_player_sources") payload.description = description.trim() || null;
+    if (config.table === "dict_player_sources") payload.is_default = isDefaultSource;
     if (config.table === "dict_recruitment_decisions")
       payload.decision_category = decisionCategory.trim() || null;
     if (config.table === "clubs") {
@@ -91,6 +98,7 @@ export function DictionaryEntryForm({
       payload.max_birth_year = maxBirthYear !== "" ? Number(maxBirthYear) : null;
       payload.default_form_type = defaultFormType === "extended" ? "extended" : "simplified";
       payload.age_under = ageUnder !== "" ? Number(ageUnder) : null;
+      payload.area = categoryArea === "SENIOR" ? "SENIOR" : "AKADEMIA";
     }
     await onSubmit(payload);
   };
@@ -139,6 +147,23 @@ export function DictionaryEntryForm({
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
           />
+        </div>
+      )}
+      {config.table === "dict_player_sources" && (
+        <div>
+          <Label htmlFor="is_default_source">Wartość domyślna</Label>
+          <Select
+            value={isDefaultSource ? "yes" : "no"}
+            onValueChange={(v) => setIsDefaultSource(v === "yes")}
+          >
+            <SelectTrigger id="is_default_source">
+              <SelectValue placeholder="Wybierz" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="no">Nie</SelectItem>
+              <SelectItem value="yes">Tak</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       )}
       {config.table === "dict_recruitment_decisions" && (
@@ -225,6 +250,18 @@ export function DictionaryEntryForm({
             <p className="mt-1 text-xs text-slate-500">
               Gdy ustawione: rocznik odniesienia = bieżący rok − wartość (np. U10 w 2026 → rocznik 2016).
             </p>
+          </div>
+          <div>
+            <Label htmlFor="category_area">Obszar</Label>
+            <Select value={categoryArea} onValueChange={setCategoryArea}>
+              <SelectTrigger id="category_area">
+                <SelectValue placeholder="Wybierz obszar" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="AKADEMIA">Akademia</SelectItem>
+                <SelectItem value="SENIOR">Senior</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </>
       )}

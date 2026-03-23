@@ -16,6 +16,7 @@ import {
   fetchObservationCriterionNotes,
   replaceObservationCriterionNotes,
 } from "../api/observationCriterionNotes.api";
+import { replaceObservationMatches, type ObservationMatchInput } from "../api/observationMatches.api";
 import { updateMatchObservation } from "../api/matchObservations.api";
 import { useQuery } from "@tanstack/react-query";
 import { useCreatePlayer, useUpdatePlayer } from "@/features/players/hooks/usePlayers";
@@ -43,7 +44,7 @@ import { mapLegacyPosition } from "@/features/players/positions";
 import { checkDuplicatePlayers } from "@/features/players/api/players.api";
 import type { DuplicateCandidate } from "@/features/players/api/players.api";
 import type { PlayerSearchItem } from "@/features/players/api/players.api";
-import { useStrengths, useWeaknesses, useCategories, usePlayerSources } from "@/features/dictionaries/hooks/useDictionaries";
+import { useStrengths, useWeaknesses, useCategories, usePlayerSources, useBodyBuild } from "@/features/dictionaries/hooks/useDictionaries";
 import { StrengthsWeaknessesTagField } from "./StrengthsWeaknessesTagField";
 import { PlayerSearchDialog } from "./PlayerSearchDialog";
 import { DuplicateWarningDialog } from "./DuplicateWarningDialog";
@@ -62,17 +63,19 @@ const OBSERVATION_SOURCE_VALID = new Set([
   "scouting", "referral", "application", "trainer_report", "scout_report",
   "video_analysis", "tournament", "training_camp", "live_match", "video_match", "video_clips",
 ]);
-const FALLBACK_SOURCE_OPTIONS = [
-  { value: "live_match", label: "Mecz na żywo" },
-  { value: "video_match", label: "Mecz wideo" },
-  { value: "video_clips", label: "Fragmenty wideo" },
-] as const;
+const HALF_STEP_VALUES = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5] as const;
 
 const wizardSchema = z
   .object({
     player_id: z.string().uuid().optional().nullable(),
     first_name: z.string().optional(),
     last_name: z.string().optional(),
+    nationality: z.string().max(120).optional(),
+    body_build: z.string().max(100).optional(),
+    agent_name: z.string().max(200).optional(),
+    agent_phone: z.string().max(100).optional(),
+    agent_email: z.string().email("Podaj poprawny email").optional().or(z.literal("")),
+    club_formation: z.string().max(100).optional(),
     age: z
       .coerce.number()
       .int()
@@ -95,7 +98,6 @@ const wizardSchema = z
       ),
     home_team_formation: z.string().optional(),
     away_team_formation: z.string().optional(),
-    location: z.string().max(200).optional(),
     notes: z.string().max(2000).optional(),
     observation_category: z.enum(["match_player", "individual"]).optional(),
     primary_position: z.string().min(1, "Wybierz pozycje"),
@@ -105,8 +107,8 @@ const wizardSchema = z
     motor_rating: z.coerce.number().int().min(1).max(5),
     tactical_rating: z.coerce.number().int().min(1).max(5),
     mental_rating: z.coerce.number().int().min(1).max(5),
-    potential_now: z.coerce.number().int().min(1).max(5),
-    potential_future: z.coerce.number().int().min(1).max(5),
+    potential_now: z.coerce.number().min(1).max(5),
+    potential_future: z.coerce.number().min(1).max(5),
     overall_rating: z.coerce.number().min(1).max(10).optional(),
     strengths: z.string().optional(),
     weaknesses: z.string().optional(),
@@ -147,7 +149,7 @@ const wizardSchema = z
         "Min. 10 znaków"
       ),
     recommendation: z.enum(["positive", "to_observe", "negative"]).optional(),
-    match_performance_rating: z.coerce.number().int().min(1).max(5).optional(),
+    match_performance_rating: z.coerce.number().min(1).max(5).optional(),
     motor_description: z.string().max(2000).optional(),
     birth_date: z
       .string()
@@ -211,6 +213,20 @@ const wizardSchema = z
   });
 
 type WizardFormValues = z.infer<typeof wizardSchema>;
+type MatchRow = {
+  id: string;
+  match_date: string;
+  competition?: string;
+  league?: string;
+  home_team?: string;
+  away_team?: string;
+  match_result?: string;
+  source?: string;
+  home_team_formation?: string;
+  away_team_formation?: string;
+  notes?: string;
+  isSaved?: boolean;
+};
 
 type PrefillPlayer = {
   id: string;
@@ -253,14 +269,21 @@ export function ObservationWizard({
   const { user } = useAuthStore();
   const isOnline = useOnlineStatus();
   const { data: playerSources = [] } = usePlayerSources();
+  const { data: bodyBuildOptions = [] } = useBodyBuild();
   const individualSourceOptions = useMemo(() => {
-    const fromDict = (playerSources as { source_code?: string; name_pl?: string }[])
+    const fromDict = (playerSources as { source_code?: string; name_pl?: string; is_default?: boolean }[])
       .filter((e) => OBSERVATION_SOURCE_VALID.has(String(e.source_code ?? "")))
-      .map((e) => ({ value: String(e.source_code), label: String(e.name_pl ?? e.source_code ?? "") }));
-    const seen = new Set(fromDict.map((o) => o.value));
-    const fallbacks = FALLBACK_SOURCE_OPTIONS.filter((f) => !seen.has(f.value));
-    return [...fromDict, ...fallbacks];
+      .map((e) => ({
+        value: String(e.source_code),
+        label: String(e.name_pl ?? e.source_code ?? ""),
+        isDefault: Boolean(e.is_default),
+      }));
+    return fromDict;
   }, [playerSources]);
+  const defaultSourceValue = useMemo(
+    () => individualSourceOptions.find((o) => o.isDefault)?.value ?? "live_match",
+    [individualSourceOptions]
+  );
   const { data: categoriesOptions = [] } = useCategories();
   const { data: strengthsOptions = [] } = useStrengths();
   const { data: weaknessesOptions = [] } = useWeaknesses();
@@ -304,6 +327,12 @@ export function ObservationWizard({
       player_id: null,
       first_name: "",
       last_name: "",
+      nationality: "Polska",
+      body_build: "",
+      agent_name: "",
+      agent_phone: "",
+      agent_email: "",
+      club_formation: "",
       age: DEFAULT_BIRTH_YEAR,
       club_name: "",
       competition: "",
@@ -312,7 +341,6 @@ export function ObservationWizard({
       away_team: "",
       match_date: format(new Date(), "yyyy-MM-dd"),
       match_result: "",
-      location: "",
       notes: "",
       observation_category: "individual",
       primary_position: "",
@@ -334,7 +362,7 @@ export function ObservationWizard({
       strengths: "",
       weaknesses: "",
       rank: "B",
-      source: "live_match",
+      source: defaultSourceValue,
       photo_url: "",
       form_type: defaultFormType ?? "academy",
       summary: "",
@@ -354,10 +382,25 @@ export function ObservationWizard({
 
   const primaryPosition = form.watch("primary_position");
   const isMatchPlayer = form.watch("observation_category") === "match_player";
+  const [matchRows, setMatchRows] = useState<MatchRow[]>([]);
   const rawFormType = form.watch("form_type") ?? "academy";
   const formType = (String(rawFormType) === "simplified" || String(rawFormType) === "extended") ? "academy" : (rawFormType as "academy" | "senior");
   const { data: positions = [] } = usePositionDictionary(true);
   const { data: formations = [] } = useFormations();
+  const formationOptionValue = useCallback((f: { id: string; code?: string | null }) => {
+    const code = String(f.code ?? "").trim();
+    return code || f.id;
+  }, []);
+  const normalizeFormationForSelect = useCallback(
+    (value?: string) => {
+      const current = String(value ?? "").trim();
+      if (!current) return "";
+      const byId = (formations as { id: string; code?: string | null }[]).find((f) => f.id === current);
+      if (byId) return formationOptionValue(byId);
+      return current;
+    },
+    [formations, formationOptionValue]
+  );
   const positionOptions = useMemo(() => {
     const all = getPositionOptionsFromDictionary(positions);
     const seen = new Set<string>();
@@ -394,6 +437,35 @@ export function ObservationWizard({
       form.reset(initialValues as WizardFormValues);
     }
   }, [isEditMode, initialValues, form]);
+  useEffect(() => {
+    const fromInitial = (initialValues as { matches?: MatchRow[] } | undefined)?.matches;
+    if (Array.isArray(fromInitial) && fromInitial.length > 0) {
+      setMatchRows(
+        fromInitial.map((m) => ({
+          id: uuidv4(),
+          match_date: m.match_date || format(new Date(), "yyyy-MM-dd"),
+          competition: m.competition ?? "",
+          league: m.league ?? "",
+          home_team: m.home_team ?? "",
+          away_team: m.away_team ?? "",
+          match_result: m.match_result ?? "",
+          source: m.source ?? defaultSourceValue,
+          home_team_formation: m.home_team_formation ?? "",
+          away_team_formation: m.away_team_formation ?? "",
+          notes: m.notes ?? "",
+          isSaved: true,
+        }))
+      );
+      return;
+    }
+    setMatchRows((prev) => prev);
+  }, [initialValues, defaultSourceValue]);
+  useEffect(() => {
+    const currentSource = form.getValues("source");
+    if (!currentSource || !individualSourceOptions.some((o) => o.value === currentSource)) {
+      form.setValue("source", defaultSourceValue);
+    }
+  }, [defaultSourceValue, individualSourceOptions, form]);
 
   useEffect(() => {
     if (isEditMode && existingCriterionNotes?.length) {
@@ -420,19 +492,31 @@ export function ObservationWizard({
   }, [prefillPlayer, form, currentYear]);
 
   useEffect(() => {
-    if (!selectedPlayerFull || formType !== "academy") return;
+    if (!selectedPlayerFull) return;
     const t = (selectedPlayerFull as { transfermarkt_url?: string | null }).transfermarkt_url?.trim() ?? "";
     const i = (selectedPlayerFull as { instagram_url?: string | null }).instagram_url?.trim() ?? "";
     const f = (selectedPlayerFull as { facebook_url?: string | null }).facebook_url?.trim() ?? "";
     const o = (selectedPlayerFull as { other_social_url?: string | null }).other_social_url?.trim() ?? "";
     const ce = (selectedPlayerFull as { contract_end_date?: string | null }).contract_end_date?.trim() ?? "";
+    const nat = (selectedPlayerFull as { nationality?: string | null }).nationality?.trim() ?? "";
+    const an = (selectedPlayerFull as { agent_name?: string | null }).agent_name?.trim() ?? "";
+    const ap = (selectedPlayerFull as { agent_phone?: string | null }).agent_phone?.trim() ?? "";
+    const ae = (selectedPlayerFull as { agent_email?: string | null }).agent_email?.trim() ?? "";
+    const cf = (selectedPlayerFull as { club_formation?: string | null }).club_formation?.trim() ?? "";
+    const bb = (selectedPlayerFull as { body_build?: string | null }).body_build?.trim() ?? "";
     const cur = form.getValues();
     if (!(cur.transfermarkt_url ?? "").trim() && t) form.setValue("transfermarkt_url", t);
     if (!(cur.instagram_url ?? "").trim() && i) form.setValue("instagram_url", i);
     if (!(cur.facebook_url ?? "").trim() && f) form.setValue("facebook_url", f);
     if (!(cur.other_social_url ?? "").trim() && o) form.setValue("other_social_url", o);
     if (!(cur.contract_end_date ?? "").trim() && ce) form.setValue("contract_end_date", ce);
-  }, [selectedPlayerFull, formType, form]);
+    if (!(cur.nationality ?? "").trim() && nat) form.setValue("nationality", nat);
+    if (!(cur.agent_name ?? "").trim() && an) form.setValue("agent_name", an);
+    if (!(cur.agent_phone ?? "").trim() && ap) form.setValue("agent_phone", ap);
+    if (!(cur.agent_email ?? "").trim() && ae) form.setValue("agent_email", ae);
+    if (!(cur.club_formation ?? "").trim() && cf) form.setValue("club_formation", cf);
+    if (!(cur.body_build ?? "").trim() && bb) form.setValue("body_build", bb);
+  }, [selectedPlayerFull, form]);
 
   const handleSelectPlayer = (player: PlayerSearchItem) => {
     form.setValue("player_id", player.id);
@@ -592,7 +676,6 @@ export function ObservationWizard({
             home_team: values.home_team?.trim() || null,
             away_team: values.away_team?.trim() || null,
             match_result: values.match_result?.trim() || null,
-            location: values.location?.trim() || null,
             notes: values.notes?.trim() || null,
             positions: positions.length > 0 ? positions : null,
             overall_rating,
@@ -612,9 +695,24 @@ export function ObservationWizard({
         });
         if (matchObservationId) {
           await updateMatchObservation(matchObservationId, {
-            home_team_formation: values.home_team_formation?.trim() || null,
-            away_team_formation: values.away_team_formation?.trim() || null,
+            home_team_formation: normalizeFormationForSelect(values.home_team_formation)?.trim() || null,
+            away_team_formation: normalizeFormationForSelect(values.away_team_formation)?.trim() || null,
           });
+        }
+        if (!isMatchPlayer) {
+          const payloadMatches: ObservationMatchInput[] = matchRows.map((m) => ({
+            match_date: m.match_date,
+            competition: m.competition?.trim() || null,
+            league: m.league?.trim() || null,
+            home_team: m.home_team?.trim() || null,
+            away_team: m.away_team?.trim() || null,
+            match_result: m.match_result?.trim() || null,
+            source: m.source?.trim() || null,
+            home_team_formation: normalizeFormationForSelect(m.home_team_formation)?.trim() || null,
+            away_team_formation: normalizeFormationForSelect(m.away_team_formation)?.trim() || null,
+            notes: m.notes?.trim() || null,
+          }));
+          await replaceObservationMatches(observationId, payloadMatches);
         }
         if (values.form_type === "senior" && criteria.length > 0) {
           try {
@@ -739,7 +837,6 @@ export function ObservationWizard({
             home_team: values.home_team?.trim() || undefined,
             away_team: values.away_team?.trim() || undefined,
             match_result: values.match_result?.trim(),
-            location: values.location?.trim(),
             positions: offlinePositions.length > 0 ? offlinePositions : undefined,
             overall_rating: offlineOverall,
             technical_rating: values.technical_rating ?? undefined,
@@ -787,6 +884,12 @@ export function ObservationWizard({
               last_name: lastName,
               birth_year: birthYear,
               club_id: clubId ?? null,
+              nationality: values.nationality?.trim() || null,
+              body_build: values.body_build?.trim() || null,
+              agent_name: values.agent_name?.trim() || null,
+              agent_phone: values.agent_phone?.trim() || null,
+              agent_email: values.agent_email?.trim() || null,
+              club_formation: normalizeFormationForSelect(values.club_formation)?.trim() || null,
               primary_position: values.primary_position,
               contract_end_date: values.contract_end_date?.trim() || null,
               transfermarkt_url: values.transfermarkt_url?.trim() || null,
@@ -803,6 +906,12 @@ export function ObservationWizard({
             last_name: lastName,
             birth_year: birthYear,
             club_id: clubId,
+            nationality: values.nationality?.trim() || null,
+            body_build: values.body_build?.trim() || null,
+            agent_name: values.agent_name?.trim() || null,
+            agent_phone: values.agent_phone?.trim() || null,
+            agent_email: values.agent_email?.trim() || null,
+            club_formation: normalizeFormationForSelect(values.club_formation)?.trim() || null,
             primary_position: values.primary_position,
             pipeline_status: "unassigned",
             contract_end_date: values.contract_end_date?.trim() || null,
@@ -854,7 +963,6 @@ export function ObservationWizard({
           home_team: values.home_team?.trim() || null,
           away_team: values.away_team?.trim() || null,
           match_result: values.match_result?.trim() || null,
-          location: values.location?.trim() || null,
           notes: values.notes?.trim() || null,
           positions: positions.length > 0 ? positions : null,
           overall_rating,
@@ -886,6 +994,21 @@ export function ObservationWizard({
           } catch (notesErr) {
             console.error("Criterion notes save failed:", notesErr);
           }
+        }
+        if (!isMatchPlayer) {
+          const payloadMatches: ObservationMatchInput[] = matchRows.map((m) => ({
+            match_date: m.match_date,
+            competition: m.competition?.trim() || null,
+            league: m.league?.trim() || null,
+            home_team: m.home_team?.trim() || null,
+            away_team: m.away_team?.trim() || null,
+            match_result: m.match_result?.trim() || null,
+            source: m.source?.trim() || null,
+            home_team_formation: normalizeFormationForSelect(m.home_team_formation)?.trim() || null,
+            away_team_formation: normalizeFormationForSelect(m.away_team_formation)?.trim() || null,
+            notes: m.notes?.trim() || null,
+          }));
+          await replaceObservationMatches(observation.id, payloadMatches);
         }
         if (pendingFiles.length > 0 || pendingYoutube.length > 0) {
           try {
@@ -1031,22 +1154,193 @@ export function ObservationWizard({
                 </Button>
               </div>
             )}
-            {!isEditMode && (
-            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-4">
+                <div className="grid gap-4 lg:grid-cols-3">
+                  <FormField
+                    control={form.control}
+                    name="first_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Imię <span className="text-red-600">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="Jan" {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="last_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Nazwisko <span className="text-red-600">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="Kowalski" {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="nationality"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Narodowość</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Polska" {...field} value={field.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid gap-4 lg:grid-cols-3">
+                  <FormField
+                    control={form.control}
+                    name="age"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Rok urodzenia <span className="text-red-600">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            min={CURRENT_YEAR - 50}
+                            max={CURRENT_YEAR - 8}
+                            {...field}
+                            onBlur={() => {
+                              field.onBlur();
+                              runDuplicateCheck();
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="birth_date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Data urodzenia</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="body_build"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Budowa ciała</FormLabel>
+                        <Select
+                          value={field.value || "__none__"}
+                          onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                        >
+                          <FormControl>
+                            <SelectTrigger ref={field.ref}>
+                              <SelectValue placeholder="Wybierz" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="__none__">— Brak —</SelectItem>
+                            {(bodyBuildOptions as { code?: string; name_pl?: string }[]).map((opt) => (
+                              <SelectItem key={String(opt.code)} value={String(opt.code ?? "")}>
+                                {String(opt.name_pl ?? opt.code)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid gap-4 lg:grid-cols-3">
+                  <FormField
+                    control={form.control}
+                    name="club_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Klub</FormLabel>
+                        <FormControl>
+                          <ClubSelect
+                            value={field.value ?? ""}
+                            onChange={field.onChange}
+                            placeholder="Wybierz klub"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="club_formation"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Formacja drużyny</FormLabel>
+                        <Select
+                          value={normalizeFormationForSelect(field.value) || "__none__"}
+                          onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                        >
+                          <FormControl>
+                            <SelectTrigger ref={field.ref}>
+                              <SelectValue placeholder="Wybierz schemat" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="__none__">— Brak —</SelectItem>
+                            {(formations as { id: string; name: string; code?: string | null }[])
+                              .filter((f) => formationOptionValue(f).trim() !== "")
+                              .map((f) => (
+                                <SelectItem key={f.id} value={formationOptionValue(f)}>
+                                  {f.name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="contract_end_date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Koniec kontraktu</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} value={field.value ?? ""} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+          </section>
+
+          <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="text-lg font-semibold text-slate-800">1a. Dane agenta</h2>
+            <div className="grid gap-4 lg:grid-cols-3">
               <FormField
                 control={form.control}
-                name="first_name"
+                name="agent_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      Imię <span className="text-red-600">*</span>
-                    </FormLabel>
+                    <FormLabel>Agent - imię i nazwisko</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="Jan"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
+                      <Input placeholder="np. Jan Kowalski" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1054,18 +1348,12 @@ export function ObservationWizard({
               />
               <FormField
                 control={form.control}
-                name="last_name"
+                name="agent_phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      Nazwisko <span className="text-red-600">*</span>
-                    </FormLabel>
+                    <FormLabel>Agent - telefon</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="Kowalski"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
+                      <Input placeholder="+48 600 000 000" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -1073,74 +1361,18 @@ export function ObservationWizard({
               />
               <FormField
                 control={form.control}
-                name="age"
+                name="agent_email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>
-                      Rok urodzenia <span className="text-red-600">*</span>
-                    </FormLabel>
+                    <FormLabel>Agent - email</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        min={CURRENT_YEAR - 50}
-                        max={CURRENT_YEAR - 8}
-                        {...field}
-                        onBlur={() => {
-                          field.onBlur();
-                          runDuplicateCheck();
-                        }}
-                      />
+                      <Input placeholder="agent@email.com" {...field} value={field.value ?? ""} />
                     </FormControl>
                     <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="birth_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Data urodzenia</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="date"
-                        {...field}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="contract_end_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Koniec kontraktu</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} value={field.value ?? ""} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="club_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Klub</FormLabel>
-                    <FormControl>
-                      <ClubSelect
-                        value={field.value ?? ""}
-                        onChange={field.onChange}
-                        placeholder="Wybierz klub"
-                      />
-                    </FormControl>
                   </FormItem>
                 )}
               />
             </div>
-            )}
           </section>
 
           {(formType === "academy" || formType === "senior") && (
@@ -1306,24 +1538,6 @@ export function ObservationWizard({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Lokalizacja</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Stadion Legii Warszawa"
-                        {...field}
-                        value={field.value ?? ""}
-                        disabled={isMatchPlayer}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
             {form.watch("source") !== "tournament" && (
               <div className="grid gap-4 sm:grid-cols-3">
@@ -1392,7 +1606,7 @@ export function ObservationWizard({
                     <FormItem>
                       <FormLabel>Formacja gospodarzy</FormLabel>
                       <Select
-                        value={field.value || "__none__"}
+                        value={normalizeFormationForSelect(field.value) || "__none__"}
                         onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
                         disabled={isMatchPlayer}
                       >
@@ -1404,9 +1618,9 @@ export function ObservationWizard({
                         <SelectContent>
                           <SelectItem value="__none__">— Brak —</SelectItem>
                           {(formations as { id: string; name: string; code?: string | null }[])
-                            .filter((f) => String(f.code ?? "").trim() !== "")
+                            .filter((f) => formationOptionValue(f).trim() !== "")
                             .map((f) => (
-                            <SelectItem key={f.id} value={String(f.code)}>
+                            <SelectItem key={f.id} value={formationOptionValue(f)}>
                               {f.name}
                             </SelectItem>
                           ))}
@@ -1423,7 +1637,7 @@ export function ObservationWizard({
                     <FormItem>
                       <FormLabel>Formacja gości</FormLabel>
                       <Select
-                        value={field.value || "__none__"}
+                        value={normalizeFormationForSelect(field.value) || "__none__"}
                         onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
                         disabled={isMatchPlayer}
                       >
@@ -1435,9 +1649,9 @@ export function ObservationWizard({
                         <SelectContent>
                           <SelectItem value="__none__">— Brak —</SelectItem>
                           {(formations as { id: string; name: string; code?: string | null }[])
-                            .filter((f) => String(f.code ?? "").trim() !== "")
+                            .filter((f) => formationOptionValue(f).trim() !== "")
                             .map((f) => (
-                            <SelectItem key={f.id} value={String(f.code)}>
+                            <SelectItem key={f.id} value={formationOptionValue(f)}>
                               {f.name}
                             </SelectItem>
                           ))}
@@ -1473,6 +1687,224 @@ export function ObservationWizard({
                 </FormItem>
               )}
             />
+            {!isMatchPlayer && (
+              <div className="space-y-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setMatchRows((prev) => [
+                      ...prev,
+                      {
+                        id: uuidv4(),
+                        match_date: format(new Date(), "yyyy-MM-dd"),
+                        source: defaultSourceValue,
+                        competition: "",
+                        league: "",
+                        home_team: "",
+                        away_team: "",
+                        match_result: "",
+                        home_team_formation: "",
+                        away_team_formation: "",
+                        notes: "",
+                        isSaved: false,
+                      },
+                    ])
+                  }
+                >
+                  + Dodaj mecz
+                </Button>
+                {matchRows.length > 0 && (
+                  <div className="space-y-3 rounded-md border border-slate-200 p-3">
+                    <h3 className="text-sm font-semibold text-slate-700">Powiązane mecze</h3>
+                    {matchRows.map((row, idx) => (
+                      <div key={row.id} className="space-y-2 rounded border border-slate-200 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-xs font-medium text-slate-600">
+                            {row.isSaved
+                              ? `${row.match_date || "brak daty"} | ${row.home_team || "?"} - ${row.away_team || "?"}${row.match_result ? ` (${row.match_result})` : ""}`
+                              : `Mecz #${idx + 1}`}
+                          </div>
+                          <div className="flex gap-2">
+                            {row.isSaved ? (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setMatchRows((prev) =>
+                                    prev.map((m) => (m.id === row.id ? { ...m, isSaved: false } : m))
+                                  )
+                                }
+                              >
+                                Edytuj
+                              </Button>
+                            ) : (
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => {
+                                  if (!(row.source ?? "").trim() || !(row.match_date ?? "").trim()) {
+                                    toast({
+                                      variant: "destructive",
+                                      title: "Uzupełnij dane meczu",
+                                      description: "Dla powiązanego meczu wymagane są: Źródło i Data meczu.",
+                                    });
+                                    return;
+                                  }
+                                  setMatchRows((prev) =>
+                                    prev.map((m) => (m.id === row.id ? { ...m, isSaved: true } : m))
+                                  );
+                                }}
+                              >
+                                Zapisz
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setMatchRows((prev) => prev.filter((m) => m.id !== row.id))}
+                            >
+                              Usuń
+                            </Button>
+                          </div>
+                        </div>
+                        {!row.isSaved && (
+                          <div className="grid gap-2 sm:grid-cols-3">
+                            <Select
+                              value={row.source || "__none__"}
+                              onValueChange={(v) =>
+                                setMatchRows((prev) =>
+                                  prev.map((m) => (m.id === row.id ? { ...m, source: v === "__none__" ? "" : v } : m))
+                                )
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Źródło *" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {individualSourceOptions.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              type="date"
+                              value={row.match_date}
+                              onChange={(e) =>
+                                setMatchRows((prev) => prev.map((m) => (m.id === row.id ? { ...m, match_date: e.target.value } : m)))
+                              }
+                            />
+                            <Select
+                              value={row.competition && String(row.competition).trim() !== "" ? row.competition : "__none__"}
+                              onValueChange={(v) =>
+                                setMatchRows((prev) =>
+                                  prev.map((m) => (m.id === row.id ? { ...m, competition: v === "__none__" ? "" : v } : m))
+                                )
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Rozgrywki" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">—</SelectItem>
+                                {(categoriesOptions as { id: string; name: string }[])
+                                  .filter((c) => c.name != null && String(c.name).trim() !== "")
+                                  .map((c) => (
+                                    <SelectItem key={c.id} value={String(c.name)}>
+                                      {String(c.name)}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              placeholder="Liga"
+                              value={row.league ?? ""}
+                              onChange={(e) =>
+                                setMatchRows((prev) => prev.map((m) => (m.id === row.id ? { ...m, league: e.target.value } : m)))
+                              }
+                            />
+                            <ClubSelect
+                              value={row.home_team ?? ""}
+                              onChange={(v) => setMatchRows((prev) => prev.map((m) => (m.id === row.id ? { ...m, home_team: v } : m)))}
+                              placeholder="Wpisz lub wybierz gospodarza..."
+                            />
+                            <ClubSelect
+                              value={row.away_team ?? ""}
+                              onChange={(v) => setMatchRows((prev) => prev.map((m) => (m.id === row.id ? { ...m, away_team: v } : m)))}
+                              placeholder="Wpisz lub wybierz gościa..."
+                            />
+                            <Input
+                              placeholder="Wynik (np. 2:1)"
+                              value={row.match_result ?? ""}
+                              onChange={(e) =>
+                                setMatchRows((prev) => prev.map((m) => (m.id === row.id ? { ...m, match_result: e.target.value } : m)))
+                              }
+                            />
+                            <Select
+                              value={normalizeFormationForSelect(row.home_team_formation) || "__none__"}
+                              onValueChange={(v) =>
+                                setMatchRows((prev) =>
+                                  prev.map((m) => (m.id === row.id ? { ...m, home_team_formation: v === "__none__" ? "" : v } : m))
+                                )
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Formacja gospodarzy" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">— Brak —</SelectItem>
+                                {(formations as { id: string; name: string; code?: string | null }[])
+                                  .filter((f) => formationOptionValue(f).trim() !== "")
+                                  .map((f) => (
+                                    <SelectItem key={f.id} value={formationOptionValue(f)}>
+                                      {f.name}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                            <Select
+                              value={normalizeFormationForSelect(row.away_team_formation) || "__none__"}
+                              onValueChange={(v) =>
+                                setMatchRows((prev) =>
+                                  prev.map((m) => (m.id === row.id ? { ...m, away_team_formation: v === "__none__" ? "" : v } : m))
+                                )
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Formacja gości" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__none__">— Brak —</SelectItem>
+                                {(formations as { id: string; name: string; code?: string | null }[])
+                                  .filter((f) => formationOptionValue(f).trim() !== "")
+                                  .map((f) => (
+                                    <SelectItem key={f.id} value={formationOptionValue(f)}>
+                                      {f.name}
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                            <Textarea
+                              placeholder="Notatki do meczu..."
+                              value={row.notes ?? ""}
+                              onChange={(e) =>
+                                setMatchRows((prev) => prev.map((m) => (m.id === row.id ? { ...m, notes: e.target.value } : m)))
+                              }
+                              className="min-h-[80px] sm:col-span-3"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
@@ -1819,12 +2251,40 @@ export function ObservationWizard({
                   <FormLabel>Podsumowanie (min. 10 znaków)</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder={formType === "academy" ? "Analiza występu, mocne i słabe strony, rekomendacja, porównanie do naszego zawodnika" : "Opis występu, mocne i słabe strony, rekomendacja, porównanie do zawodnika KS Polonia"}
+                      placeholder="Opis, mocne i słabe strony, porównanie do nasego zawodnika"
                       value={field.value ?? ""}
                       onChange={field.onChange}
                       className="min-h-[100px]"
                       maxLength={5000}
                     />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="recommendation"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Rekomendacja</FormLabel>
+                  <FormControl>
+                    <div className="flex w-full gap-2">
+                      {(["positive", "to_observe", "negative"] as const).map((r) => (
+                        <button
+                          key={r}
+                          type="button"
+                          onClick={() => field.onChange(r)}
+                          className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition touch-manipulation ${
+                            (field.value ?? "to_observe") === r
+                              ? "border-red-600 bg-red-600 text-white"
+                              : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
+                          }`}
+                        >
+                          {r === "positive" ? "Pozytywna" : r === "to_observe" ? "Do obserwacji" : "Negatywna"}
+                        </button>
+                      ))}
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -1839,8 +2299,8 @@ export function ObservationWizard({
                     <FormItem>
                       <FormLabel>Ocena za występ (1–5)</FormLabel>
                       <FormControl>
-                        <div className="flex w-full gap-2">
-                          {[1, 2, 3, 4, 5].map((v) => (
+                        <div className="grid w-full grid-cols-3 gap-2 lg:grid-cols-9">
+                          {HALF_STEP_VALUES.map((v) => (
                             <button
                               key={v}
                               type="button"
@@ -1860,34 +2320,6 @@ export function ObservationWizard({
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="recommendation"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Rekomendacja</FormLabel>
-                      <FormControl>
-                        <div className="flex w-full gap-2">
-                          {(["positive", "to_observe", "negative"] as const).map((r) => (
-                            <button
-                              key={r}
-                              type="button"
-                              onClick={() => field.onChange(r)}
-                              className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition touch-manipulation ${
-                                (field.value ?? "to_observe") === r
-                                  ? "border-red-600 bg-red-600 text-white"
-                                  : "border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50"
-                              }`}
-                            >
-                              {r === "positive" ? "Pozytywna" : r === "to_observe" ? "Do obserwacji" : "Negatywna"}
-                            </button>
-                          ))}
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </>
             ) : (
               <>
@@ -1898,8 +2330,8 @@ export function ObservationWizard({
                     <FormItem>
                       <FormLabel>Performance</FormLabel>
                       <FormControl>
-                        <div className="flex w-full gap-2">
-                          {[1, 2, 3, 4, 5].map((v) => (
+                        <div className="grid w-full grid-cols-3 gap-2 lg:grid-cols-9">
+                          {HALF_STEP_VALUES.map((v) => (
                             <button
                               key={v}
                               type="button"
@@ -1926,8 +2358,8 @@ export function ObservationWizard({
                     <FormItem>
                       <FormLabel>Potencjał przyszły</FormLabel>
                       <FormControl>
-                        <div className="flex w-full gap-2">
-                          {[1, 2, 3, 4, 5].map((v) => (
+                        <div className="grid w-full grid-cols-3 gap-2 lg:grid-cols-9">
+                          {HALF_STEP_VALUES.map((v) => (
                             <button
                               key={v}
                               type="button"

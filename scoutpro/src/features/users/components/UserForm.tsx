@@ -12,13 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BUSINESS_ROLE_LABELS, type BusinessRole } from "../types";
+import { BUSINESS_ROLE_LABELS, type AreaAccess, type BusinessRole } from "../types";
 
 const baseSchema = z.object({
   first_name: z.string(),
   last_name: z.string(),
   email: z.string().email("Podaj poprawny email"),
   business_role: z.enum(["scout", "coach", "director", "suspended", "admin"]),
+  area_access: z.enum(["AKADEMIA", "SENIOR", "ALL"]),
   // Przy edycji pole hasła jest niewidoczne i puste – nie walidujemy min długości
   password: z.string().optional(),
 });
@@ -41,6 +42,7 @@ type UserFormProps = {
   isSubmitting?: boolean;
   /** Gdy true, pole email jest tylko do odczytu (np. przy edycji użytkownika). */
   emailReadOnly?: boolean;
+  allowAllAreaAccess?: boolean;
 };
 
 export function UserForm({
@@ -50,6 +52,7 @@ export function UserForm({
   includePassword = false,
   isSubmitting = false,
   emailReadOnly = false,
+  allowAllAreaAccess = false,
 }: UserFormProps) {
   const schema = useMemo(() => {
     if (includePassword) {
@@ -68,6 +71,13 @@ export function UserForm({
   const roleOptions = (
     Object.entries(BUSINESS_ROLE_LABELS) as [BusinessRole, { label: string; description: string }][]
   ).filter(([key]) => key !== "suspended");
+  const areaOptions: { value: AreaAccess; label: string }[] = [
+    { value: "AKADEMIA", label: "Akademia" },
+    { value: "SENIOR", label: "Senior" },
+  ];
+  if (allowAllAreaAccess) {
+    areaOptions.push({ value: "ALL", label: "Wszystkie obszary" });
+  }
 
   return (
     <Form {...form}>
@@ -150,6 +160,31 @@ export function UserForm({
                   {roleOptions.map(([value, { label, description }]) => (
                     <SelectItem key={value} value={value}>
                       {label} - {description}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="area_access"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Obszar dostępu</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Wybierz obszar" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {areaOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

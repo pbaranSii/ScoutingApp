@@ -17,7 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { mapLegacyPosition } from "@/features/players/positions";
 import { codeForLookup } from "@/features/players/components/PositionDictionarySelect";
-import { useBodyBuild } from "@/features/dictionaries/hooks/useDictionaries";
+import { useBodyBuild, useCategoriesForCurrentArea } from "@/features/dictionaries/hooks/useDictionaries";
 import {
   MediaUploadModal,
   useUploadMediaFile,
@@ -63,6 +63,7 @@ const playerSchema = z.object({
     ),
   nationality: optionalText,
   club_name: optionalText,
+  age_category_id: optionalText,
   primary_position: optionalText,
   dominant_foot: optionalText,
   pipeline_status: optionalText,
@@ -130,6 +131,7 @@ export function PlayerForm({
   const [addMediaModalOpen, setAddMediaModalOpen] = useState(false);
   const [profileMediaObservationId, setProfileMediaObservationId] = useState<string | null>(null);
   const { data: bodyBuildOptions = [] } = useBodyBuild();
+  const { data: categories = [] } = useCategoriesForCurrentArea();
   const { data: observations = [] } = useObservationsByPlayer(isEdit && playerId ? playerId : "");
   const { data: mediaItems = [] } = useMultimediaByPlayer(isEdit && playerId ? playerId : "");
   const uploadProfileMedia = useUploadMediaFile(
@@ -151,6 +153,7 @@ export function PlayerForm({
       contract_end_date: (initialValues as { contract_end_date?: string | null } | undefined)?.contract_end_date ?? "",
       nationality: initialValues?.nationality ?? "Polska",
       club_name: initialValues?.club_name ?? "",
+      age_category_id: (initialValues as { age_category_id?: string | null } | undefined)?.age_category_id ?? "",
       primary_position: mapLegacyPosition(initialValues?.primary_position ?? ""),
       dominant_foot: initialValues?.dominant_foot ?? "",
       pipeline_status: initialValues?.pipeline_status ?? "unassigned",
@@ -178,6 +181,7 @@ export function PlayerForm({
       contract_end_date: "",
       nationality: "Polska",
       club_name: "",
+      age_category_id: "",
       primary_position: "",
       dominant_foot: "",
       pipeline_status: "unassigned",
@@ -203,6 +207,55 @@ export function PlayerForm({
       primary_position: mapLegacyPosition(normalizedInitial.primary_position ?? ""),
     };
   }, [initialValues]);
+
+  const resolveAgeCategoryId = (birthYear: number): string | null => {
+    const y = Number(birthYear);
+    if (!Number.isFinite(y)) return null;
+
+    const cats = (categories ?? []) as Array<Record<string, unknown>>;
+    const candidates = cats
+      .map((c) => {
+        const ageUnder = c.age_under ?? null;
+        const minBy = c.min_birth_year ?? null;
+        const maxBy = c.max_birth_year ?? null;
+
+        const matchesAgeUnder = ageUnder != null && y === new Date().getFullYear() - Number(ageUnder);
+        const matchesRange =
+          minBy != null &&
+          maxBy != null &&
+          y >= Number(minBy) &&
+          y <= Number(maxBy);
+
+        return { c, matchesAgeUnder, matchesRange };
+      })
+      .filter((x) => x.matchesAgeUnder || x.matchesRange);
+
+    candidates.sort((a, b) => {
+      const aHasUnder = a.c.age_under != null;
+      const bHasUnder = b.c.age_under != null;
+      if (aHasUnder !== bHasUnder) return aHasUnder ? -1 : 1;
+
+      const aMax = a.c.max_birth_year ?? null;
+      const bMax = b.c.max_birth_year ?? null;
+      if ((aMax == null) !== (bMax == null)) return aMax == null ? 1 : -1;
+      if (aMax != null && bMax != null && aMax !== bMax) return Number(bMax) - Number(aMax);
+
+      const aMin = a.c.min_birth_year ?? null;
+      const bMin = b.c.min_birth_year ?? null;
+      if ((aMin == null) !== (bMin == null)) return aMin == null ? 1 : -1;
+      if (aMin != null && bMin != null && aMin !== bMin) return Number(bMin) - Number(aMin);
+
+      return 0;
+    });
+
+    const id = candidates[0]?.c?.id;
+    if (typeof id === "string" && id.length > 0) return id;
+
+    // Fallback: dla obszarów (np. SENIOR) kategorie czasem nie mają kompletnej logiki wiekowej
+    // (age_under/min/max). Wtedy bierzemy pierwszą dostępną kategorię z bieżącego obszaru.
+    const fallbackId = (categories as Array<{ id?: unknown }>)?.[0]?.id;
+    return typeof fallbackId === "string" && fallbackId.length > 0 ? fallbackId : null;
+  };
 
   const form = useForm<PlayerFormValues, unknown, PlayerFormValues>({
     resolver: zodResolver(playerSchema) as Resolver<PlayerFormValues>,
@@ -243,10 +296,91 @@ export function PlayerForm({
       const pipelineStatus = values.pipeline_status
         ? (values.pipeline_status as PipelineStatus)
         : undefined;
+
+      // `age_category_id` jest wymagane przez RLS (musi należeć do bieżącego obszaru).
+      // Nie polegamy wyłącznie na kategoriach z UI (mogą być puste w czasie ładowania),
+      // tylko wyliczamy fallback na podstawie `current_area_access()` w bazie.
+      let resolvedAgeCategoryId: string | null = toNullable(values.age_category_id);
+
+      if (!resolvedAgeCategoryId) {
+        // Funkcja pozostaje jako "heurystyka" dla UI; główny fallback i tak robimy po stronie bazy.
+        void resolveAgeCategoryId(values.birth_year);
+        const { data: areaAccessRaw, error: areaAccessErr } = await (supabase as any).rpc(
+          "current_area_access"
+        );
+        if (areaAccessErr) throw areaAccessErr;
+
+        const areaAccess = areaAccessRaw as "AKADEMIA" | "SENIOR" | "ALL" | null;
+        let categoriesQ = (supabase as any)
+          .from("categories")
+          .select("id, age_under, min_birth_year, max_birth_year")
+          .eq("is_active", true);
+
+        if (areaAccess && areaAccess !== "ALL") {
+          categoriesQ = categoriesQ.eq("area", areaAccess);
+        }
+
+        const { data: areaCats, error: catsErr } = await categoriesQ.limit(20);
+        if (catsErr) throw catsErr;
+
+        const cats = (areaCats ?? []) as Array<{
+          id: string;
+          age_under?: number | null;
+          min_birth_year?: number | null;
+          max_birth_year?: number | null;
+        }>;
+
+        const yearNow = new Date().getFullYear();
+        const y = Number(values.birth_year);
+
+        const candidates = cats
+          .map((c) => {
+            const ageUnder = c.age_under ?? null;
+            const minBy = c.min_birth_year ?? null;
+            const maxBy = c.max_birth_year ?? null;
+            const matchesAgeUnder =
+              ageUnder != null && y === yearNow - Number(ageUnder);
+            const matchesRange =
+              minBy != null &&
+              maxBy != null &&
+              Number.isFinite(Number(minBy)) &&
+              Number.isFinite(Number(maxBy)) &&
+              y >= Number(minBy) &&
+              y <= Number(maxBy);
+            return { c, matchesAgeUnder, matchesRange, hasAgeUnder: ageUnder != null };
+          })
+          .filter((x) => x.matchesAgeUnder || x.matchesRange);
+
+        candidates.sort((a, b) => {
+          if (a.hasAgeUnder !== b.hasAgeUnder) return a.hasAgeUnder ? -1 : 1;
+          const aMax = a.c.max_birth_year ?? null;
+          const bMax = b.c.max_birth_year ?? null;
+          if ((aMax == null) !== (bMax == null)) return aMax == null ? 1 : -1;
+          if (aMax != null && bMax != null && aMax !== bMax) return Number(bMax) - Number(aMax);
+          const aMin = a.c.min_birth_year ?? null;
+          const bMin = b.c.min_birth_year ?? null;
+          if ((aMin == null) !== (bMin == null)) return aMin == null ? 1 : -1;
+          if (aMin != null && bMin != null && aMin !== bMin) return Number(bMin) - Number(aMin);
+          return 0;
+        });
+
+        const idFromCandidates = candidates[0]?.c?.id ?? null;
+        const idFromFallback = cats[0]?.id ?? null;
+        resolvedAgeCategoryId =
+          (typeof idFromCandidates === "string" && idFromCandidates.length > 0 ? idFromCandidates : null) ??
+          (typeof idFromFallback === "string" && idFromFallback.length > 0 ? idFromFallback : null);
+      }
+
+      if (!resolvedAgeCategoryId) {
+        throw new Error(
+          "Nie udało się ustalić kategorii wiekowej dla bieżącego obszaru. Zmień rocznik lub wybierz kategorię."
+        );
+      }
       const input = {
         first_name: values.first_name,
         last_name: values.last_name,
         birth_year: values.birth_year,
+        age_category_id: resolvedAgeCategoryId,
         birth_date: toNullable(values.birth_date),
         contract_end_date: toNullable(values.contract_end_date),
         club_id: clubId ?? null,
@@ -513,6 +647,34 @@ export function PlayerForm({
                         placeholder="Wybierz klub"
                       />
                     </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="age_category_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Kategoria wiekowa</FormLabel>
+                    <Select
+                      value={field.value || "__none__"}
+                      onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Wybierz kategorię" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Brak —</SelectItem>
+                        {(categories as { id: string; name?: string }[]).map((c) => (
+                          <SelectItem key={String(c.id)} value={String(c.id)}>
+                            {String(c.name ?? c.id)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
