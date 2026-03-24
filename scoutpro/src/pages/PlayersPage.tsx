@@ -23,24 +23,26 @@ export function PlayersPage() {
   const [filters, setFilters] = useState({
     position: "",
     status: "",
-    birthYear: "",
     birthYearFrom: "",
     birthYearTo: "",
     contractEndBefore: "",
     recommendation: "",
     performanceMin: "",
     performanceMax: "",
+    potentialFutureMin: "",
+    potentialFutureMax: "",
   });
   const hasActiveFilters =
     filters.position ||
     filters.status ||
-    filters.birthYear ||
     filters.birthYearFrom ||
     filters.birthYearTo ||
     filters.contractEndBefore ||
     filters.recommendation ||
     filters.performanceMin ||
-    filters.performanceMax;
+    filters.performanceMax ||
+    filters.potentialFutureMin ||
+    filters.potentialFutureMax;
 
   const { data = [], total = 0, isLoading } = usePlayers({
     search: search || undefined,
@@ -48,13 +50,14 @@ export function PlayersPage() {
     pageSize: PAGE_SIZE,
     primary_position: filters.position || undefined,
     status: (filters.status || undefined) as PipelineStatus | undefined,
-    birthYear: filters.birthYear ? Number(filters.birthYear) : undefined,
     birthYearFrom: filters.birthYearFrom ? Number(filters.birthYearFrom) : undefined,
     birthYearTo: filters.birthYearTo ? Number(filters.birthYearTo) : undefined,
     contractEndBefore: filters.contractEndBefore || undefined,
     recommendation: (filters.recommendation || undefined) as "positive" | "to_observe" | "negative" | undefined,
     performanceMin: filters.performanceMin ? Number(filters.performanceMin) : undefined,
     performanceMax: filters.performanceMax ? Number(filters.performanceMax) : undefined,
+    potentialFutureMin: filters.potentialFutureMin ? Number(filters.potentialFutureMin) : undefined,
+    potentialFutureMax: filters.potentialFutureMax ? Number(filters.potentialFutureMax) : undefined,
     ...(profile?.business_role === "scout" && profile?.id ? { createdBy: profile.id } : {}),
   });
 
@@ -64,13 +67,14 @@ export function PlayersPage() {
     search,
     filters.position,
     filters.status,
-    filters.birthYear,
     filters.birthYearFrom,
     filters.birthYearTo,
     filters.contractEndBefore,
     filters.recommendation,
     filters.performanceMin,
     filters.performanceMax,
+    filters.potentialFutureMin,
+    filters.potentialFutureMax,
   ]);
 
   useEffect(() => {
@@ -134,8 +138,8 @@ export function PlayersPage() {
       </div>
       {filtersOpen && (
         <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Pozycja</label>
               <Select value={filters.position} onValueChange={(value) => setFilters((prev) => ({ ...prev, position: value }))}>
                 <SelectTrigger>
@@ -166,16 +170,6 @@ export function PlayersPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Rocznik</label>
-              <Input
-                type="number"
-                inputMode="numeric"
-                value={filters.birthYear}
-                onChange={(event) => setFilters((prev) => ({ ...prev, birthYear: event.target.value }))}
-                placeholder="np. 2008"
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
               <label className="text-sm font-medium text-slate-700">Rocznik od – do</label>
               <div className="flex gap-2">
                 <Input
@@ -219,7 +213,7 @@ export function PlayersPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 sm:col-span-2">
+            <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Performance (ostatnia obserwacja, 1–5)</label>
               <div className="flex gap-2">
                 <Input
@@ -244,6 +238,31 @@ export function PlayersPage() {
                 />
               </div>
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Potencjał przyszły (ostatnia obserwacja, 1–5)</label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.5}
+                  inputMode="numeric"
+                  value={filters.potentialFutureMin}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, potentialFutureMin: e.target.value }))}
+                  placeholder="min"
+                />
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.5}
+                  inputMode="numeric"
+                  value={filters.potentialFutureMax}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, potentialFutureMax: e.target.value }))}
+                  placeholder="max"
+                />
+              </div>
+            </div>
           </div>
           <div className="mt-4 flex flex-wrap justify-end gap-2">
             <Button
@@ -253,13 +272,14 @@ export function PlayersPage() {
                 setFilters({
                   position: "",
                   status: "",
-                  birthYear: "",
                   birthYearFrom: "",
                   birthYearTo: "",
                   contractEndBefore: "",
                   recommendation: "",
                   performanceMin: "",
                   performanceMax: "",
+                  potentialFutureMin: "",
+                  potentialFutureMax: "",
                 })
               }
             >

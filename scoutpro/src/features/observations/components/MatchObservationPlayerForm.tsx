@@ -615,7 +615,7 @@ export function MatchObservationPlayerForm({
           <h2 className="text-lg font-semibold text-slate-800">1a. Dane agenta</h2>
           <div className="grid gap-4 lg:grid-cols-3">
             <div className="space-y-1">
-              <Label>Agent - imię i nazwisko</Label>
+              <Label>Imię i nazwisko</Label>
               <Input
                 value={agent_name}
                 onChange={(e) => setAgent_name(e.target.value)}
@@ -623,7 +623,7 @@ export function MatchObservationPlayerForm({
               />
             </div>
             <div className="space-y-1">
-              <Label>Agent - telefon</Label>
+              <Label>Telefon</Label>
               <Input
                 value={agent_phone}
                 onChange={(e) => setAgent_phone(e.target.value)}
@@ -631,7 +631,7 @@ export function MatchObservationPlayerForm({
               />
             </div>
             <div className="space-y-1">
-              <Label>Agent - email</Label>
+              <Label>Email</Label>
               <Input
                 value={agent_email}
                 onChange={(e) => setAgent_email(e.target.value)}

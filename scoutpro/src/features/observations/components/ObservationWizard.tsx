@@ -20,7 +20,7 @@ import { replaceObservationMatches, type ObservationMatchInput } from "../api/ob
 import { updateMatchObservation } from "../api/matchObservations.api";
 import { useQuery } from "@tanstack/react-query";
 import { useCreatePlayer, useUpdatePlayer } from "@/features/players/hooks/usePlayers";
-import { fetchPlayerById } from "@/features/players/api/players.api";
+import { fetchPlayerById, fetchClubByName } from "@/features/players/api/players.api";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
 import { PositionPickerDialog } from "@/features/players/components/PositionPickerDialog";
 import { useAuthStore } from "@/stores/authStore";
@@ -44,7 +44,14 @@ import { mapLegacyPosition } from "@/features/players/positions";
 import { checkDuplicatePlayers } from "@/features/players/api/players.api";
 import type { DuplicateCandidate } from "@/features/players/api/players.api";
 import type { PlayerSearchItem } from "@/features/players/api/players.api";
-import { useStrengths, useWeaknesses, useCategories, usePlayerSources, useBodyBuild } from "@/features/dictionaries/hooks/useDictionaries";
+import {
+  useStrengths,
+  useWeaknesses,
+  useCategoriesForCurrentArea,
+  usePlayerSources,
+  useBodyBuild,
+  useLeaguesForCurrentArea,
+} from "@/features/dictionaries/hooks/useDictionaries";
 import { StrengthsWeaknessesTagField } from "./StrengthsWeaknessesTagField";
 import { PlayerSearchDialog } from "./PlayerSearchDialog";
 import { DuplicateWarningDialog } from "./DuplicateWarningDialog";
@@ -53,6 +60,7 @@ import { MediaPreview, MediaUploadModal } from "@/features/multimedia";
 import type { Multimedia } from "@/features/multimedia/types";
 import { uploadMediaFile, addYoutubeLink } from "@/features/multimedia/api/multimedia.api";
 import { MAX_MEDIA_PER_OBSERVATION } from "@/features/multimedia/types";
+import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 
 const CURRENT_YEAR = new Date().getFullYear();
 /** Domyślny rok urodzenia dla nowego zawodnika w formularzu obserwacji */
@@ -267,6 +275,11 @@ export function ObservationWizard({
   onRemoveSavedMedia,
 }: ObservationWizardProps) {
   const { user } = useAuthStore();
+  const { data: currentUserProfile } = useCurrentUserProfile();
+  const userAreaAccess =
+    (currentUserProfile as { area_access?: "AKADEMIA" | "SENIOR" | "ALL" } | null)?.area_access ??
+    "AKADEMIA";
+  const showCompetitionField = userAreaAccess !== "SENIOR";
   const isOnline = useOnlineStatus();
   const { data: playerSources = [] } = usePlayerSources();
   const { data: bodyBuildOptions = [] } = useBodyBuild();
@@ -284,7 +297,8 @@ export function ObservationWizard({
     () => individualSourceOptions.find((o) => o.isDefault)?.value ?? "live_match",
     [individualSourceOptions]
   );
-  const { data: categoriesOptions = [] } = useCategories();
+  const { data: categoriesOptions = [] } = useCategoriesForCurrentArea();
+  const { data: leagueOptions = [] } = useLeaguesForCurrentArea();
   const { data: strengthsOptions = [] } = useStrengths();
   const { data: weaknessesOptions = [] } = useWeaknesses();
   const { addOfflineObservation } = useSync();
@@ -543,6 +557,16 @@ export function ObservationWizard({
       }
     }
   };
+
+  const autofillLeagueFromClub = useCallback(
+    async (clubName: string, currentLeague: string, apply: (leagueName: string) => void) => {
+      if (currentLeague.trim()) return;
+      const club = await fetchClubByName(clubName);
+      const leagueName = String(club?.league?.display_name ?? club?.league?.name ?? "").trim();
+      if (leagueName) apply(leagueName);
+    },
+    []
+  );
 
   const runDuplicateCheck = useCallback(async () => {
     const v = form.getValues();
@@ -1338,7 +1362,7 @@ export function ObservationWizard({
                 name="agent_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Agent - imię i nazwisko</FormLabel>
+                    <FormLabel>Imię i nazwisko</FormLabel>
                     <FormControl>
                       <Input placeholder="np. Jan Kowalski" {...field} value={field.value ?? ""} />
                     </FormControl>
@@ -1351,7 +1375,7 @@ export function ObservationWizard({
                 name="agent_phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Agent - telefon</FormLabel>
+                    <FormLabel>Telefon</FormLabel>
                     <FormControl>
                       <Input placeholder="+48 600 000 000" {...field} value={field.value ?? ""} />
                     </FormControl>
@@ -1364,7 +1388,7 @@ export function ObservationWizard({
                 name="agent_email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Agent - email</FormLabel>
+                    <FormLabel>Email</FormLabel>
                     <FormControl>
                       <Input placeholder="agent@email.com" {...field} value={field.value ?? ""} />
                     </FormControl>
@@ -1443,7 +1467,7 @@ export function ObservationWizard({
                 obserwacji meczowej. Edytuj je w <strong>nagłówku meczu</strong>.
               </div>
             )}
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <FormField
                 control={form.control}
                 name="source"
@@ -1485,59 +1509,81 @@ export function ObservationWizard({
                   </FormItem>
                 )}
               />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <FormField
-                control={form.control}
-                name="competition"
-                render={({ field }) => {
-                  const competitionValue =
-                    field.value && String(field.value).trim() !== "" ? field.value : "__none__";
-                  return (
-                    <FormItem>
-                      <FormLabel>Rozgrywki</FormLabel>
-                      <Select
-                        value={competitionValue}
-                        onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
-                      >
-                        <FormControl>
-                          <SelectTrigger ref={field.ref}>
-                            <SelectValue placeholder="Wybierz kategorię wiekową" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="__none__">—</SelectItem>
-                          {(categoriesOptions as { id: string; name: string }[])
-                            .filter((c) => c.name != null && String(c.name).trim() !== "")
-                            .map((c) => (
-                              <SelectItem key={c.id} value={String(c.name)}>
-                                {String(c.name)}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
-                    </FormItem>
-                  );
-                }}
-              />
               <FormField
                 control={form.control}
                 name="league"
-                render={({ field }) => (
+                render={({ field }) => {
+                  const leagueValue =
+                    field.value && String(field.value).trim() !== "" ? field.value : "__none__";
+                  return (
                   <FormItem>
                     <FormLabel>Liga</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="np. Ekstraklasa, 1. Liga"
-                        {...field}
-                        value={field.value ?? ""}
-                        disabled={isMatchPlayer}
-                      />
-                    </FormControl>
+                    <Select
+                      value={leagueValue}
+                      onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                      disabled={isMatchPlayer}
+                    >
+                      <FormControl>
+                        <SelectTrigger ref={field.ref}>
+                          <SelectValue placeholder="Wybierz ligę" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Brak —</SelectItem>
+                        {(leagueOptions as Record<string, unknown>[])
+                          .filter((l) => String(l.display_name ?? l.name ?? "").trim() !== "")
+                          .map((l) => {
+                            const value = String(l.display_name ?? l.name ?? "");
+                            return (
+                              <SelectItem key={String(l.id)} value={value}>
+                                {value}
+                              </SelectItem>
+                            );
+                          })}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
-                )}
+                  );
+                }}
               />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {showCompetitionField && (
+                <FormField
+                  control={form.control}
+                  name="competition"
+                  render={({ field }) => {
+                    const competitionValue =
+                      field.value && String(field.value).trim() !== "" ? field.value : "__none__";
+                    return (
+                      <FormItem>
+                        <FormLabel>Kategoria wiekowa</FormLabel>
+                        <Select
+                          value={competitionValue}
+                          onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                        >
+                          <FormControl>
+                            <SelectTrigger ref={field.ref}>
+                              <SelectValue placeholder="Wybierz kategorię wiekową" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="__none__">—</SelectItem>
+                            {(categoriesOptions as { id: string; name: string }[])
+                              .filter((c) => c.name != null && String(c.name).trim() !== "")
+                              .map((c) => (
+                                <SelectItem key={c.id} value={String(c.name)}>
+                                  {String(c.name)}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    );
+                  }}
+                />
+              )}
             </div>
             {form.watch("source") !== "tournament" && (
               <div className="grid gap-4 sm:grid-cols-3">
@@ -1550,7 +1596,12 @@ export function ObservationWizard({
                       <FormControl>
                         <ClubSelect
                           value={field.value ?? ""}
-                          onChange={field.onChange}
+                          onChange={(v) => {
+                            field.onChange(v);
+                            void autofillLeagueFromClub(v, form.getValues("league") ?? "", (leagueName) =>
+                              form.setValue("league", leagueName, { shouldDirty: true, shouldTouch: true })
+                            );
+                          }}
                           placeholder="Wpisz lub wybierz klub..."
                           disabled={isMatchPlayer}
                         />
@@ -1568,7 +1619,12 @@ export function ObservationWizard({
                       <FormControl>
                         <ClubSelect
                           value={field.value ?? ""}
-                          onChange={field.onChange}
+                          onChange={(v) => {
+                            field.onChange(v);
+                            void autofillLeagueFromClub(v, form.getValues("league") ?? "", (leagueName) =>
+                              form.setValue("league", leagueName, { shouldDirty: true, shouldTouch: true })
+                            );
+                          }}
                           placeholder="Wpisz lub wybierz klub..."
                           disabled={isMatchPlayer}
                         />
@@ -1598,7 +1654,7 @@ export function ObservationWizard({
               </div>
             )}
             {form.watch("source") !== "tournament" && (
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <FormField
                   control={form.control}
                   name="home_team_formation"
@@ -1661,6 +1717,7 @@ export function ObservationWizard({
                     </FormItem>
                   )}
                 />
+                <div className="hidden sm:block" />
               </div>
             )}
             <FormField
@@ -1799,43 +1856,81 @@ export function ObservationWizard({
                                 setMatchRows((prev) => prev.map((m) => (m.id === row.id ? { ...m, match_date: e.target.value } : m)))
                               }
                             />
+                            {showCompetitionField && (
+                              <Select
+                                value={row.competition && String(row.competition).trim() !== "" ? row.competition : "__none__"}
+                                onValueChange={(v) =>
+                                  setMatchRows((prev) =>
+                                    prev.map((m) => (m.id === row.id ? { ...m, competition: v === "__none__" ? "" : v } : m))
+                                  )
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Kategoria wiekowa" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__none__">—</SelectItem>
+                                  {(categoriesOptions as { id: string; name: string }[])
+                                    .filter((c) => c.name != null && String(c.name).trim() !== "")
+                                    .map((c) => (
+                                      <SelectItem key={c.id} value={String(c.name)}>
+                                        {String(c.name)}
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                            )}
                             <Select
-                              value={row.competition && String(row.competition).trim() !== "" ? row.competition : "__none__"}
+                              value={row.league && String(row.league).trim() !== "" ? row.league : "__none__"}
                               onValueChange={(v) =>
                                 setMatchRows((prev) =>
-                                  prev.map((m) => (m.id === row.id ? { ...m, competition: v === "__none__" ? "" : v } : m))
+                                  prev.map((m) => (m.id === row.id ? { ...m, league: v === "__none__" ? "" : v } : m))
                                 )
                               }
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Rozgrywki" />
+                                <SelectValue placeholder="Liga" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="__none__">—</SelectItem>
-                                {(categoriesOptions as { id: string; name: string }[])
-                                  .filter((c) => c.name != null && String(c.name).trim() !== "")
-                                  .map((c) => (
-                                    <SelectItem key={c.id} value={String(c.name)}>
-                                      {String(c.name)}
-                                    </SelectItem>
-                                  ))}
+                                <SelectItem value="__none__">— Brak —</SelectItem>
+                                {(leagueOptions as Record<string, unknown>[])
+                                  .filter((l) => String(l.display_name ?? l.name ?? "").trim() !== "")
+                                  .map((l) => {
+                                    const value = String(l.display_name ?? l.name ?? "");
+                                    return (
+                                      <SelectItem key={String(l.id)} value={value}>
+                                        {value}
+                                      </SelectItem>
+                                    );
+                                  })}
                               </SelectContent>
                             </Select>
-                            <Input
-                              placeholder="Liga"
-                              value={row.league ?? ""}
-                              onChange={(e) =>
-                                setMatchRows((prev) => prev.map((m) => (m.id === row.id ? { ...m, league: e.target.value } : m)))
-                              }
-                            />
                             <ClubSelect
                               value={row.home_team ?? ""}
-                              onChange={(v) => setMatchRows((prev) => prev.map((m) => (m.id === row.id ? { ...m, home_team: v } : m)))}
+                              onChange={(v) => {
+                                setMatchRows((prev) => prev.map((m) => (m.id === row.id ? { ...m, home_team: v } : m)));
+                                void autofillLeagueFromClub(v, row.league ?? "", (leagueName) =>
+                                  setMatchRows((prev) =>
+                                    prev.map((m) =>
+                                      m.id === row.id && !(m.league ?? "").trim() ? { ...m, league: leagueName } : m
+                                    )
+                                  )
+                                );
+                              }}
                               placeholder="Wpisz lub wybierz gospodarza..."
                             />
                             <ClubSelect
                               value={row.away_team ?? ""}
-                              onChange={(v) => setMatchRows((prev) => prev.map((m) => (m.id === row.id ? { ...m, away_team: v } : m)))}
+                              onChange={(v) => {
+                                setMatchRows((prev) => prev.map((m) => (m.id === row.id ? { ...m, away_team: v } : m)));
+                                void autofillLeagueFromClub(v, row.league ?? "", (leagueName) =>
+                                  setMatchRows((prev) =>
+                                    prev.map((m) =>
+                                      m.id === row.id && !(m.league ?? "").trim() ? { ...m, league: leagueName } : m
+                                    )
+                                  )
+                                );
+                              }}
                               placeholder="Wpisz lub wybierz gościa..."
                             />
                             <Input

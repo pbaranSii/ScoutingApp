@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { DictionaryConfig } from "../config";
 import type { DictionaryRow } from "../api/dictionaries.api";
-import { useRegions } from "../hooks/useDictionaries";
+import { useLeagues, useRegions } from "../hooks/useDictionaries";
 
 type DictionaryEntryFormProps = {
   config: DictionaryConfig;
@@ -54,9 +54,46 @@ export function DictionaryEntryForm({
     config.table === "dict_recruitment_decisions" ? String(initial?.decision_category ?? "") : ""
   );
   const [city, setCity] = useState(config.table === "clubs" ? String(initial?.city ?? "") : "");
+  const [clubCountry, setClubCountry] = useState(
+    config.table === "clubs" ? String(initial?.country_pl ?? "") : ""
+  );
   const [regionId, setRegionId] = useState(
     config.table === "clubs" ? String(initial?.region_id ?? "") : ""
   );
+  const [clubLeagueId, setClubLeagueId] = useState(
+    config.table === "clubs" ? String(initial?.league_id ?? "") : ""
+  );
+  const [clubArea, setClubArea] = useState(
+    config.table === "clubs" ? String(initial?.area ?? "AKADEMIA") : "AKADEMIA"
+  );
+  const [leagueCode, setLeagueCode] = useState(config.table === "leagues" ? String(initial?.code ?? "") : "");
+  const [leagueCountryPl, setLeagueCountryPl] = useState(
+    config.table === "leagues" ? String(initial?.country_pl ?? "") : ""
+  );
+  const [leagueCountryIso, setLeagueCountryIso] = useState(
+    config.table === "leagues" ? String(initial?.country_iso ?? "") : ""
+  );
+  const [leagueCountryEn, setLeagueCountryEn] = useState(
+    config.table === "leagues" ? String(initial?.country_en ?? "") : ""
+  );
+  const [leagueLevel, setLeagueLevel] = useState(config.table === "leagues" ? String(initial?.level ?? "") : "");
+  const [leagueOfficialName, setLeagueOfficialName] = useState(
+    config.table === "leagues" ? String(initial?.official_name ?? "") : ""
+  );
+  const [leagueNamePl, setLeagueNamePl] = useState(config.table === "leagues" ? String(initial?.name_pl ?? "") : "");
+  const [leagueDisplayName, setLeagueDisplayName] = useState(
+    config.table === "leagues" ? String(initial?.display_name ?? "") : ""
+  );
+  const [leagueGroupName, setLeagueGroupName] = useState(
+    config.table === "leagues" ? String(initial?.group_name ?? "") : ""
+  );
+  const [leagueObserved, setLeagueObserved] = useState(
+    config.table === "leagues" ? Boolean(initial?.is_observed) : false
+  );
+  const [leagueArea, setLeagueArea] = useState(
+    config.table === "leagues" ? String(initial?.area ?? "ALL") : "ALL"
+  );
+  const [leagueNotes, setLeagueNotes] = useState(config.table === "leagues" ? String(initial?.notes ?? "") : "");
   const [minBirthYear, setMinBirthYear] = useState<string>(
     config.table === "categories" ? String(initial?.min_birth_year ?? "") : ""
   );
@@ -74,6 +111,7 @@ export function DictionaryEntryForm({
   );
 
   const { data: regions = [] } = useRegions();
+  const { data: leagues = [] } = useLeagues();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,14 +122,42 @@ export function DictionaryEntryForm({
     }
     payload[nameCol] = nameTrim;
     if (nameEnCol) payload[nameEnCol] = nameEn.trim();
-    if (orderCol && orderCol !== "id") payload[orderCol] = 0;
+    // Ustawiamy domyślny porządek tylko dla nowych rekordów i tylko gdy kolumna porządkowa
+    // nie koliduje z kolumną nazwy/kodu (np. leagues ma orderColumn=name).
+    if (
+      !initial &&
+      orderCol &&
+      orderCol !== "id" &&
+      orderCol !== nameCol &&
+      orderCol !== codeCol
+    ) {
+      payload[orderCol] = 0;
+    }
     if (config.table === "dict_player_sources") payload.description = description.trim() || null;
     if (config.table === "dict_player_sources") payload.is_default = isDefaultSource;
     if (config.table === "dict_recruitment_decisions")
       payload.decision_category = decisionCategory.trim() || null;
     if (config.table === "clubs") {
       payload.city = city.trim() || null;
+      payload.country_pl = clubCountry.trim() || null;
       payload.region_id = regionId.trim() || null;
+      payload.league_id = clubLeagueId.trim() || null;
+      payload.area = clubArea === "SENIOR" ? "SENIOR" : clubArea === "ALL" ? "ALL" : "AKADEMIA";
+    }
+    if (config.table === "leagues") {
+      payload.code = leagueCode.trim() || slugFromName(nameTrim);
+      payload.country_pl = leagueCountryPl.trim() || null;
+      payload.country_iso = leagueCountryIso.trim() || null;
+      payload.country_en = leagueCountryEn.trim() || null;
+      payload.level = leagueLevel.trim() !== "" ? Number(leagueLevel) : null;
+      payload.official_name = leagueOfficialName.trim() || null;
+      payload.name_pl = leagueNamePl.trim() || null;
+      payload.display_name = leagueDisplayName.trim() || null;
+      payload.group_name = leagueGroupName.trim() || null;
+      payload.is_observed = leagueObserved;
+      payload.area =
+        leagueArea === "SENIOR" ? "SENIOR" : leagueArea === "AKADEMIA" ? "AKADEMIA" : "ALL";
+      payload.notes = leagueNotes.trim() || null;
     }
     if (config.table === "categories") {
       payload.min_birth_year = minBirthYear !== "" ? Number(minBirthYear) : null;
@@ -184,6 +250,10 @@ export function DictionaryEntryForm({
             <Input id="city" value={city} onChange={(e) => setCity(e.target.value)} />
           </div>
           <div>
+            <Label htmlFor="club_country_pl">Kraj</Label>
+            <Input id="club_country_pl" value={clubCountry} onChange={(e) => setClubCountry(e.target.value)} />
+          </div>
+          <div>
             <Label htmlFor="region_id">Województwo</Label>
             <Select value={regionId || "_none"} onValueChange={(v) => setRegionId(v === "_none" ? "" : v)}>
               <SelectTrigger id="region_id">
@@ -198,6 +268,108 @@ export function DictionaryEntryForm({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label htmlFor="league_id">Liga (opcjonalnie)</Label>
+            <Select value={clubLeagueId || "_none"} onValueChange={(v) => setClubLeagueId(v === "_none" ? "" : v)}>
+              <SelectTrigger id="league_id">
+                <SelectValue placeholder="Wybierz ligę" />
+              </SelectTrigger>
+              <SelectContent className="z-[90]">
+                <SelectItem value="_none">— Brak —</SelectItem>
+                {leagues.map((l) => (
+                  <SelectItem key={String(l.id)} value={String(l.id)}>
+                    {String((l as Record<string, unknown>).display_name ?? l.name ?? l.id)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="club_area">Obszar dostępu</Label>
+            <Select value={clubArea} onValueChange={setClubArea}>
+              <SelectTrigger id="club_area">
+                <SelectValue placeholder="Wybierz obszar" />
+              </SelectTrigger>
+              <SelectContent className="z-[90]">
+                <SelectItem value="AKADEMIA">Akademia</SelectItem>
+                <SelectItem value="SENIOR">Senior</SelectItem>
+                <SelectItem value="ALL">Wszystkie obszary</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </>
+      )}
+      {config.table === "leagues" && (
+        <>
+          <div>
+            <Label htmlFor="league_code">Kod ligi</Label>
+            <Input id="league_code" value={leagueCode} onChange={(e) => setLeagueCode(e.target.value)} placeholder="np. PL-SEN-1" />
+          </div>
+          <div>
+            <Label htmlFor="league_display_name">Nazwa wyświetlana</Label>
+            <Input id="league_display_name" value={leagueDisplayName} onChange={(e) => setLeagueDisplayName(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="league_name_pl">Nazwa PL</Label>
+            <Input id="league_name_pl" value={leagueNamePl} onChange={(e) => setLeagueNamePl(e.target.value)} />
+          </div>
+          <div>
+            <Label htmlFor="league_official_name">Nazwa oficjalna</Label>
+            <Input id="league_official_name" value={leagueOfficialName} onChange={(e) => setLeagueOfficialName(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <Label htmlFor="league_country_pl">Kraj (PL)</Label>
+              <Input id="league_country_pl" value={leagueCountryPl} onChange={(e) => setLeagueCountryPl(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="league_country_iso">Kraj ISO</Label>
+              <Input id="league_country_iso" value={leagueCountryIso} onChange={(e) => setLeagueCountryIso(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="league_country_en">Kraj (EN)</Label>
+              <Input id="league_country_en" value={leagueCountryEn} onChange={(e) => setLeagueCountryEn(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <Label htmlFor="league_level">Poziom</Label>
+              <Input id="league_level" type="number" min={1} value={leagueLevel} onChange={(e) => setLeagueLevel(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="league_group">Grupa</Label>
+              <Input id="league_group" value={leagueGroupName} onChange={(e) => setLeagueGroupName(e.target.value)} />
+            </div>
+            <div>
+              <Label htmlFor="league_area">Obszar</Label>
+              <Select value={leagueArea} onValueChange={setLeagueArea}>
+                <SelectTrigger id="league_area">
+                  <SelectValue placeholder="Wybierz obszar" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Wszystkie</SelectItem>
+                  <SelectItem value="AKADEMIA">Akademia</SelectItem>
+                  <SelectItem value="SENIOR">Senior</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="league_observed">Obserwowana</Label>
+            <Select value={leagueObserved ? "yes" : "no"} onValueChange={(v) => setLeagueObserved(v === "yes")}>
+              <SelectTrigger id="league_observed">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="yes">Tak</SelectItem>
+                <SelectItem value="no">Nie</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="league_notes">Uwagi</Label>
+            <Textarea id="league_notes" rows={3} value={leagueNotes} onChange={(e) => setLeagueNotes(e.target.value)} />
           </div>
         </>
       )}

@@ -42,10 +42,11 @@ export function ObservationsPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState({
     source: "",
-    rank: "",
     position: "",
-    ratingMin: "",
-    ratingMax: "",
+    performanceMin: "",
+    performanceMax: "",
+    potentialFutureMin: "",
+    potentialFutureMax: "",
     recommendation: "",
     formType: "",
     birthYearFrom: "",
@@ -53,10 +54,11 @@ export function ObservationsPage() {
   });
   const hasActiveFilters =
     filters.source ||
-    filters.rank ||
     filters.position ||
-    filters.ratingMin ||
-    filters.ratingMax ||
+    filters.performanceMin ||
+    filters.performanceMax ||
+    filters.potentialFutureMin ||
+    filters.potentialFutureMax ||
     filters.recommendation ||
     filters.formType ||
     filters.birthYearFrom ||
@@ -90,16 +92,28 @@ export function ObservationsPage() {
   const filteredWithFilters = useMemo(() => {
     return filtered.filter((observation) => {
       if (filters.source && observation.source !== filters.source) return false;
-      if (filters.rank && observation.rank !== filters.rank) return false;
       if (filters.position) {
         const normalized = mapLegacyPosition(observation.player?.primary_position ?? "");
         if (normalized !== filters.position) return false;
       }
-      const rating = observation.overall_rating;
-      if (filters.ratingMin && (typeof rating !== "number" || rating < Number(filters.ratingMin))) {
+      const performance = observation.potential_now;
+      if (filters.performanceMin && (typeof performance !== "number" || performance < Number(filters.performanceMin))) {
         return false;
       }
-      if (filters.ratingMax && (typeof rating !== "number" || rating > Number(filters.ratingMax))) {
+      if (filters.performanceMax && (typeof performance !== "number" || performance > Number(filters.performanceMax))) {
+        return false;
+      }
+      const potentialFuture = observation.potential_future;
+      if (
+        filters.potentialFutureMin &&
+        (typeof potentialFuture !== "number" || potentialFuture < Number(filters.potentialFutureMin))
+      ) {
+        return false;
+      }
+      if (
+        filters.potentialFutureMax &&
+        (typeof potentialFuture !== "number" || potentialFuture > Number(filters.potentialFutureMax))
+      ) {
         return false;
       }
       if (filters.recommendation && observation.recommendation !== filters.recommendation) return false;
@@ -119,7 +133,20 @@ export function ObservationsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, tab, filters.source, filters.rank, filters.position, filters.ratingMin, filters.ratingMax, filters.recommendation, filters.formType, filters.birthYearFrom, filters.birthYearTo]);
+  }, [
+    search,
+    tab,
+    filters.source,
+    filters.position,
+    filters.performanceMin,
+    filters.performanceMax,
+    filters.potentialFutureMin,
+    filters.potentialFutureMax,
+    filters.recommendation,
+    filters.formType,
+    filters.birthYearFrom,
+    filters.birthYearTo,
+  ]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -189,7 +216,7 @@ export function ObservationsPage() {
       </div>
       {filtersOpen && (
         <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Źródło</label>
               <Select value={filters.source} onValueChange={(value) => setFilters((prev) => ({ ...prev, source: value }))}>
@@ -202,20 +229,6 @@ export function ObservationsPage() {
                   <SelectItem value="application">Zgłoszenie</SelectItem>
                   <SelectItem value="trainer_report">Raport trenera</SelectItem>
                   <SelectItem value="scout_report">Raport skauta</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Ranga</label>
-              <Select value={filters.rank} onValueChange={(value) => setFilters((prev) => ({ ...prev, rank: value }))}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Dowolna" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="A">A - TOP</SelectItem>
-                  <SelectItem value="B">B - Dobry</SelectItem>
-                  <SelectItem value="C">C - Szeroka kadra</SelectItem>
-                  <SelectItem value="D">D - Słaby</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -235,26 +248,50 @@ export function ObservationsPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Ocena od</label>
-              <Input
-                type="number"
-                min={1}
-                max={10}
-                value={filters.ratingMin}
-                onChange={(event) => setFilters((prev) => ({ ...prev, ratingMin: event.target.value }))}
-                placeholder="np. 6"
-              />
+              <label className="text-sm font-medium text-slate-700">Performance (1–5)</label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.5}
+                  value={filters.performanceMin}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, performanceMin: event.target.value }))}
+                  placeholder="min"
+                />
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.5}
+                  value={filters.performanceMax}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, performanceMax: event.target.value }))}
+                  placeholder="max"
+                />
+              </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Ocena do</label>
-              <Input
-                type="number"
-                min={1}
-                max={10}
-                value={filters.ratingMax}
-                onChange={(event) => setFilters((prev) => ({ ...prev, ratingMax: event.target.value }))}
-                placeholder="np. 9"
-              />
+              <label className="text-sm font-medium text-slate-700">Potencjał przyszły (1–5)</label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.5}
+                  value={filters.potentialFutureMin}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, potentialFutureMin: event.target.value }))}
+                  placeholder="min"
+                />
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.5}
+                  value={filters.potentialFutureMax}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, potentialFutureMax: event.target.value }))}
+                  placeholder="max"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Rekomendacja</label>
@@ -282,26 +319,25 @@ export function ObservationsPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Rocznik od</label>
-              <Input
-                type="number"
-                min={1950}
-                max={new Date().getFullYear()}
-                value={filters.birthYearFrom}
-                onChange={(event) => setFilters((prev) => ({ ...prev, birthYearFrom: event.target.value }))}
-                placeholder="np. 2008"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Rocznik do</label>
-              <Input
-                type="number"
-                min={1950}
-                max={new Date().getFullYear()}
-                value={filters.birthYearTo}
-                onChange={(event) => setFilters((prev) => ({ ...prev, birthYearTo: event.target.value }))}
-                placeholder="np. 2010"
-              />
+              <label className="text-sm font-medium text-slate-700">Rocznik (od-do)</label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min={1950}
+                  max={new Date().getFullYear()}
+                  value={filters.birthYearFrom}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, birthYearFrom: event.target.value }))}
+                  placeholder="od"
+                />
+                <Input
+                  type="number"
+                  min={1950}
+                  max={new Date().getFullYear()}
+                  value={filters.birthYearTo}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, birthYearTo: event.target.value }))}
+                  placeholder="do"
+                />
+              </div>
             </div>
           </div>
           <div className="mt-4 flex flex-wrap justify-end gap-2">
@@ -311,10 +347,11 @@ export function ObservationsPage() {
               onClick={() =>
                 setFilters({
                   source: "",
-                  rank: "",
                   position: "",
-                  ratingMin: "",
-                  ratingMax: "",
+                  performanceMin: "",
+                  performanceMax: "",
+                  potentialFutureMin: "",
+                  potentialFutureMax: "",
                   recommendation: "",
                   formType: "",
                   birthYearFrom: "",

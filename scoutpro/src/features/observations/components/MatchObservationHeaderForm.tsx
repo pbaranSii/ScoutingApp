@@ -8,9 +8,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
-import { useCategoriesForCurrentArea } from "@/features/dictionaries/hooks/useDictionaries";
+import { useCategoriesForCurrentArea, useLeaguesForCurrentArea } from "@/features/dictionaries/hooks/useDictionaries";
 import { useFormations } from "@/features/tactical/hooks/useFormations";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
+import { fetchClubByName } from "@/features/players/api/players.api";
+import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 
 /** Źródło obserwacji meczowej (jedno pole zamiast context_type + source). */
 export const MATCH_SOURCE_OPTIONS = [
@@ -23,7 +25,7 @@ export const MATCH_SOURCE_OPTIONS = [
 const headerSchema = z
   .object({
     observation_date: z.string().min(1, "Wybierz datę"),
-    competition: z.string().min(1, "Wybierz rozgrywki"),
+    competition: z.string().optional(),
     league: z.string().max(200).optional(),
     home_team: z.string().optional(),
     away_team: z.string().optional(),
@@ -74,6 +76,10 @@ export const MatchObservationHeaderForm = forwardRef<
   MatchObservationHeaderFormProps
 >(function MatchObservationHeaderForm({ initialValues, onValuesChange }, ref) {
   const { data: categories = [] } = useCategoriesForCurrentArea();
+  const { data: leagues = [] } = useLeaguesForCurrentArea();
+  const { data: currentUser } = useCurrentUserProfile();
+  const areaAccess = (currentUser as { area_access?: "AKADEMIA" | "SENIOR" | "ALL" } | null)?.area_access ?? "AKADEMIA";
+  const showCompetitionField = areaAccess !== "SENIOR";
   const { data: formations = [] } = useFormations();
   const formationSelect = formations as unknown as { id: string; code?: string | null; name: string }[];
   const formationOptionValue = useCallback((f: { id: string; code?: string | null }) => {
@@ -111,6 +117,19 @@ export const MatchObservationHeaderForm = forwardRef<
   const source = form.watch("source");
   const isMatchLike = source !== "tournament";
   const allValues = form.watch();
+
+  const autofillLeagueFromClub = useCallback(
+    async (clubName: string) => {
+      const currentLeague = String(form.getValues("league") ?? "").trim();
+      if (currentLeague) return;
+      const club = await fetchClubByName(clubName);
+      const leagueName = String(club?.league?.display_name ?? club?.league?.name ?? "").trim();
+      if (leagueName) {
+        form.setValue("league", leagueName, { shouldDirty: true, shouldTouch: true });
+      }
+    },
+    [form]
+  );
 
   useEffect(() => {
     onValuesChange?.(form.getValues());
@@ -194,36 +213,10 @@ export const MatchObservationHeaderForm = forwardRef<
             name="observation_date"
             render={({ field }) => (
               <FormItem>
-                <Label>Data obserwacji <span className="text-red-600">*</span></Label>
+                <Label>Data meczu <span className="text-red-600">*</span></Label>
                 <FormControl>
                   <Input type="date" {...field} />
                 </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <FormField
-            control={form.control}
-            name="competition"
-            render={({ field }) => (
-              <FormItem>
-                <Label>Rozgrywki <span className="text-red-600">*</span></Label>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Wybierz rozgrywki" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {categories.map((c: Record<string, unknown>) => (
-                      <SelectItem key={String(c.id)} value={String(c.name ?? c.id)}>
-                        {String(c.name ?? c.id)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -234,13 +227,58 @@ export const MatchObservationHeaderForm = forwardRef<
             render={({ field }) => (
               <FormItem>
                 <Label>Liga</Label>
-                <FormControl>
-                  <Input placeholder="np. Ekstraklasa, 1. Liga" {...field} value={field.value ?? ""} />
-                </FormControl>
+                <Select value={field.value && String(field.value).trim() !== "" ? field.value : "__none__"} onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Wybierz ligę" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Brak —</SelectItem>
+                    {(leagues as Record<string, unknown>[])
+                      .filter((l) => String(l.display_name ?? l.name ?? "").trim() !== "")
+                      .map((l) => {
+                        const value = String(l.display_name ?? l.name ?? "");
+                        return (
+                          <SelectItem key={String(l.id)} value={value}>
+                            {value}
+                          </SelectItem>
+                        );
+                      })}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {showCompetitionField && (
+            <FormField
+              control={form.control}
+              name="competition"
+              render={({ field }) => (
+                <FormItem>
+                  <Label>Kategoria wiekowa <span className="text-red-600">*</span></Label>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Wybierz kategorię wiekową" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {categories.map((c: Record<string, unknown>) => (
+                        <SelectItem key={String(c.id)} value={String(c.name ?? c.id)}>
+                          {String(c.name ?? c.id)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
         </div>
         {isMatchLike && (
           <div className="grid gap-4 sm:grid-cols-3">
@@ -253,7 +291,10 @@ export const MatchObservationHeaderForm = forwardRef<
                   <FormControl>
                     <ClubSelect
                       value={field.value ?? ""}
-                      onChange={field.onChange}
+                      onChange={(v) => {
+                        field.onChange(v);
+                        void autofillLeagueFromClub(v);
+                      }}
                       placeholder="Wpisz lub wybierz klub..."
                     />
                   </FormControl>
@@ -270,7 +311,10 @@ export const MatchObservationHeaderForm = forwardRef<
                   <FormControl>
                     <ClubSelect
                       value={field.value ?? ""}
-                      onChange={field.onChange}
+                      onChange={(v) => {
+                        field.onChange(v);
+                        void autofillLeagueFromClub(v);
+                      }}
                       placeholder="Wpisz lub wybierz klub..."
                     />
                   </FormControl>
@@ -294,7 +338,7 @@ export const MatchObservationHeaderForm = forwardRef<
           </div>
         )}
         {isMatchLike && (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <FormField
             control={form.control}
             name="home_team_formation"
@@ -355,6 +399,7 @@ export const MatchObservationHeaderForm = forwardRef<
               </FormItem>
             )}
           />
+          <div className="hidden sm:block" />
         </div>
         )}
         <FormField

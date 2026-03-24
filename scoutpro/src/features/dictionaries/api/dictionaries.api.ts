@@ -50,7 +50,7 @@ export async function fetchDictionaryEntries(
   const tableName = table as TableName;
   const selectClause =
     table === "clubs"
-      ? "*, region:regions(name)"
+      ? "*, region:regions(name), league:leagues(id,name,code,country_pl)"
       : "*";
   let q = supabase
     .from(tableName)
@@ -152,6 +152,16 @@ function safeGet(obj: DictionaryRow, key: string): string {
   return asString(obj[key as keyof DictionaryRow]).trim();
 }
 
+function getCsvValue(src: CsvRow, keys: string[]): string {
+  for (const key of keys) {
+    const value = src[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return String(value).trim();
+    }
+  }
+  return "";
+}
+
 export function exportDictionaryEntriesToCsv(config: DictionaryConfig, entries: DictionaryRow[]): string {
   const id = config.id;
   const rows: Record<string, string | number | null | undefined>[] = [];
@@ -173,11 +183,45 @@ export function exportDictionaryEntriesToCsv(config: DictionaryConfig, entries: 
       const regionName =
         asString((e as { region?: { name?: string } | null }).region?.name) ||
         asString((e as { regions?: { name?: string } | null }).regions?.name);
+      const leagueName =
+        asString((e as { league?: { name?: string } | null }).league?.name) ||
+        asString((e as { leagues?: { name?: string } | null }).leagues?.name);
+      const leagueCode =
+        asString((e as { league?: { code?: string } | null }).league?.code) ||
+        asString((e as { leagues?: { code?: string } | null }).leagues?.code);
+      const leagueCountry =
+        asString((e as { league?: { country_pl?: string } | null }).league?.country_pl) ||
+        asString((e as { leagues?: { country_pl?: string } | null }).leagues?.country_pl);
       rows.push({
         name: safeGet(e, "name"),
         city: safeGet(e, "city"),
         region_code: safeGet(e, "region_code"),
         region_name: regionName,
+        league_code: leagueCode,
+        league_name: leagueName,
+        country_pl: safeGet(e, "country_pl") || leagueCountry,
+        area: safeGet(e, "area"),
+        is_active: safeGet(e, "is_active"),
+      });
+    }
+    return toCsv(rows);
+  }
+
+  if (id === "leagues") {
+    for (const e of entries) {
+      rows.push({
+        liga_id: safeGet(e, "code"),
+        kraj_pl: safeGet(e, "country_pl"),
+        kraj_iso: safeGet(e, "country_iso"),
+        kraj_en: safeGet(e, "country_en"),
+        poziom: safeGet(e, "level"),
+        nazwa_oficjalna: safeGet(e, "official_name"),
+        nazwa_pl: safeGet(e, "name_pl"),
+        nazwa_wyswietlana: safeGet(e, "display_name"),
+        grupa: safeGet(e, "group_name"),
+        obserwowana: safeGet(e, "is_observed"),
+        kategoria: safeGet(e, "area"),
+        uwagi: safeGet(e, "notes"),
         is_active: safeGet(e, "is_active"),
       });
     }
@@ -221,7 +265,33 @@ export function exportDictionaryCsvTemplate(config: DictionaryConfig): string {
     id === "regions"
       ? ["code", "name", "display_order", "is_active"]
       : id === "clubs"
-        ? ["name", "city", "region_code", "region_name", "is_active"]
+        ? [
+            "name",
+            "city",
+            "region_code",
+            "region_name",
+            "league_code",
+            "league_name",
+            "country_pl",
+            "area",
+            "is_active",
+          ]
+        : id === "leagues"
+          ? [
+              "liga_id",
+              "kraj_pl",
+              "kraj_iso",
+              "kraj_en",
+              "poziom",
+              "nazwa_oficjalna",
+              "nazwa_pl",
+              "nazwa_wyswietlana",
+              "grupa",
+              "obserwowana",
+              "kategoria",
+              "uwagi",
+              "is_active",
+            ]
         : id === "categories"
           ? ["name", "area", "min_birth_year", "max_birth_year", "default_form_type", "age_under", "is_active"]
           : id === "strengths" || id === "weaknesses"
@@ -265,6 +335,13 @@ export async function importDictionaryEntriesFromCsv(
       const city = normalizeKey(asString((row as any).city));
       return `${name}::${city}`;
     }
+    if (id === "leagues") {
+      const code = normalizeKey(asString((row as any).code ?? (row as any).liga_id));
+      const name = normalizeKey(
+        asString((row as any).name ?? (row as any).display_name ?? (row as any).nazwa_wyswietlana)
+      );
+      return code || name;
+    }
     if (id === "categories") {
       return normalizeKey(asString((row as any).name));
     }
@@ -282,12 +359,33 @@ export async function importDictionaryEntriesFromCsv(
   // For clubs we may need regions mapping (by code or name)
   let regionsByCode = new Map<string, string>();
   let regionsByName = new Map<string, string>();
+  let leaguesByCode = new Map<string, string>();
+  let leaguesByName = new Map<string, string>();
+  let leaguesByNameAndCountry = new Map<string, string>();
   if (id === "clubs") {
     const { data, error } = await supabase.from("regions").select("id,code,name");
     if (error) throw error;
     for (const r of (data ?? []) as any[]) {
       if (r.code) regionsByCode.set(normalizeKey(String(r.code)), String(r.id));
       if (r.name) regionsByName.set(normalizeKey(String(r.name)), String(r.id));
+    }
+    const { data: leaguesData, error: leaguesError } = await supabase
+      .from("leagues")
+      .select("id,code,name,display_name,country_pl,country_iso,country_en");
+    if (leaguesError) throw leaguesError;
+    for (const l of (leaguesData ?? []) as any[]) {
+      if (l.code) leaguesByCode.set(normalizeKey(String(l.code)), String(l.id));
+      if (l.name) leaguesByName.set(normalizeKey(String(l.name)), String(l.id));
+      if (l.display_name) leaguesByName.set(normalizeKey(String(l.display_name)), String(l.id));
+      const countries = [l.country_pl, l.country_iso, l.country_en]
+        .filter(Boolean)
+        .map((v) => normalizeKey(String(v)));
+      const leagueNames = [l.name, l.display_name].filter(Boolean).map((v) => normalizeKey(String(v)));
+      for (const c of countries) {
+        for (const n of leagueNames) {
+          leaguesByNameAndCountry.set(`${n}::${c}`, String(l.id));
+        }
+      }
     }
   }
 
@@ -325,6 +423,8 @@ export async function importDictionaryEntriesFromCsv(
         if (!name) throw new Error("Wymagane: name");
         payload.name = name;
         if (src.city?.trim()) payload.city = src.city.trim();
+        const importedCountry = getCsvValue(src, ["country_pl", "kraj", "country", "kraj_pl"]);
+        if (importedCountry) payload.country_pl = importedCountry;
         setActive(payload, src);
 
         const regionCode = src.region_code?.trim();
@@ -333,6 +433,48 @@ export async function importDictionaryEntriesFromCsv(
           (regionCode ? regionsByCode.get(normalizeKey(regionCode)) : undefined) ??
           (regionName ? regionsByName.get(normalizeKey(regionName)) : undefined);
         if (regionId) payload.region_id = regionId;
+        const leagueCode = src.league_code?.trim();
+        const leagueName = src.league_name?.trim();
+        const country = getCsvValue(src, ["country_pl", "kraj", "country", "kraj_pl"]).toLowerCase();
+        const leagueByNameAndCountry =
+          leagueName && country ? leaguesByNameAndCountry.get(`${normalizeKey(leagueName)}::${normalizeKey(country)}`) : undefined;
+        const leagueId =
+          leagueByNameAndCountry ??
+          (leagueCode ? leaguesByCode.get(normalizeKey(leagueCode)) : undefined) ??
+          (leagueName ? leaguesByName.get(normalizeKey(leagueName)) : undefined);
+        payload.league_id = leagueId ?? null;
+        const importedArea = getCsvValue(src, ["area", "obszar", "obszar_dostepu", "obszar dostępu"]);
+        if (importedArea) {
+          const area = importedArea.toUpperCase();
+          payload.area = area === "SENIOR" ? "SENIOR" : area === "ALL" ? "ALL" : "AKADEMIA";
+        }
+      } else if (id === "leagues") {
+        const code = (src.liga_id ?? src.code ?? "").trim();
+        const displayName = (src.nazwa_wyswietlana ?? src.name ?? "").trim();
+        if (!code && !displayName) throw new Error("Wymagane: liga_id lub nazwa_wyswietlana");
+
+        payload.code = code || null;
+        payload.name = displayName || code;
+        payload.country_pl = (src.kraj_pl ?? "").trim() || null;
+        payload.country_iso = (src.kraj_iso ?? "").trim() || null;
+        payload.country_en = (src.kraj_en ?? "").trim() || null;
+        const level = parseNumber(src.poziom ?? src.level);
+        payload.level = level ?? null;
+        payload.official_name = (src.nazwa_oficjalna ?? "").trim() || null;
+        payload.name_pl = (src.nazwa_pl ?? "").trim() || null;
+        payload.display_name = displayName || null;
+        payload.group_name = (src.grupa ?? "").trim() || null;
+        const isObserved = parseBoolean(src.obserwowana);
+        payload.is_observed = isObserved ?? false;
+        const categoryRaw = (src.kategoria ?? "").trim().toLowerCase();
+        payload.area =
+          categoryRaw === "seniorzy" || categoryRaw === "senior"
+            ? "SENIOR"
+            : categoryRaw === "akademia"
+              ? "AKADEMIA"
+              : "ALL";
+        payload.notes = (src.uwagi ?? "").trim() || null;
+        setActive(payload, src);
       } else if (id === "categories") {
         const name = src.name?.trim() || "";
         if (!name) throw new Error("Wymagane: name");

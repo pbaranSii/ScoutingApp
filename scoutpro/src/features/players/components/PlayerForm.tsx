@@ -32,6 +32,7 @@ import { format, parseISO } from "date-fns";
 import { useAuthStore } from "@/stores/authStore";
 import { Film, Image as ImageIcon, Link2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 
 const optionalText = z.preprocess(
   (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
@@ -127,6 +128,11 @@ export function PlayerForm({
   const { mutateAsync: updatePlayer, isPending: isUpdating } = useUpdatePlayer();
   const { mutateAsync: createHistory } = useCreatePipelineHistory();
   const { user } = useAuthStore();
+  const { data: currentUserProfile } = useCurrentUserProfile();
+  const currentAreaAccess =
+    (currentUserProfile as { area_access?: "AKADEMIA" | "SENIOR" | "ALL" } | null)?.area_access ??
+    "AKADEMIA";
+  const isSeniorArea = currentAreaAccess === "SENIOR";
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [addMediaModalOpen, setAddMediaModalOpen] = useState(false);
   const [profileMediaObservationId, setProfileMediaObservationId] = useState<string | null>(null);
@@ -302,7 +308,7 @@ export function PlayerForm({
       // tylko wyliczamy fallback na podstawie `current_area_access()` w bazie.
       let resolvedAgeCategoryId: string | null = toNullable(values.age_category_id);
 
-      if (!resolvedAgeCategoryId) {
+      if (!resolvedAgeCategoryId && !isSeniorArea) {
         // Funkcja pozostaje jako "heurystyka" dla UI; główny fallback i tak robimy po stronie bazy.
         void resolveAgeCategoryId(values.birth_year);
         const { data: areaAccessRaw, error: areaAccessErr } = await (supabase as any).rpc(
@@ -371,7 +377,7 @@ export function PlayerForm({
           (typeof idFromFallback === "string" && idFromFallback.length > 0 ? idFromFallback : null);
       }
 
-      if (!resolvedAgeCategoryId) {
+      if (!resolvedAgeCategoryId && !isSeniorArea) {
         throw new Error(
           "Nie udało się ustalić kategorii wiekowej dla bieżącego obszaru. Zmień rocznik lub wybierz kategorię."
         );
@@ -380,7 +386,7 @@ export function PlayerForm({
         first_name: values.first_name,
         last_name: values.last_name,
         birth_year: values.birth_year,
-        age_category_id: resolvedAgeCategoryId,
+        age_category_id: isSeniorArea ? null : resolvedAgeCategoryId,
         birth_date: toNullable(values.birth_date),
         contract_end_date: toNullable(values.contract_end_date),
         club_id: clubId ?? null,
@@ -650,34 +656,36 @@ export function PlayerForm({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="age_category_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Kategoria wiekowa</FormLabel>
-                    <Select
-                      value={field.value || "__none__"}
-                      onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Wybierz kategorię" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="__none__">— Brak —</SelectItem>
-                        {(categories as { id: string; name?: string }[]).map((c) => (
-                          <SelectItem key={String(c.id)} value={String(c.id)}>
-                            {String(c.name ?? c.id)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {!isSeniorArea && (
+                <FormField
+                  control={form.control}
+                  name="age_category_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Kategoria wiekowa</FormLabel>
+                      <Select
+                        value={field.value || "__none__"}
+                        onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Wybierz kategorię" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="__none__">— Brak —</SelectItem>
+                          {(categories as { id: string; name?: string }[]).map((c) => (
+                            <SelectItem key={String(c.id)} value={String(c.id)}>
+                              {String(c.name ?? c.id)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
             <FormField
               control={form.control}

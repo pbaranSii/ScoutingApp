@@ -43,30 +43,46 @@ export type Database = {
       }
       clubs: {
         Row: {
+          area: string
           city: string | null
+          country_pl: string | null
           created_at: string
           id: string
           is_active: boolean
+          league_id: string | null
           name: string
           region_id: string | null
         }
         Insert: {
+          area?: string
           city?: string | null
+          country_pl?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
+          league_id?: string | null
           name: string
           region_id?: string | null
         }
         Update: {
+          area?: string
           city?: string | null
+          country_pl?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
+          league_id?: string | null
           name?: string
           region_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "clubs_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "clubs_region_id_fkey"
             columns: ["region_id"]
@@ -160,25 +176,58 @@ export type Database = {
       }
       leagues: {
         Row: {
+          area: string
+          code: string | null
+          country_en: string | null
+          country_iso: string | null
+          country_pl: string | null
           created_at: string
+          display_name: string | null
           id: string
           is_active: boolean
+          is_observed: boolean
           level: number | null
           name: string
+          name_pl: string | null
+          notes: string | null
+          official_name: string | null
+          group_name: string | null
         }
         Insert: {
+          area?: string
+          code?: string | null
+          country_en?: string | null
+          country_iso?: string | null
+          country_pl?: string | null
           created_at?: string
+          display_name?: string | null
           id?: string
           is_active?: boolean
+          is_observed?: boolean
           level?: number | null
           name: string
+          name_pl?: string | null
+          notes?: string | null
+          official_name?: string | null
+          group_name?: string | null
         }
         Update: {
+          area?: string
+          code?: string | null
+          country_en?: string | null
+          country_iso?: string | null
+          country_pl?: string | null
           created_at?: string
+          display_name?: string | null
           id?: string
           is_active?: boolean
+          is_observed?: boolean
           level?: number | null
           name?: string
+          name_pl?: string | null
+          notes?: string | null
+          official_name?: string | null
+          group_name?: string | null
         }
         Relationships: []
       }
@@ -1849,6 +1898,8 @@ export type Database = {
           p_recommendation?: string | null
           p_potential_now_min?: number | null
           p_potential_now_max?: number | null
+          p_potential_future_min?: number | null
+          p_potential_future_max?: number | null
         }
         Returns: string[]
       }
