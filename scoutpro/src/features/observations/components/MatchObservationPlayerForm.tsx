@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,11 +9,12 @@ import { usePositionDictionary } from "@/features/tactical/hooks/usePositionDict
 import { getPositionIdFromCode, getPositionOptionsFromDictionary } from "@/features/players/components/PositionDictionarySelect";
 import { PositionPickerDialog } from "@/features/players/components/PositionPickerDialog";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
-import { useStrengths, useWeaknesses } from "@/features/dictionaries/hooks/useDictionaries";
+import { useBodyBuild, useStrengths, useWeaknesses } from "@/features/dictionaries/hooks/useDictionaries";
+import { useFormations } from "@/features/tactical/hooks/useFormations";
 import { StrengthsWeaknessesTagField } from "./StrengthsWeaknessesTagField";
 import { PlayerSearchDialog } from "./PlayerSearchDialog";
 import { DuplicateWarningDialog } from "./DuplicateWarningDialog";
-import { checkDuplicatePlayers, type DuplicateCandidate } from "@/features/players/api/players.api";
+import { checkDuplicatePlayers, fetchPlayerById, type DuplicateCandidate } from "@/features/players/api/players.api";
 import type { PlayerSearchItem } from "@/features/players/api/players.api";
 import { mapLegacyPosition } from "@/features/players/positions";
 import type { MatchPlayerSlot, MatchFormType } from "@/features/observations/types";
@@ -44,9 +46,15 @@ const defaultSlotData: Omit<MatchPlayerSlot, "id"> = {
   first_name: "",
   last_name: "",
   birth_year: DEFAULT_BIRTH_YEAR,
+  nationality: "Polska",
   birth_date: undefined,
   contract_end_date: undefined,
   club_name: "",
+  body_build: "",
+  club_formation: "",
+  agent_name: "",
+  agent_phone: "",
+  agent_email: "",
   primary_position: "",
   overall_rating: 6,
   match_performance_rating: 3,
@@ -70,9 +78,15 @@ function toFormState(data: MatchObservationPlayerFormInitial | null | undefined)
     first_name: data.first_name ?? "",
     last_name: data.last_name ?? "",
     birth_year: data.birth_year ?? DEFAULT_BIRTH_YEAR,
+    nationality: data.nationality ?? "Polska",
     birth_date: data.birth_date ?? undefined,
     contract_end_date: (data as { contract_end_date?: string | null }).contract_end_date ?? undefined,
     club_name: data.club_name ?? "",
+    body_build: (data as { body_build?: string | null }).body_build ?? "",
+    club_formation: (data as { club_formation?: string | null }).club_formation ?? "",
+    agent_name: (data as { agent_name?: string | null }).agent_name ?? "",
+    agent_phone: (data as { agent_phone?: string | null }).agent_phone ?? "",
+    agent_email: (data as { agent_email?: string | null }).agent_email ?? "",
     primary_position: data.primary_position ?? "",
     overall_rating: data.overall_rating ?? 6,
     match_performance_rating: data.match_performance_rating ?? 3,
@@ -101,6 +115,24 @@ export function MatchObservationPlayerForm({
   const positionOptions = getPositionOptionsFromDictionary(positions);
   const { data: strengthsOptions = [] } = useStrengths();
   const { data: weaknessesOptions = [] } = useWeaknesses();
+  const { data: bodyBuildOptions = [] } = useBodyBuild();
+  const { data: formations = [] } = useFormations();
+
+  const formationOptionValue = useCallback((f: { id: string; code?: string | null }) => {
+    const code = String(f.code ?? "").trim();
+    return code || f.id;
+  }, []);
+
+  const normalizeFormationForSelect = useCallback(
+    (value?: string | null) => {
+      const current = String(value ?? "").trim();
+      if (!current) return "";
+      const byId = (formations as { id: string; code?: string | null }[]).find((f) => f.id === current);
+      if (byId) return formationOptionValue(byId);
+      return current;
+    },
+    [formations, formationOptionValue]
+  );
 
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
@@ -115,9 +147,15 @@ export function MatchObservationPlayerForm({
   const [first_name, setFirst_name] = useState(defaultSlotData.first_name);
   const [last_name, setLast_name] = useState(defaultSlotData.last_name);
   const [birth_year, setBirth_year] = useState(defaultSlotData.birth_year);
+  const [nationality, setNationality] = useState(defaultSlotData.nationality ?? "Polska");
   const [birth_date, setBirth_date] = useState(defaultSlotData.birth_date ?? "");
   const [contract_end_date, setContract_end_date] = useState(defaultSlotData.contract_end_date ?? "");
   const [club_name, setClub_name] = useState(defaultSlotData.club_name ?? "");
+  const [body_build, setBody_build] = useState(defaultSlotData.body_build ?? "");
+  const [club_formation, setClub_formation] = useState(defaultSlotData.club_formation ?? "");
+  const [agent_name, setAgent_name] = useState(defaultSlotData.agent_name ?? "");
+  const [agent_phone, setAgent_phone] = useState(defaultSlotData.agent_phone ?? "");
+  const [agent_email, setAgent_email] = useState(defaultSlotData.agent_email ?? "");
   const [primary_position, setPrimary_position] = useState(defaultSlotData.primary_position);
   const [, setOverall_rating] = useState(defaultSlotData.overall_rating);
   const [match_performance_rating, setMatch_performance_rating] = useState(defaultSlotData.match_performance_rating);
@@ -141,9 +179,15 @@ export function MatchObservationPlayerForm({
     setFirst_name(state.first_name);
     setLast_name(state.last_name);
     setBirth_year(state.birth_year);
+    setNationality(state.nationality ?? "Polska");
     setBirth_date(state.birth_date ?? "");
     setContract_end_date(state.contract_end_date ?? "");
     setClub_name(state.club_name ?? "");
+    setBody_build(state.body_build ?? "");
+    setClub_formation(state.club_formation ?? "");
+    setAgent_name(state.agent_name ?? "");
+    setAgent_phone(state.agent_phone ?? "");
+    setAgent_email(state.agent_email ?? "");
     setPrimary_position(state.primary_position);
     setOverall_rating(state.overall_rating);
     setMatch_performance_rating(state.match_performance_rating);
@@ -165,14 +209,54 @@ export function MatchObservationPlayerForm({
     if (!initialData?.form_type && competition) setFormType(defaultMatchFormType(competition));
   }, [competition, initialData?.form_type]);
 
+  const { data: fullPlayer } = useQuery({
+    queryKey: ["player-for-match-player-form", player_id],
+    queryFn: () => fetchPlayerById(player_id!),
+    enabled: Boolean(player_id),
+  });
+
+  const [didPrefillFromPlayerId, setDidPrefillFromPlayerId] = useState(false);
+
+  useEffect(() => {
+    setDidPrefillFromPlayerId(false);
+  }, [player_id]);
+
+  useEffect(() => {
+    if (!fullPlayer || didPrefillFromPlayerId) return;
+
+    setBirth_year((fullPlayer as { birth_year?: number | null }).birth_year ?? DEFAULT_BIRTH_YEAR);
+    setBirth_date((fullPlayer as { birth_date?: string | null }).birth_date ?? "");
+    setContract_end_date((fullPlayer as { contract_end_date?: string | null }).contract_end_date ?? "");
+    setNationality((fullPlayer as { nationality?: string | null }).nationality ?? "Polska");
+    setBody_build((fullPlayer as { body_build?: string | null }).body_build ?? "");
+    setClub_formation((fullPlayer as { club_formation?: string | null }).club_formation ?? "");
+    setAgent_name((fullPlayer as { agent_name?: string | null }).agent_name ?? "");
+    setAgent_phone((fullPlayer as { agent_phone?: string | null }).agent_phone ?? "");
+    setAgent_email((fullPlayer as { agent_email?: string | null }).agent_email ?? "");
+
+    const fullClubName = (fullPlayer as { club?: { name?: string | null } | null }).club?.name ?? "";
+    setClub_name(fullClubName);
+
+    const fullPrimary = (fullPlayer as { primary_position?: string | null }).primary_position ?? "";
+    setPrimary_position(fullPrimary ? mapLegacyPosition(fullPrimary) : "");
+
+    setDidPrefillFromPlayerId(true);
+  }, [fullPlayer, didPrefillFromPlayerId]);
+
   const handleSelectPlayer = useCallback((player: PlayerSearchItem) => {
     setPlayer_id(player.id);
     setFirst_name(player.first_name ?? "");
     setLast_name(player.last_name ?? "");
     setBirth_year(player.birth_year);
+    setNationality("Polska");
     setBirth_date("");
     setContract_end_date("");
     setClub_name(player.club?.name ?? "");
+    setBody_build("");
+    setClub_formation("");
+    setAgent_name("");
+    setAgent_phone("");
+    setAgent_email("");
     setPrimary_position(player.primary_position ? mapLegacyPosition(player.primary_position) : "");
     setSearchDialogOpen(false);
   }, []);
@@ -182,9 +266,15 @@ export function MatchObservationPlayerForm({
     setFirst_name("");
     setLast_name("");
     setBirth_year(DEFAULT_BIRTH_YEAR);
+    setNationality("Polska");
     setBirth_date("");
     setContract_end_date("");
     setClub_name("");
+    setBody_build("");
+    setClub_formation("");
+    setAgent_name("");
+    setAgent_phone("");
+    setAgent_email("");
     setPrimary_position("");
     setSearchDialogOpen(true);
   }, []);
@@ -219,8 +309,14 @@ export function MatchObservationPlayerForm({
     setFirst_name(player.first_name ?? "");
     setLast_name(player.last_name ?? "");
     setBirth_year(player.birth_year);
+    setNationality("Polska");
     setContract_end_date("");
     setClub_name(player.club?.name ?? "");
+    setBody_build("");
+    setClub_formation("");
+    setAgent_name("");
+    setAgent_phone("");
+    setAgent_email("");
     setPrimary_position(player.primary_position ? mapLegacyPosition(player.primary_position) : "");
     setDuplicateDialogOpen(false);
     setDuplicateCandidates([]);
@@ -243,9 +339,15 @@ export function MatchObservationPlayerForm({
       first_name: first_name.trim(),
       last_name: last_name.trim(),
       birth_year,
+      nationality: nationality.trim() || null,
       birth_date: birth_date.trim() || undefined,
       contract_end_date: contract_end_date.trim() || undefined,
       club_name: club_name.trim() || undefined,
+      body_build: body_build.trim() || null,
+      club_formation: club_formation.trim() || null,
+      agent_name: agent_name.trim() || null,
+      agent_phone: agent_phone.trim() || null,
+      agent_email: agent_email.trim() || null,
       primary_position,
       overall_rating: formType === "senior" ? 6 : computedOverall,
       match_performance_rating,
@@ -264,7 +366,20 @@ export function MatchObservationPlayerForm({
     };
     onSave(data);
   }, [
-    player_id, first_name, last_name, birth_year, birth_date, contract_end_date, club_name, primary_position,
+    player_id,
+    first_name,
+    last_name,
+    birth_year,
+    nationality,
+    birth_date,
+    contract_end_date,
+    club_name,
+    body_build,
+    club_formation,
+    agent_name,
+    agent_phone,
+    agent_email,
+    primary_position,
     formType, match_performance_rating, recommendation, summary,
     strengths, weaknesses, potential_now, potential_future,
     technical_rating, speed_rating, motor_rating, tactical_rating, mental_rating,
@@ -338,7 +453,7 @@ export function MatchObservationPlayerForm({
               </Button>
             )}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-1">
               <Label>Imię <span className="text-red-600">*</span></Label>
               <Input
@@ -359,8 +474,17 @@ export function MatchObservationPlayerForm({
               />
               {errors.last_name && <p className="text-sm text-red-600">{errors.last_name}</p>}
             </div>
+            <div className="space-y-1">
+              <Label>Narodowość</Label>
+              <Input
+                value={nationality ?? ""}
+                onChange={(e) => setNationality(e.target.value)}
+                placeholder="np. Polska"
+              />
+            </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+
+          <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-1">
               <Label>Rok urodzenia <span className="text-red-600">*</span></Label>
               <Input
@@ -384,8 +508,58 @@ export function MatchObservationPlayerForm({
               />
               {errors.birth_date && <p className="text-sm text-red-600">{errors.birth_date}</p>}
             </div>
+            <div className="space-y-1">
+              <Label>Budowa ciała</Label>
+              <Select
+                value={body_build || "__none__"}
+                onValueChange={(v) => setBody_build(v === "__none__" ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Wybierz" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Brak —</SelectItem>
+                  {(bodyBuildOptions as { code?: string; name_pl?: string }[]).filter((opt) => String(opt.code ?? "").trim() !== "").map((opt) => (
+                    <SelectItem key={String(opt.code)} value={String(opt.code ?? "")}>
+                      {String(opt.name_pl ?? opt.code)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <Label>Klub</Label>
+              <ClubSelect
+                value={club_name}
+                onChange={setClub_name}
+                placeholder="Wpisz lub wybierz klub..."
+                priorityNames={headerTeamNames}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Formacja drużyny</Label>
+              <Select
+                value={normalizeFormationForSelect(club_formation) || "__none__"}
+                onValueChange={(v) => setClub_formation(v === "__none__" ? "" : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Wybierz schemat" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Brak —</SelectItem>
+                  {(formations as { id: string; name: string; code?: string | null }[])
+                    .filter((f) => formationOptionValue(f).trim() !== "")
+                    .map((f) => (
+                      <SelectItem key={f.id} value={formationOptionValue(f)}>
+                        {f.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1">
               <Label>Koniec kontraktu</Label>
               <Input
@@ -398,51 +572,71 @@ export function MatchObservationPlayerForm({
               {errors.contract_end_date && <p className="text-sm text-red-600">{errors.contract_end_date}</p>}
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label>Klub</Label>
-              <ClubSelect
-                value={club_name}
-                onChange={setClub_name}
-                placeholder="Wpisz lub wybierz klub..."
-                priorityNames={headerTeamNames}
+
+          <div className="space-y-1 pt-2">
+            <Label>Pozycja główna <span className="text-red-600">*</span></Label>
+            <div className="flex items-center gap-2">
+              <Select
+                value={getPositionIdFromCode(positions, primary_position) || "__none__"}
+                onValueChange={(id) => {
+                  setErrors((prev) => ({ ...prev, primary_position: "" }));
+                  if (id === "__none__") setPrimary_position("");
+                  else {
+                    const p = positions.find((x) => x.id === id);
+                    if (p) setPrimary_position(p.position_code);
+                  }
+                }}
+              >
+                <SelectTrigger className={errors.primary_position ? "border-red-500" : undefined}>
+                  <SelectValue placeholder="Wybierz pozycję" />
+                </SelectTrigger>
+                <SelectContent>
+                  {positionOptions.map((opt) => (
+                    <SelectItem key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <PositionPickerDialog
+                value={primary_position || null}
+                onSelect={(code) => {
+                  setPrimary_position(mapLegacyPosition(code) || code);
+                  setErrors((prev) => ({ ...prev, primary_position: "" }));
+                }}
+                buttonLabel="Wybierz na boisku"
+              />
+            </div>
+            {errors.primary_position && <p className="text-sm text-red-600">{errors.primary_position}</p>}
+          </div>
+        </section>
+
+        <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-lg font-semibold text-slate-800">1a. Dane agenta</h2>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <div className="space-y-1">
+              <Label>Imię i nazwisko</Label>
+              <Input
+                value={agent_name}
+                onChange={(e) => setAgent_name(e.target.value)}
+                placeholder="np. Jan Kowalski"
               />
             </div>
             <div className="space-y-1">
-              <Label>Pozycja główna <span className="text-red-600">*</span></Label>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={getPositionIdFromCode(positions, primary_position) || "__none__"}
-                  onValueChange={(id) => {
-                    setErrors((prev) => ({ ...prev, primary_position: "" }));
-                    if (id === "__none__") setPrimary_position("");
-                    else {
-                      const p = positions.find((x) => x.id === id);
-                      if (p) setPrimary_position(p.position_code);
-                    }
-                  }}
-                >
-                  <SelectTrigger className={errors.primary_position ? "border-red-500" : undefined}>
-                    <SelectValue placeholder="Wybierz pozycję" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {positionOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <PositionPickerDialog
-                  value={primary_position || null}
-                  onSelect={(code) => {
-                    setPrimary_position(mapLegacyPosition(code) || code);
-                    setErrors((prev) => ({ ...prev, primary_position: "" }));
-                  }}
-                  buttonLabel="Wybierz na boisku"
-                />
-              </div>
-              {errors.primary_position && <p className="text-sm text-red-600">{errors.primary_position}</p>}
+              <Label>Telefon</Label>
+              <Input
+                value={agent_phone}
+                onChange={(e) => setAgent_phone(e.target.value)}
+                placeholder="+48 600 000 000"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Email</Label>
+              <Input
+                value={agent_email}
+                onChange={(e) => setAgent_email(e.target.value)}
+                placeholder="agent@email.com"
+              />
             </div>
           </div>
         </section>

@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import type { PipelineHistoryEntry, PipelineStatus, Player, PlayerInput } from "../types";
 
+type AreaAccess = "AKADEMIA" | "SENIOR" | "ALL";
+
 export type PlayerSearchItem = {
   id: string;
   first_name: string;
@@ -225,6 +227,8 @@ export type PlayersFilters = {
   recommendation?: "positive" | "to_observe" | "negative";
   performanceMin?: number;
   performanceMax?: number;
+  potentialFutureMin?: number;
+  potentialFutureMax?: number;
   status?: PipelineStatus;
   primary_position?: string;
   clubIds?: string[];
@@ -232,6 +236,11 @@ export type PlayersFilters = {
   createdBy?: string;
   page?: number;
   pageSize?: number;
+  /**
+   * Optymalizacja: w widokach pipeline nie potrzebujemy licznika obserwacji.
+   * Domyślnie true (zachowuje dotychczasowe zachowanie dla PlayersPage).
+   */
+  includeObservationCount?: boolean;
 };
 
 export type FetchPlayersResult = {
@@ -239,16 +248,65 @@ export type FetchPlayersResult = {
   total: number;
 };
 
+async function fetchPlayerIdsByLatestObservationFilters(input: {
+  recommendation?: "positive" | "to_observe" | "negative";
+  performanceMin?: number;
+  performanceMax?: number;
+  potentialFutureMin?: number;
+  potentialFutureMax?: number;
+}): Promise<string[]> {
+  try {
+    const { data: ids } = await supabase.rpc("get_player_ids_by_last_observation", {
+      p_recommendation: input.recommendation ?? null,
+      p_potential_now_min: input.performanceMin ?? null,
+      p_potential_now_max: input.performanceMax ?? null,
+      p_potential_future_min: input.potentialFutureMin ?? null,
+      p_potential_future_max: input.potentialFutureMax ?? null,
+    });
+    return (ids ?? []) as string[];
+  } catch {
+    // Fallback for environments where RPC migration was not applied yet.
+    const { data, error } = await supabase
+      .from("observations")
+      .select("player_id, recommendation, potential_now, potential_future, observation_date, created_at")
+      .order("observation_date", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    const latestByPlayer = new Map<string, Record<string, unknown>>();
+    for (const row of (data ?? []) as Record<string, unknown>[]) {
+      const pid = String(row.player_id ?? "");
+      if (!pid || latestByPlayer.has(pid)) continue;
+      latestByPlayer.set(pid, row);
+    }
+    const result: string[] = [];
+    for (const [pid, row] of latestByPlayer.entries()) {
+      const recommendation = String(row.recommendation ?? "");
+      const performance = typeof row.potential_now === "number" ? row.potential_now : null;
+      const future = typeof row.potential_future === "number" ? row.potential_future : null;
+      if (input.recommendation && recommendation !== input.recommendation) continue;
+      if (input.performanceMin != null && (performance == null || performance < input.performanceMin)) continue;
+      if (input.performanceMax != null && (performance == null || performance > input.performanceMax)) continue;
+      if (input.potentialFutureMin != null && (future == null || future < input.potentialFutureMin)) continue;
+      if (input.potentialFutureMax != null && (future == null || future > input.potentialFutureMax)) continue;
+      result.push(pid);
+    }
+    return result;
+  }
+}
+
 export async function fetchPlayers(filters?: PlayersFilters): Promise<FetchPlayersResult["data"] | FetchPlayersResult> {
   const usePagination = filters?.page != null || filters?.pageSize != null;
   const page = usePagination ? (filters?.page ?? 1) : 1;
   const pageSize = usePagination ? (filters?.pageSize ?? 100) : 100;
 
+  const includeObservationCount = filters?.includeObservationCount ?? true;
+  const baseSelect =
+    "*, club:clubs(name), region:regions(name), age_category:categories(id,name,area)";
+  const select = includeObservationCount ? `${baseSelect}, observations:observations(count)` : baseSelect;
+
   let query = supabase
     .from("players")
-    .select("*, club:clubs(name), region:regions(name), observations:observations(count)", {
-      count: usePagination ? "exact" : undefined,
-    })
+    .select(select, { count: usePagination ? "exact" : undefined })
     .order("created_at", { ascending: false });
 
   if (filters?.birthYear) {
@@ -266,13 +324,20 @@ export async function fetchPlayers(filters?: PlayersFilters): Promise<FetchPlaye
   if (filters?.contractEndBefore) {
     query = query.lte("contract_end_date", filters.contractEndBefore);
   }
-  if (filters?.recommendation != null || filters?.performanceMin != null || filters?.performanceMax != null) {
-    const { data: ids } = await supabase.rpc("get_player_ids_by_last_observation", {
-      p_recommendation: filters.recommendation ?? null,
-      p_potential_now_min: filters.performanceMin ?? null,
-      p_potential_now_max: filters.performanceMax ?? null,
+  if (
+    filters?.recommendation != null ||
+    filters?.performanceMin != null ||
+    filters?.performanceMax != null ||
+    filters?.potentialFutureMin != null ||
+    filters?.potentialFutureMax != null
+  ) {
+    const playerIds = await fetchPlayerIdsByLatestObservationFilters({
+      recommendation: filters.recommendation,
+      performanceMin: filters.performanceMin,
+      performanceMax: filters.performanceMax,
+      potentialFutureMin: filters.potentialFutureMin,
+      potentialFutureMax: filters.potentialFutureMax,
     });
-    const playerIds = (ids ?? []) as string[];
     if (playerIds.length === 0) {
       return usePagination ? { data: [], total: 0 } : [];
     }
@@ -316,15 +381,16 @@ export async function fetchPlayers(filters?: PlayersFilters): Promise<FetchPlaye
 
   const { data, error, count } = await query;
   if (error) throw error;
-
   const mapped = (data ?? []).map((player) => {
-    const { observations, ...rest } = player as Player & { observations?: { count: number }[] };
+    if (!includeObservationCount) {
+      return { ...(player as unknown as Player), observation_count: 0 };
+    }
+
+    const { observations, ...rest } = player as unknown as Player & { observations?: { count: number }[] };
     const observation_count =
       Array.isArray(observations) && observations.length > 0 ? observations[0]?.count ?? 0 : 0;
-    return {
-      ...rest,
-      observation_count,
-    };
+
+    return { ...rest, observation_count };
   });
 
   if (usePagination) {
@@ -334,20 +400,38 @@ export async function fetchPlayers(filters?: PlayersFilters): Promise<FetchPlaye
 }
 
 export async function fetchPlayerById(id: string) {
-  const { data, error } = await supabase
-    .from("players")
-    .select("*, club:clubs(name), region:regions(name), observations:observations(count)")
-    .eq("id", id)
-    .single();
+  const selectWithObservationCount =
+    "*, club:clubs(name), region:regions(name), age_category:categories(id,name,area), observations:observations(count)";
+  const selectWithoutObservationCount = "*, club:clubs(name), region:regions(name), age_category:categories(id,name,area)";
 
-  if (error) throw error;
-  const { observations, ...rest } = (data ?? {}) as Player & { observations?: { count: number }[] };
-  const observation_count =
-    Array.isArray(observations) && observations.length > 0 ? observations[0]?.count ?? 0 : 0;
-  return {
-    ...rest,
-    observation_count,
-  };
+  try {
+    const { data, error } = await supabase
+      .from("players")
+      .select(selectWithObservationCount)
+      .eq("id", id)
+      .single();
+
+    if (error) throw error;
+    const { observations, ...rest } = (data ?? {}) as unknown as Player & { observations?: { count: number }[] };
+    const observation_count =
+      Array.isArray(observations) && observations.length > 0 ? observations[0]?.count ?? 0 : 0;
+    return { ...rest, observation_count };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.toLowerCase().includes("406") && !msg.toLowerCase().includes("not acceptable")) {
+      throw err;
+    }
+
+    // Fallback: same request without nested aggregate count.
+    const { data, error } = await supabase
+      .from("players")
+      .select(selectWithoutObservationCount)
+      .eq("id", id)
+      .single();
+
+    if (error) throw error;
+    return { ...(data as unknown as Player), observation_count: 0 };
+  }
 }
 
 export async function createPlayer(input: PlayerInput) {
@@ -370,25 +454,35 @@ export async function createPlayer(input: PlayerInput) {
   return data as Pick<Player, "id">;
 }
 
-export async function updatePlayer(id: string, input: PlayerInput) {
+export async function updatePlayer(id: string, input: Partial<PlayerInput>) {
   const { pipeline_status, ...rest } = input;
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("players")
     .update({
       ...rest,
       pipeline_status: pipeline_status ?? undefined,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) throw error;
+  if (!data || (Array.isArray(data) ? data.length === 0 : false)) {
+    throw new Error("Nie udało się zaktualizować zawodnika (rekord nie został zaktualizowany).");
+  }
   return null;
 }
 
-export async function fetchClubs() {
-  const { data, error } = await supabase
+export async function fetchClubs(areaAccess: AreaAccess = "ALL") {
+  let query = supabase
     .from("clubs")
-    .select("id, name")
+    .select("id, name, area, league_id, league:leagues(id,name,display_name,area)")
     .order("name", { ascending: true });
+
+  if (areaAccess !== "ALL") {
+    query = query.in("area", [areaAccess, "ALL"]);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return data ?? [];
@@ -405,6 +499,25 @@ export async function getClubIdByName(name: string | null | undefined): Promise<
     .maybeSingle();
   if (error) throw error;
   return (data?.id as string) ?? null;
+}
+
+/** Resolve club by exact name and include optional league metadata. */
+export async function fetchClubByName(name: string | null | undefined): Promise<{
+  id: string;
+  name: string;
+  area?: string | null;
+  league_id?: string | null;
+  league?: { id: string; name?: string | null; display_name?: string | null; area?: string | null } | null;
+} | null> {
+  const n = (name ?? "").trim();
+  if (!n) return null;
+  const { data, error } = await supabase
+    .from("clubs")
+    .select("id,name,area,league_id,league:leagues(id,name,display_name,area)")
+    .eq("name", n)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as any) ?? null;
 }
 
 export async function deletePlayer(id: string) {
@@ -451,22 +564,23 @@ export async function updatePlayerStatusWithHistory(input: {
   changed_by?: string | null;
   from_status?: string | null;
 }): Promise<{ historyError?: string | null }> {
-  let previousStatus = input.from_status ?? null;
-  if (previousStatus === null) {
-    const { data: player, error: playerError } = await supabase
-      .from("players")
-      .select("pipeline_status")
-      .eq("id", input.id)
-      .single();
-    if (playerError) throw playerError;
-    previousStatus = (player?.pipeline_status as string | null) ?? null;
-  }
+  // Important: don't do extra SELECT when `from_status` is missing.
+  // It can be blocked by RLS for some roles/contexts and would cause the whole mutation to fail,
+  // producing "appears then disappears" in Pipeline.
+  const previousStatus = input.from_status ?? null;
 
-  const { error } = await supabase
+  // Important: do NOT ignore "0 rows updated".
+  // With RLS PostgREST can return no error but update 0 rows,
+  // causing optimistic UI to revert after invalidation.
+  const { data, error } = await supabase
     .from("players")
     .update({ pipeline_status: input.status })
-    .eq("id", input.id);
+    .eq("id", input.id)
+    .select("id");
   if (error) throw error;
+  if (!data || (Array.isArray(data) ? data.length === 0 : false)) {
+    throw new Error("Nie udało się zmienić statusu w pipeline (rekord nie został zaktualizowany).");
+  }
 
   let historyError: string | null = null;
   if (input.changed_by && previousStatus !== input.status) {

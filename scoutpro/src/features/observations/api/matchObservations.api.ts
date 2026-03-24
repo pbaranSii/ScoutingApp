@@ -14,7 +14,6 @@ export type MatchObservationInput = {
   home_team?: string | null;
   away_team?: string | null;
   match_result?: string | null;
-  location?: string | null;
   source: string;
   scout_id: string;
   home_team_formation?: string | null;
@@ -34,7 +33,6 @@ export async function createMatchObservation(
     home_team: input.home_team ?? null,
     away_team: input.away_team ?? null,
     match_result: input.match_result ?? null,
-    location: input.location ?? null,
     source: input.source as MatchObservationInsert["source"],
     scout_id: input.scout_id,
     home_team_formation: input.home_team_formation ?? null,
@@ -85,7 +83,6 @@ export async function updateMatchObservation(
   if (input.home_team !== undefined) payload.home_team = input.home_team;
   if (input.away_team !== undefined) payload.away_team = input.away_team;
   if (input.match_result !== undefined) payload.match_result = input.match_result;
-  if (input.location !== undefined) payload.location = input.location;
   if (input.source !== undefined) payload.source = input.source as MatchObservationUpdate["source"];
   if (input.home_team_formation !== undefined) payload.home_team_formation = input.home_team_formation;
   if (input.away_team_formation !== undefined) payload.away_team_formation = input.away_team_formation;

@@ -41,7 +41,6 @@ export function MatchObservationEditPage() {
         home_team: match.home_team ?? "",
         away_team: match.away_team ?? "",
         match_result: match.match_result ?? "",
-        location: match.location ?? "",
         source: (["live_match", "video_match", "video_clips", "tournament"] as const).includes(match.source as "live_match")
           ? (match.source as "live_match" | "video_match" | "video_clips" | "tournament")
           : match.context_type === "tournament"
@@ -72,7 +71,6 @@ export function MatchObservationEditPage() {
         home_team: values.home_team?.trim() || null,
         away_team: values.away_team?.trim() || null,
         match_result: values.match_result?.trim() || null,
-        location: values.location?.trim() || null,
         source: values.source,
         home_team_formation: values.home_team_formation?.trim() || null,
         away_team_formation: values.away_team_formation?.trim() || null,

@@ -39,7 +39,6 @@ export type OfflineObservation = {
     home_team?: string;
     away_team?: string;
     match_result?: string;
-    location?: string;
     positions?: string[];
     photo_url?: string;
     potential_now?: number;
@@ -90,7 +89,6 @@ export type OfflineMatchHeader = {
   home_team?: string | null;
   away_team?: string | null;
   match_result?: string | null;
-  location?: string | null;
   source: string;
   scout_id: string;
   home_team_formation?: string | null;
