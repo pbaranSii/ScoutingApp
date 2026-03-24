@@ -102,6 +102,31 @@ export function useCategories() {
   return useDictionaryEntries(config ?? null, { activeOnly: true });
 }
 
+/** Ligi piłkarskie – aktywne pozycje słownika. */
+export function useLeagues() {
+  const config = getDictionaryById("leagues");
+  return useDictionaryEntries(config ?? null, { activeOnly: true });
+}
+
+/** Ligi przefiltrowane do obszaru zalogowanego użytkownika. */
+export function useLeaguesForCurrentArea() {
+  const leaguesQuery = useLeagues();
+  const { data: currentUser } = useCurrentUserProfile();
+  const areaAccess = (currentUser as { area_access?: "AKADEMIA" | "SENIOR" | "ALL" } | null)?.area_access ?? "AKADEMIA";
+
+  const filtered = (leaguesQuery.data ?? []).filter((l) => {
+    const area = String((l as Record<string, unknown>).area ?? "ALL").toUpperCase();
+    if (areaAccess === "ALL") return true;
+    if (area === "ALL") return true;
+    return area === areaAccess;
+  });
+
+  return {
+    ...leaguesQuery,
+    data: filtered,
+  };
+}
+
 /** Kategorie wiekowe przefiltrowane do obszaru zalogowanego użytkownika. */
 export function useCategoriesForCurrentArea() {
   const categoriesQuery = useCategories();

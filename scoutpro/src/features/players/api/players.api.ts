@@ -1,6 +1,8 @@
 import { supabase } from "@/lib/supabase";
 import type { PipelineHistoryEntry, PipelineStatus, Player, PlayerInput } from "../types";
 
+type AreaAccess = "AKADEMIA" | "SENIOR" | "ALL";
+
 export type PlayerSearchItem = {
   id: string;
   first_name: string;
@@ -225,6 +227,8 @@ export type PlayersFilters = {
   recommendation?: "positive" | "to_observe" | "negative";
   performanceMin?: number;
   performanceMax?: number;
+  potentialFutureMin?: number;
+  potentialFutureMax?: number;
   status?: PipelineStatus;
   primary_position?: string;
   clubIds?: string[];
@@ -243,6 +247,52 @@ export type FetchPlayersResult = {
   data: (Player & { observation_count: number })[];
   total: number;
 };
+
+async function fetchPlayerIdsByLatestObservationFilters(input: {
+  recommendation?: "positive" | "to_observe" | "negative";
+  performanceMin?: number;
+  performanceMax?: number;
+  potentialFutureMin?: number;
+  potentialFutureMax?: number;
+}): Promise<string[]> {
+  try {
+    const { data: ids } = await supabase.rpc("get_player_ids_by_last_observation", {
+      p_recommendation: input.recommendation ?? null,
+      p_potential_now_min: input.performanceMin ?? null,
+      p_potential_now_max: input.performanceMax ?? null,
+      p_potential_future_min: input.potentialFutureMin ?? null,
+      p_potential_future_max: input.potentialFutureMax ?? null,
+    });
+    return (ids ?? []) as string[];
+  } catch {
+    // Fallback for environments where RPC migration was not applied yet.
+    const { data, error } = await supabase
+      .from("observations")
+      .select("player_id, recommendation, potential_now, potential_future, observation_date, created_at")
+      .order("observation_date", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    const latestByPlayer = new Map<string, Record<string, unknown>>();
+    for (const row of (data ?? []) as Record<string, unknown>[]) {
+      const pid = String(row.player_id ?? "");
+      if (!pid || latestByPlayer.has(pid)) continue;
+      latestByPlayer.set(pid, row);
+    }
+    const result: string[] = [];
+    for (const [pid, row] of latestByPlayer.entries()) {
+      const recommendation = String(row.recommendation ?? "");
+      const performance = typeof row.potential_now === "number" ? row.potential_now : null;
+      const future = typeof row.potential_future === "number" ? row.potential_future : null;
+      if (input.recommendation && recommendation !== input.recommendation) continue;
+      if (input.performanceMin != null && (performance == null || performance < input.performanceMin)) continue;
+      if (input.performanceMax != null && (performance == null || performance > input.performanceMax)) continue;
+      if (input.potentialFutureMin != null && (future == null || future < input.potentialFutureMin)) continue;
+      if (input.potentialFutureMax != null && (future == null || future > input.potentialFutureMax)) continue;
+      result.push(pid);
+    }
+    return result;
+  }
+}
 
 export async function fetchPlayers(filters?: PlayersFilters): Promise<FetchPlayersResult["data"] | FetchPlayersResult> {
   const usePagination = filters?.page != null || filters?.pageSize != null;
@@ -274,13 +324,20 @@ export async function fetchPlayers(filters?: PlayersFilters): Promise<FetchPlaye
   if (filters?.contractEndBefore) {
     query = query.lte("contract_end_date", filters.contractEndBefore);
   }
-  if (filters?.recommendation != null || filters?.performanceMin != null || filters?.performanceMax != null) {
-    const { data: ids } = await supabase.rpc("get_player_ids_by_last_observation", {
-      p_recommendation: filters.recommendation ?? null,
-      p_potential_now_min: filters.performanceMin ?? null,
-      p_potential_now_max: filters.performanceMax ?? null,
+  if (
+    filters?.recommendation != null ||
+    filters?.performanceMin != null ||
+    filters?.performanceMax != null ||
+    filters?.potentialFutureMin != null ||
+    filters?.potentialFutureMax != null
+  ) {
+    const playerIds = await fetchPlayerIdsByLatestObservationFilters({
+      recommendation: filters.recommendation,
+      performanceMin: filters.performanceMin,
+      performanceMax: filters.performanceMax,
+      potentialFutureMin: filters.potentialFutureMin,
+      potentialFutureMax: filters.potentialFutureMax,
     });
-    const playerIds = (ids ?? []) as string[];
     if (playerIds.length === 0) {
       return usePagination ? { data: [], total: 0 } : [];
     }
@@ -415,11 +472,17 @@ export async function updatePlayer(id: string, input: Partial<PlayerInput>) {
   return null;
 }
 
-export async function fetchClubs() {
-  const { data, error } = await supabase
+export async function fetchClubs(areaAccess: AreaAccess = "ALL") {
+  let query = supabase
     .from("clubs")
-    .select("id, name")
+    .select("id, name, area, league_id, league:leagues(id,name,display_name,area)")
     .order("name", { ascending: true });
+
+  if (areaAccess !== "ALL") {
+    query = query.in("area", [areaAccess, "ALL"]);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
   return data ?? [];
@@ -436,6 +499,25 @@ export async function getClubIdByName(name: string | null | undefined): Promise<
     .maybeSingle();
   if (error) throw error;
   return (data?.id as string) ?? null;
+}
+
+/** Resolve club by exact name and include optional league metadata. */
+export async function fetchClubByName(name: string | null | undefined): Promise<{
+  id: string;
+  name: string;
+  area?: string | null;
+  league_id?: string | null;
+  league?: { id: string; name?: string | null; display_name?: string | null; area?: string | null } | null;
+} | null> {
+  const n = (name ?? "").trim();
+  if (!n) return null;
+  const { data, error } = await supabase
+    .from("clubs")
+    .select("id,name,area,league_id,league:leagues(id,name,display_name,area)")
+    .eq("name", n)
+    .maybeSingle();
+  if (error) throw error;
+  return (data as any) ?? null;
 }
 
 export async function deletePlayer(id: string) {

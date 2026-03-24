@@ -101,7 +101,7 @@ export function MatchObservationNewPage() {
           localId,
           matchHeader: {
             observation_date: headerValues.observation_date,
-            competition: headerValues.competition,
+            competition: headerValues.competition ?? "",
             league: headerValues.league?.trim() || null,
             home_team: headerValues.home_team?.trim() || null,
             away_team: headerValues.away_team?.trim() || null,
@@ -151,7 +151,7 @@ export function MatchObservationNewPage() {
 
       const matchObs = await createMatchObservation({
         observation_date: headerValues.observation_date,
-        competition: headerValues.competition,
+        competition: headerValues.competition ?? "",
         league: headerValues.league?.trim() || null,
         home_team: headerValues.home_team?.trim() || null,
         away_team: headerValues.away_team?.trim() || null,
@@ -204,7 +204,7 @@ export function MatchObservationNewPage() {
           recommendation: slot.recommendation,
           summary: slot.summary.trim(),
           overall_rating: formType === "senior" ? null : slot.overall_rating,
-          competition: headerValues.competition.trim() || null,
+          competition: headerValues.competition?.trim() || null,
           positions: [slot.primary_position],
           strengths: slot.strengths?.trim() || null,
           weaknesses: slot.weaknesses?.trim() || null,
