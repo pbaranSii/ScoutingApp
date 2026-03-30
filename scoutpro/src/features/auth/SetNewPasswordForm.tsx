@@ -9,8 +9,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 
 const schema = z
   .object({
-    password: z.string().min(6, "Haslo musi miec min. 6 znakow"),
-    confirmPassword: z.string().min(6, "Powtorz haslo"),
+    password: z.string().min(6, "Hasło musi mieć min. 6 znaków"),
+    confirmPassword: z.string().min(6, "Powtórz hasło"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Hasla musza byc takie same",
@@ -52,7 +52,7 @@ export function SetNewPasswordForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Nowe haslo</FormLabel>
+              <FormLabel>Nowe hasło</FormLabel>
               <FormControl>
                 <Input type="password" placeholder="••••••••" {...field} />
               </FormControl>
@@ -65,7 +65,7 @@ export function SetNewPasswordForm() {
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Powtorz haslo</FormLabel>
+              <FormLabel>Powtórz hasło</FormLabel>
               <FormControl>
                 <Input type="password" placeholder="••••••••" {...field} />
               </FormControl>
@@ -75,14 +75,14 @@ export function SetNewPasswordForm() {
         />
 
         {status === "success" && (
-          <p className="text-sm text-green-600">Haslo zostalo zmienione.</p>
+          <p className="text-sm text-green-600">Hasło zostało zmienione.</p>
         )}
         {status === "error" && (
           <p className="text-sm text-red-600">{errorMessage}</p>
         )}
 
         <Button type="submit" className="w-full">
-          Zmien haslo
+          Zmień hasło
         </Button>
       </form>
     </Form>

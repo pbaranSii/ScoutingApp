@@ -24,30 +24,33 @@ export function TagSelectModal({
   selectedNames,
   onConfirm,
 }: TagSelectModalProps) {
-  const [selected, setSelected] = useState<string[]>([]);
+  const [localSelected, setLocalSelected] = useState<string[] | null>(null);
+  const selected = localSelected ?? selectedNames;
 
-  useEffect(() => {
-    if (open) setSelected([...selectedNames]);
-  }, [open, selectedNames]);
+  const handleClose = () => {
+    setLocalSelected(null);
+    onClose();
+  };
 
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
+  }, [open]);
 
   const toggle = (name: string) => {
-    setSelected((prev) =>
-      prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
-    );
+    setLocalSelected((prev0) => {
+      const prev = prev0 ?? selectedNames;
+      return prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name];
+    });
   };
 
   const handleConfirm = () => {
     onConfirm(selected);
-    onClose();
+    handleClose();
   };
 
   if (!open) return null;
@@ -57,7 +60,7 @@ export function TagSelectModal({
 
   return createPortal(
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/70" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/70" onClick={handleClose} aria-hidden />
       <div
         className="relative z-[71] w-full max-w-lg rounded-lg bg-white p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
@@ -68,7 +71,7 @@ export function TagSelectModal({
         <button
           type="button"
           className="absolute right-3 top-3 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-          onClick={onClose}
+          onClick={handleClose}
           aria-label="Zamknij"
         >
           <X className="h-4 w-4" />
@@ -97,7 +100,7 @@ export function TagSelectModal({
           })}
         </div>
         <div className="mt-5 flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="outline" onClick={handleClose}>
             Anuluj
           </Button>
           <Button type="button" onClick={handleConfirm}>

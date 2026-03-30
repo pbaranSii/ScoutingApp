@@ -12,3 +12,6 @@ verify_jwt = false
 
 [functions.admin-create-user]
 verify_jwt = false
+
+[functions.admin-data-transfer]
+verify_jwt = false
