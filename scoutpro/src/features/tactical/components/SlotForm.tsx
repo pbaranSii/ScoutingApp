@@ -82,7 +82,7 @@ export function SlotForm({
         </Select>
       </div>
       <div>
-        <Label htmlFor="slot_label">Etykieta slotu (opcjonalnie)</Label>
+        <Label htmlFor="slot_label">Etykieta slotu</Label>
         <Input
           id="slot_label"
           value={slot_label}
@@ -143,7 +143,7 @@ export function SlotForm({
         </div>
       </div>
       <div>
-        <Label htmlFor="role_hint">Rola funkcjonalna (opcjonalnie)</Label>
+        <Label htmlFor="role_hint">Rola funkcjonalna</Label>
         <Input
           id="role_hint"
           value={role_hint}

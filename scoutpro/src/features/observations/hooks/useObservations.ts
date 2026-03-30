@@ -15,6 +15,7 @@ import { offlineDb } from "@/features/offline/db/offlineDb";
 export type UseObservationsOptions = {
   page?: number;
   pageSize?: number;
+  scoutId?: string;
 };
 
 export function useObservations(options?: UseObservationsOptions) {
@@ -28,7 +29,10 @@ export function useObservations(options?: UseObservationsOptions) {
     queryFn: async (): Promise<{ data: Observation[]; total?: number }> => {
       if (!isOnline) {
         const cached = await offlineDb.cachedObservations.toArray();
-        const all = cached.map((item) => item.data) as Observation[];
+        let all = cached.map((item) => item.data) as Observation[];
+        if (options?.scoutId) {
+          all = all.filter((o) => o.scout_id === options.scoutId);
+        }
         if (usePagination) {
           const from = (page - 1) * pageSize;
           return { data: all.slice(from, from + pageSize), total: all.length };
@@ -37,7 +41,11 @@ export function useObservations(options?: UseObservationsOptions) {
       }
 
       const result = await fetchObservations(
-        usePagination ? { page, pageSize } : undefined
+        usePagination
+          ? { page, pageSize, scoutId: options?.scoutId }
+          : options?.scoutId
+            ? { scoutId: options.scoutId }
+            : undefined
       );
       if (Array.isArray(result)) {
         const now = new Date();

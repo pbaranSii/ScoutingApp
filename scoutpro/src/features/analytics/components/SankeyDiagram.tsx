@@ -9,11 +9,13 @@ type SankeyLinkData = { source: number; target: number; value: number };
 const PIPELINE_STAGE_ORDER: Record<string, number> = {
   first_contact: 0,
   observed: 1,
-  shortlist: 2,
-  trial: 3,
+  in_contact: 2,
+  evaluation: 3,
   offer: 4,
   signed: 5,
-  rejected: 6,
+  rejected_by_club: 6,
+  rejected_by_player: 7,
+  out_of_reach: 8,
 };
 
 export function SankeyDiagram({ data }: { data: SankeyResponse }) {

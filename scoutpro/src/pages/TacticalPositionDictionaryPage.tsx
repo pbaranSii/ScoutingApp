@@ -11,7 +11,8 @@ import {
   useDeactivatePosition,
 } from "@/features/tactical/hooks/usePositionDictionary";
 import { isPositionUsedInFormations } from "@/features/tactical/api/positionDictionary.api";
-import { PositionForm, type PositionFormValues } from "@/features/tactical/components/PositionForm";
+import { PositionForm, type PositionFormValues, type TemplatePositionOption, type FormTemplateOption } from "@/features/tactical/components/PositionForm";
+import { usePositionFormTemplates } from "@/features/tactical/hooks/usePositionFormTemplate";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Plus, Pencil, PowerOff } from "lucide-react";
 import type { PositionDictionaryRow } from "@/features/tactical/types";
@@ -22,9 +23,18 @@ export function TacticalPositionDictionaryPage() {
   const [editingRow, setEditingRow] = useState<PositionDictionaryRow | null>(null);
 
   const { data: positions = [], isLoading } = usePositionDictionary(!activeOnly);
+  const { data: formTemplates = [] } = usePositionFormTemplates();
   const createPosition = useCreatePosition();
   const updatePosition = useUpdatePosition();
   const deactivatePosition = useDeactivatePosition();
+
+  const formTemplateOptions: FormTemplateOption[] = formTemplates.map((t) => ({
+    id: t.id,
+    label: t.name,
+  }));
+  const templatePositionOptions: TemplatePositionOption[] = positions
+    .filter((p) => p.id !== editingRow?.id)
+    .map((p) => ({ id: p.id, label: `${p.position_code} — ${p.position_name_pl}` }));
 
   const handleCreate = async (values: PositionFormValues) => {
     try {
@@ -34,6 +44,8 @@ export function TacticalPositionDictionaryPage() {
         position_name_pl: values.position_name_pl,
         description: values.description || null,
         display_order: values.display_order,
+        criteria_template_position_id: values.criteria_template_position_id || null,
+        form_template_id: values.form_template_id || null,
       });
       toast({ title: "Dodano pozycję" });
       setModalOpen(null);
@@ -54,6 +66,8 @@ export function TacticalPositionDictionaryPage() {
           position_name_pl: values.position_name_pl,
           description: values.description || null,
           display_order: values.display_order,
+          criteria_template_position_id: values.criteria_template_position_id || null,
+          form_template_id: values.form_template_id || null,
         },
       });
       toast({ title: "Zaktualizowano" });
@@ -88,13 +102,21 @@ export function TacticalPositionDictionaryPage() {
   return (
     <div className="mx-auto w-full max-w-[960px] space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
-        <Link
-          to="/settings/tactical/formations"
-          className="inline-flex items-center gap-2 hover:text-slate-900"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Powrót do ustawień taktycznych
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            to="/settings/dictionaries"
+            className="inline-flex items-center gap-2 hover:text-slate-900"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Powrót do słowników
+          </Link>
+          <Link
+            to="/settings/form-templates"
+            className="inline-flex items-center gap-2 hover:text-slate-900"
+          >
+            Wzory formularzy
+          </Link>
+        </div>
       </div>
       <PageHeader
         title="Słownik pozycji (taktyka)"
@@ -128,12 +150,17 @@ export function TacticalPositionDictionaryPage() {
                     <th className="px-4 py-3 text-left font-medium text-slate-700">Nr</th>
                     <th className="px-4 py-3 text-left font-medium text-slate-700">Kod</th>
                     <th className="px-4 py-3 text-left font-medium text-slate-700">Nazwa PL</th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-700">Wzór (Senior)</th>
                     <th className="px-4 py-3 text-left font-medium text-slate-700">Opis</th>
                     <th className="px-4 py-3 text-right font-medium text-slate-700">Akcje</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {positions.map((row) => (
+                  {positions.map((row) => {
+                    const templateLabel = row.criteria_template_position_id
+                      ? positions.find((p) => p.id === row.criteria_template_position_id)?.position_code ?? row.criteria_template_position_id.slice(0, 8)
+                      : "—";
+                    return (
                     <tr
                       key={row.id}
                       className={`border-b border-slate-100 ${!row.is_active ? "bg-slate-50 text-slate-500" : ""}`}
@@ -141,6 +168,7 @@ export function TacticalPositionDictionaryPage() {
                       <td className="px-4 py-3">{row.position_number}</td>
                       <td className="px-4 py-3 font-medium">{row.position_code}</td>
                       <td className="px-4 py-3">{row.position_name_pl}</td>
+                      <td className="px-4 py-3 text-slate-600">{templateLabel}</td>
                       <td className="max-w-[200px] truncate px-4 py-3 text-slate-600">
                         {row.description ?? "—"}
                       </td>
@@ -169,7 +197,7 @@ export function TacticalPositionDictionaryPage() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ); })}
                 </tbody>
               </table>
               {positions.length === 0 && (
@@ -203,6 +231,8 @@ export function TacticalPositionDictionaryPage() {
               <div className="mt-4">
                 <PositionForm
                   initial={editingRow ?? undefined}
+                  templatePositionOptions={templatePositionOptions}
+                  formTemplateOptions={formTemplateOptions}
                   onSubmit={editingRow ? handleUpdate : handleCreate}
                   onCancel={() => { setModalOpen(null); setEditingRow(null); }}
                   isSubmitting={createPosition.isPending || updatePosition.isPending}

@@ -2,15 +2,30 @@ import { supabase } from "@/lib/supabase";
 import type { PlayerDemand, PlayerDemandFilters } from "../types";
 import { DEMAND_PRIORITY_ORDER } from "../types";
 
+/** Recent demands for dashboard (no club/season enrichment). */
+export async function fetchRecentDemands(limit = 5): Promise<PlayerDemand[]> {
+  const { data, error } = await supabase
+    .from("player_demands")
+    .select("id, club_id, season, league_ids, position, positions, quantity_needed, priority, age_min, age_max, preferred_foot, style_notes, notes, status, filled_by_player_id, created_by, created_at, updated_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  const rows = (data ?? []) as PlayerDemand[];
+  const clubIds = [...new Set(rows.map((r) => r.club_id))];
+  const { data: clubs } = await supabase.from("clubs").select("id, name").in("id", clubIds);
+  const clubMap = new Map((clubs ?? []).map((c) => [c.id, c]));
+  return rows.map((r) => ({ ...r, club: clubMap.get(r.club_id) ?? null } as PlayerDemand));
+}
+
 export async function fetchPlayerDemands(filters: PlayerDemandFilters = {}): Promise<PlayerDemand[]> {
   let query = supabase
     .from("player_demands")
-    .select("id, club_id, season, league_ids, position, quantity_needed, priority, age_min, age_max, preferred_foot, style_notes, notes, status, filled_by_player_id, created_by, created_at, updated_at")
+    .select("id, club_id, season, league_ids, position, positions, quantity_needed, priority, age_min, age_max, preferred_foot, style_notes, notes, status, filled_by_player_id, created_by, created_at, updated_at")
     .order("created_at", { ascending: false });
 
   if (filters.clubId) query = query.eq("club_id", filters.clubId);
   if (filters.season) query = query.eq("season", filters.season);
-  if (filters.position) query = query.eq("position", filters.position);
+  if (filters.position) query = query.contains("positions", [filters.position]);
   if (filters.priority) query = query.eq("priority", filters.priority);
   if (filters.status) query = query.eq("status", filters.status);
 
@@ -48,11 +63,13 @@ export async function fetchPlayerDemands(filters: PlayerDemandFilters = {}): Pro
 export async function fetchPlayerDemandById(id: string): Promise<PlayerDemand | null> {
   const { data, error } = await supabase
     .from("player_demands")
-    .select("id, club_id, season, league_ids, position, quantity_needed, priority, age_min, age_max, preferred_foot, style_notes, notes, status, filled_by_player_id, created_by, created_at, updated_at")
+    .select("id, club_id, season, league_ids, position, positions, quantity_needed, priority, age_min, age_max, preferred_foot, style_notes, notes, status, filled_by_player_id, created_by, created_at, updated_at")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
+  const row = data as PlayerDemand & { positions?: string[] };
+  const positions = row.positions?.length ? row.positions : [row.position].filter(Boolean);
 
   const [clubRes, countRes] = await Promise.all([
     supabase.from("clubs").select("id, name").eq("id", data.club_id).maybeSingle(),
@@ -60,6 +77,7 @@ export async function fetchPlayerDemandById(id: string): Promise<PlayerDemand | 
   ]);
   return {
     ...data,
+    positions,
     club: clubRes.data ?? null,
     candidates_count: countRes.count ?? 0,
   } as PlayerDemand;
@@ -69,7 +87,8 @@ export type CreatePlayerDemandInput = {
   club_id: string;
   season: string;
   league_ids?: string[];
-  position: string;
+  position?: string;
+  positions: string[];
   quantity_needed?: number;
   priority?: PlayerDemand["priority"];
   age_min?: number | null;
@@ -84,13 +103,15 @@ export async function createPlayerDemand(input: CreatePlayerDemandInput): Promis
   const uid = authUser?.user ?? null;
   if (!uid) throw new Error("Nie jesteś zalogowany.");
 
+  const positions = input.positions?.length ? input.positions : (input.position ? [input.position] : []);
   const { data, error } = await supabase
     .from("player_demands")
     .insert({
       club_id: input.club_id,
       season: input.season.trim(),
       league_ids: input.league_ids ?? [],
-      position: input.position,
+      position: positions[0] ?? "",
+      positions,
       quantity_needed: input.quantity_needed ?? 1,
       priority: input.priority ?? "standard",
       age_min: input.age_min ?? null,
@@ -112,6 +133,7 @@ export type UpdatePlayerDemandInput = Partial<{
   season: string;
   league_ids: string[];
   position: string;
+  positions: string[];
   quantity_needed: number;
   priority: PlayerDemand["priority"];
   age_min: number | null;
@@ -129,6 +151,10 @@ export async function updatePlayerDemand(id: string, input: UpdatePlayerDemandIn
   if (input.season !== undefined) payload.season = input.season.trim();
   if (input.league_ids !== undefined) payload.league_ids = input.league_ids;
   if (input.position !== undefined) payload.position = input.position;
+  if (input.positions !== undefined) {
+    payload.positions = input.positions;
+    payload.position = input.positions[0] ?? "";
+  }
   if (input.quantity_needed !== undefined) payload.quantity_needed = input.quantity_needed;
   if (input.priority !== undefined) payload.priority = input.priority;
   if (input.age_min !== undefined) payload.age_min = input.age_min;
@@ -164,7 +190,7 @@ export async function fetchPlayerDemandsByIds(ids: string[]): Promise<PlayerDema
   if (ids.length === 0) return [];
   const { data, error } = await supabase
     .from("player_demands")
-    .select("id, club_id, season, league_ids, position, quantity_needed, priority, age_min, age_max, preferred_foot, style_notes, notes, status, filled_by_player_id, created_by, created_at, updated_at")
+    .select("id, club_id, season, league_ids, position, positions, quantity_needed, priority, age_min, age_max, preferred_foot, style_notes, notes, status, filled_by_player_id, created_by, created_at, updated_at")
     .in("id", ids)
     .order("created_at", { ascending: false });
   if (error) throw error;

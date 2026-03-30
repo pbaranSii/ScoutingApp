@@ -8,8 +8,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 
 type FavoritePitchVisualizationProps = {
   /** Legacy formation code when slotsWithCoords not used */
@@ -26,8 +28,8 @@ type FavoritePitchVisualizationProps = {
   allMemberIds?: string[];
   selectedPositionCode: string | null;
   onSelectPosition: (positionCode: string | null) => void;
-  /** When set, called to assign a player to a slot or clear assignment. */
-  onAssignSlot?: (slotKey: string, playerId: string | null) => void;
+  /** When set, called to assign a set of players to a slot. */
+  onAssignSlot?: (slotKey: string, playerIds: string[]) => void;
 };
 
 /** One (x, y) per unique position code in formation order (attack to defence). */
@@ -66,10 +68,11 @@ function getSlotCoordinates(formation: FormationCode): { positionCode: string; x
 }
 
 function slotColor(count: number): string {
-  if (count === 0) return "bg-red-100 border-red-500 text-red-900";
-  if (count === 1) return "bg-amber-100 border-amber-500 text-amber-900";
-  if (count >= 2 && count <= 3) return "bg-green-100 border-green-600 text-green-900";
-  return "bg-blue-100 border-blue-600 text-blue-900";
+  // Tailwind classes for SVG: use fill/stroke (not bg/text).
+  if (count === 0) return "fill-red-200 stroke-red-700";
+  if (count === 1) return "fill-amber-200 stroke-amber-700";
+  if (count >= 2 && count <= 3) return "fill-green-200 stroke-green-700";
+  return "fill-blue-200 stroke-blue-700";
 }
 
 export function FavoritePitchVisualization({
@@ -84,7 +87,11 @@ export function FavoritePitchVisualization({
   onSelectPosition,
   onAssignSlot,
 }: FavoritePitchVisualizationProps) {
-  const [assignDialog, setAssignDialog] = useState<{ slotKey: string; positionCode: string } | null>(null);
+  const [assignDialog, setAssignDialog] = useState<{
+    slotKey: string;
+    positionCode: string;
+  } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const viewBoxW = 600;
   const viewBoxH = 900;
   const pitch = getPitchMarkings(viewBoxW, viewBoxH);
@@ -112,18 +119,20 @@ export function FavoritePitchVisualization({
   const canAssign = Boolean(onAssignSlot && slotKeys.length === slotCoords.length);
 
   const handleSlotClick = (index: number, positionCode: string) => {
+    const isSelected = selectedPositionCode === positionCode;
+    // First click selects (filters). Second click on the same slot opens assign dialog (if enabled).
+    if (!isSelected) {
+      onSelectPosition(positionCode);
+      return;
+    }
     if (canAssign && slotKeys[index]) {
+      const data = slotCoords[index]?.data as SlotCount | SlotWithCoords;
+      const initialIds = (data?.playerIds ?? []) as string[];
       setAssignDialog({ slotKey: slotKeys[index], positionCode });
-    } else {
-      onSelectPosition(selectedPositionCode === positionCode ? null : positionCode);
+      setSelectedIds(initialIds);
+      return;
     }
-  };
-
-  const handleAssign = (playerId: string | null) => {
-    if (assignDialog && onAssignSlot) {
-      onAssignSlot(assignDialog.slotKey, playerId);
-      setAssignDialog(null);
-    }
+    onSelectPosition(null);
   };
 
   return (
@@ -174,14 +183,29 @@ export function FavoritePitchVisualization({
                 cx={x}
                 cy={y}
                 r="36"
-                className={`fill-current stroke-2 transition-all ${slotColor(count)} ${isSelected ? "ring-4 ring-primary ring-offset-2" : ""}`}
-                stroke="white"
-                strokeWidth="2"
+                className={`transition-all ${slotColor(count)} ${isSelected ? "ring-4 ring-primary ring-offset-2" : ""}`}
+                strokeWidth="3"
               />
-              <text x={x} y={y - 6} textAnchor="middle" className="text-sm font-bold fill-current">
+              <text
+                x={x}
+                y={y - 6}
+                textAnchor="middle"
+                className="text-sm font-bold fill-slate-900"
+                stroke="rgba(255,255,255,0.9)"
+                strokeWidth="3"
+                paintOrder="stroke"
+              >
                 {positionCode}
               </text>
-              <text x={x} y={y + 12} textAnchor="middle" className="text-xs font-bold fill-current">
+              <text
+                x={x}
+                y={y + 12}
+                textAnchor="middle"
+                className="text-xs font-bold fill-slate-900"
+                stroke="rgba(255,255,255,0.9)"
+                strokeWidth="3"
+                paintOrder="stroke"
+              >
                 ({count})
               </text>
               <title>{names || `Brak zawodników`}</title>
@@ -190,31 +214,79 @@ export function FavoritePitchVisualization({
         })}
       </svg>
 
-      <Dialog open={Boolean(assignDialog)} onOpenChange={(o) => !o && setAssignDialog(null)}>
+      <Dialog
+        open={Boolean(assignDialog)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAssignDialog(null);
+            setSelectedIds([]);
+          }
+        }}
+      >
         <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>
+          <DialogClose asChild>
+            <button
+              type="button"
+              className="absolute right-4 top-4 rounded-full p-1 text-slate-500 hover:bg-slate-100"
+              aria-label="Zamknij"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </DialogClose>
+          <DialogHeader className="pr-8">
+            <DialogTitle className="text-left">
               Przypisz zawodnika do slotu {assignDialog?.positionCode ?? ""}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto">
-            {allMemberIds.map((playerId, index) => (
+          <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto mt-2">
+            {allMemberIds.map((playerId, index) => {
+              const isSelected = selectedIds.includes(playerId);
+              const playerName = memberNames[playerId] ?? playerId;
+              return (
+                <Button
+                  key={`assign-${playerId}-${index}`}
+                  variant={isSelected ? "default" : "outline"}
+                  className="justify-start text-left font-normal"
+                  onClick={() =>
+                    setSelectedIds((prev) =>
+                      prev.includes(playerId)
+                        ? prev.filter((id) => id !== playerId)
+                        : [...prev, playerId]
+                    )
+                  }
+                >
+                  <div className="flex flex-col items-start">
+                    <span>{playerName}</span>
+                    {/* Informacja o pozycji zawodnika – jeżeli nazwa pozycji jest częścią nazwy, można tu ją dodatkowo wyróżnić */}
+                  </div>
+                </Button>
+              );
+            })}
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <DialogClose asChild>
               <Button
-                key={`assign-${playerId}-${index}`}
+                type="button"
                 variant="outline"
-                className="justify-start text-left font-normal"
-                onClick={() => handleAssign(playerId)}
+                onClick={() => {
+                  setAssignDialog(null);
+                  setSelectedIds([]);
+                }}
               >
-                {memberNames[playerId] ?? playerId}
+                Anuluj
               </Button>
-            ))}
+            </DialogClose>
             <Button
-              key="assign-clear"
-              variant="ghost"
-              className="text-slate-600"
-              onClick={() => handleAssign(null)}
+              type="button"
+              onClick={() => {
+                if (assignDialog && onAssignSlot) {
+                  onAssignSlot(assignDialog.slotKey, selectedIds);
+                }
+                setAssignDialog(null);
+                setSelectedIds([]);
+              }}
             >
-              Usuń przypisanie
+              Zapisz
             </Button>
           </div>
         </DialogContent>

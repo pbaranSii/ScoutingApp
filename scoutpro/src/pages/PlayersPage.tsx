@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { usePlayers } from "@/features/players/hooks/usePlayers";
+import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 import { PlayerList } from "@/features/players/components/PlayerList";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,35 +8,74 @@ import { Link } from "react-router-dom";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Pagination } from "@/components/common/Pagination";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
+import { ALL_PIPELINE_STATUSES, type PipelineStatus } from "@/features/pipeline/types";
 import { POSITION_OPTIONS } from "@/features/players/positions";
-import { SlidersHorizontal } from "lucide-react";
+import { LayoutGrid, List, SlidersHorizontal } from "lucide-react";
 
 const PAGE_SIZE = 100;
 
 export function PlayersPage() {
+  const { data: profile } = useCurrentUserProfile();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [view, setView] = useState<"grid" | "list">("list");
   const [filters, setFilters] = useState({
     position: "",
     status: "",
-    birthYear: "",
+    birthYearFrom: "",
+    birthYearTo: "",
+    contractEndBefore: "",
+    recommendation: "",
+    performanceMin: "",
+    performanceMax: "",
+    potentialFutureMin: "",
+    potentialFutureMax: "",
   });
-  const hasActiveFilters = filters.position || filters.status || filters.birthYear;
+  const hasActiveFilters =
+    filters.position ||
+    filters.status ||
+    filters.birthYearFrom ||
+    filters.birthYearTo ||
+    filters.contractEndBefore ||
+    filters.recommendation ||
+    filters.performanceMin ||
+    filters.performanceMax ||
+    filters.potentialFutureMin ||
+    filters.potentialFutureMax;
 
   const { data = [], total = 0, isLoading } = usePlayers({
     search: search || undefined,
     page,
     pageSize: PAGE_SIZE,
     primary_position: filters.position || undefined,
-    status: filters.status || undefined,
-    birthYear: filters.birthYear ? Number(filters.birthYear) : undefined,
+    status: (filters.status || undefined) as PipelineStatus | undefined,
+    birthYearFrom: filters.birthYearFrom ? Number(filters.birthYearFrom) : undefined,
+    birthYearTo: filters.birthYearTo ? Number(filters.birthYearTo) : undefined,
+    contractEndBefore: filters.contractEndBefore || undefined,
+    recommendation: (filters.recommendation || undefined) as "positive" | "to_observe" | "negative" | undefined,
+    performanceMin: filters.performanceMin ? Number(filters.performanceMin) : undefined,
+    performanceMax: filters.performanceMax ? Number(filters.performanceMax) : undefined,
+    potentialFutureMin: filters.potentialFutureMin ? Number(filters.potentialFutureMin) : undefined,
+    potentialFutureMax: filters.potentialFutureMax ? Number(filters.potentialFutureMax) : undefined,
+    ...(profile?.business_role === "scout" && profile?.id ? { createdBy: profile.id } : {}),
   });
 
   useEffect(() => {
     setPage(1);
-  }, [search, filters.position, filters.status, filters.birthYear]);
+  }, [
+    search,
+    filters.position,
+    filters.status,
+    filters.birthYearFrom,
+    filters.birthYearTo,
+    filters.contractEndBefore,
+    filters.recommendation,
+    filters.performanceMin,
+    filters.performanceMax,
+    filters.potentialFutureMin,
+    filters.potentialFutureMax,
+  ]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -59,6 +99,28 @@ export function PlayersPage() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant={view === "grid" ? "default" : "outline"}
+            className="gap-2"
+            onClick={() => setView("grid")}
+            title="Widok kafelków"
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Siatka
+          </Button>
+          <Button
+            type="button"
+            variant={view === "list" ? "default" : "outline"}
+            className="gap-2"
+            onClick={() => setView("list")}
+            title="Widok listy"
+          >
+            <List className="h-4 w-4" />
+            Lista
+          </Button>
+        </div>
         <Button
           type="button"
           variant="outline"
@@ -76,8 +138,8 @@ export function PlayersPage() {
       </div>
       {filtersOpen && (
         <div className="rounded-lg border border-slate-200 bg-white p-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="space-y-2">
               <label className="text-sm font-medium text-slate-700">Pozycja</label>
               <Select value={filters.position} onValueChange={(value) => setFilters((prev) => ({ ...prev, position: value }))}>
                 <SelectTrigger>
@@ -108,21 +170,118 @@ export function PlayersPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Rocznik</label>
+              <label className="text-sm font-medium text-slate-700">Rocznik od – do</label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={filters.birthYearFrom}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, birthYearFrom: e.target.value }))}
+                  placeholder="od (np. 2005)"
+                />
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  value={filters.birthYearTo}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, birthYearTo: e.target.value }))}
+                  placeholder="do (np. 2010)"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Kontrakt kończy się przed</label>
               <Input
-                type="number"
-                inputMode="numeric"
-                value={filters.birthYear}
-                onChange={(event) => setFilters((prev) => ({ ...prev, birthYear: event.target.value }))}
-                placeholder="np. 2008"
+                type="date"
+                value={filters.contractEndBefore}
+                onChange={(e) => setFilters((prev) => ({ ...prev, contractEndBefore: e.target.value }))}
               />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Rekomendacja (ostatnia obserwacja)</label>
+              <Select
+                value={filters.recommendation || "__all__"}
+                onValueChange={(v) => setFilters((prev) => ({ ...prev, recommendation: v === "__all__" ? "" : v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Dowolna" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Dowolna</SelectItem>
+                  <SelectItem value="positive">Pozytywna</SelectItem>
+                  <SelectItem value="to_observe">Do obserwacji</SelectItem>
+                  <SelectItem value="negative">Negatywna</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Performance (ostatnia obserwacja, 1–5)</label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.5}
+                  inputMode="numeric"
+                  value={filters.performanceMin}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, performanceMin: e.target.value }))}
+                  placeholder="min"
+                />
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.5}
+                  inputMode="numeric"
+                  value={filters.performanceMax}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, performanceMax: e.target.value }))}
+                  placeholder="max"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Potencjał przyszły (ostatnia obserwacja, 1–5)</label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.5}
+                  inputMode="numeric"
+                  value={filters.potentialFutureMin}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, potentialFutureMin: e.target.value }))}
+                  placeholder="min"
+                />
+                <Input
+                  type="number"
+                  min={1}
+                  max={5}
+                  step={0.5}
+                  inputMode="numeric"
+                  value={filters.potentialFutureMax}
+                  onChange={(e) => setFilters((prev) => ({ ...prev, potentialFutureMax: e.target.value }))}
+                  placeholder="max"
+                />
+              </div>
             </div>
           </div>
           <div className="mt-4 flex flex-wrap justify-end gap-2">
             <Button
               type="button"
               variant="outline"
-              onClick={() => setFilters({ position: "", status: "", birthYear: "" })}
+              onClick={() =>
+                setFilters({
+                  position: "",
+                  status: "",
+                  birthYearFrom: "",
+                  birthYearTo: "",
+                  contractEndBefore: "",
+                  recommendation: "",
+                  performanceMin: "",
+                  performanceMax: "",
+                  potentialFutureMin: "",
+                  potentialFutureMax: "",
+                })
+              }
             >
               Wyczyść
             </Button>
@@ -133,7 +292,7 @@ export function PlayersPage() {
         </div>
       )}
 
-      <PlayerList players={data} isLoading={isLoading} />
+      <PlayerList players={data} isLoading={isLoading} variant={view} />
       {total > 0 && (
         <Pagination
           page={page}

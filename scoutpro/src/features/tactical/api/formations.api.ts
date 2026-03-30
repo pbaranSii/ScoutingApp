@@ -9,17 +9,30 @@ import type {
 
 /** List formations with slot count. */
 export async function fetchFormations(): Promise<FormationListItem[]> {
-  const { data, error } = await supabase
+  // NOTE: PostgREST needs a recognized FK relationship to embed `tactical_slots(count)`.
+  // On some environments (older schema cache / missing relationship exposure) this can error,
+  // which would make formation dropdowns appear empty. We fall back to a simple select.
+  const primary = await supabase
     .from("formations")
     .select("*, tactical_slots(count)")
     .order("code", { ascending: true });
-  if (error) throw error;
-  return (data ?? []).map((row) => {
-    const slots = (row as { tactical_slots?: { count: number }[] })?.tactical_slots;
-    const slots_count = Array.isArray(slots) && slots.length > 0 ? slots[0]?.count ?? 0 : 0;
-    const { tactical_slots, ...rest } = row;
-    return { ...rest, slots_count } as FormationListItem;
-  });
+
+  if (!primary.error) {
+    const data = primary.data ?? [];
+    return data.map((row) => {
+      const slots = (row as { tactical_slots?: { count: number }[] })?.tactical_slots;
+      const slots_count = Array.isArray(slots) && slots.length > 0 ? slots[0]?.count ?? 0 : 0;
+      const { tactical_slots, ...rest } = row as any;
+      return { ...rest, slots_count } as FormationListItem;
+    });
+  }
+
+  const fallback = await supabase
+    .from("formations")
+    .select("*")
+    .order("code", { ascending: true });
+  if (fallback.error) throw fallback.error;
+  return (fallback.data ?? []) as FormationListItem[];
 }
 
 /** Fetch formation by id with slots and position dictionary. */

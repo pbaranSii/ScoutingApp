@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Player } from "../types";
 import { PlayerCard } from "./PlayerCard";
+import { PlayerRowCard } from "./PlayerRowCard";
 import { fetchLatestObservationRatings } from "@/features/observations/api/observations.api";
 
 type PlayerListProps = {
   players: Player[];
   isLoading: boolean;
+  variant?: "grid" | "list";
 };
 
 function playerIdsKey(playerIds: string[]): string {
@@ -13,7 +15,7 @@ function playerIdsKey(playerIds: string[]): string {
   return [...playerIds].sort().join(",");
 }
 
-export function PlayerList({ players, isLoading }: PlayerListProps) {
+export function PlayerList({ players, isLoading, variant = "grid" }: PlayerListProps) {
   const playerIds = players.map((p) => p.id);
   const stableKey = playerIdsKey(playerIds);
 
@@ -35,14 +37,24 @@ export function PlayerList({ players, isLoading }: PlayerListProps) {
     );
   }
 
+  if (variant === "list") {
+    return (
+      <div className="space-y-3">
+        {players.map((player) => (
+          <PlayerRowCard
+            key={player.id}
+            player={player}
+            latestRating={latestRating[player.id] ?? null}
+          />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {players.map((player) => (
-        <PlayerCard
-          key={player.id}
-          player={player}
-          latestRating={latestRating[player.id] ?? null}
-        />
+        <PlayerCard key={player.id} player={player} latestRating={latestRating[player.id] ?? null} />
       ))}
     </div>
   );

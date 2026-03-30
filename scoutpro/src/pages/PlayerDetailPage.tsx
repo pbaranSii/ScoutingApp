@@ -1,14 +1,18 @@
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { usePipelineHistory, usePlayer } from "@/features/players/hooks/usePlayers";
 import { PlayerProfile } from "@/features/players/components/PlayerProfile";
 import { useObservationsByPlayer } from "@/features/observations/hooks/useObservations";
+import { fetchMotorEvaluationByObservation } from "@/features/observations/api/motorEvaluations.api";
+import { MotorRadarChart } from "@/features/observations/components/MotorRadarChart";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { format, parseISO } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Pencil, Plus, Star } from "lucide-react";
+import type { Observation } from "@/features/observations/types";
 import { AddToFavoritesButton } from "@/features/favorites/components/AddToFavoritesButton";
 import { AssignToDemandButton } from "@/features/demands/components/AssignToDemandButton";
 import { usePlayerDemandsForPlayer } from "@/features/demands/hooks/usePlayerDemandsForPlayer";
@@ -50,6 +54,28 @@ export function PlayerDetailPage() {
     () => [...(mediaItems ?? []), ...legacyItems],
     [mediaItems, legacyItems]
   );
+  const latestObservation = observations[0] ?? null;
+  const matchObservations = useMemo(
+    () => observations.filter((o): o is Observation => o.observation_category === "match_player"),
+    [observations]
+  );
+  const avgMatchPerformanceRating = useMemo(() => {
+    const withRating = matchObservations.filter(
+      (o) => typeof o.match_performance_rating === "number"
+    );
+    if (withRating.length === 0) return null;
+    const sum = withRating.reduce((s, o) => s + (o.match_performance_rating ?? 0), 0);
+    return Math.round((sum / withRating.length) * 10) / 10;
+  }, [matchObservations]);
+  const latestExtendedObservationId = useMemo(
+    () => observations.find((o) => o.form_type === "extended")?.id ?? null,
+    [observations]
+  );
+  const { data: motorEvaluation = null } = useQuery({
+    queryKey: ["motor-evaluation", latestExtendedObservationId],
+    queryFn: () => fetchMotorEvaluationByObservation(latestExtendedObservationId!),
+    enabled: Boolean(latestExtendedObservationId),
+  });
   const { user } = useAuthStore();
   const [userMap, setUserMap] = useState<Record<string, string>>({});
   const [addMediaModalOpen, setAddMediaModalOpen] = useState(false);
@@ -110,7 +136,8 @@ export function PlayerDetailPage() {
               playerName={`${data.first_name} ${data.last_name}`}
               size="default"
               variant="outline"
-              label="Zapotrzebowanie"
+              showCount
+              className="min-w-[4rem]"
             />
             <AddToFavoritesButton
             playerId={data.id}
@@ -124,52 +151,107 @@ export function PlayerDetailPage() {
         }
       />
 
-      {playerDemands.length > 0 && (
+      {observations.length > 0 && (
         <Card>
           <CardContent className="p-5 space-y-3">
-            <div className="font-semibold text-slate-900">Zapotrzebowania</div>
-            <p className="text-sm text-slate-600">
-              Zawodnik jest przypisany do {playerDemands.length} zapotrzebowań:
-            </p>
-            <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
-              {playerDemands.map((d) => (
-                <li key={d.id}>
-                  <Link
-                    to={`/demands/${d.id}`}
-                    className="text-primary hover:underline"
-                  >
-                    {d.position} · {d.season}
-                    {d.club?.name ? ` (${d.club.name})` : ""}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-            <AssignToDemandButton
-              playerId={data.id}
-              playerName={`${data.first_name} ${data.last_name}`}
-              variant="outline"
-              size="sm"
-              label="Przypisz do innego zapotrzebowania"
-            />
+            <div className="font-semibold text-slate-900">Podsumowanie z obserwacji</div>
+            <div className="flex flex-wrap items-center gap-3">
+              {latestObservation?.recommendation && (
+                <Badge
+                  variant="secondary"
+                  className={
+                    latestObservation.recommendation === "positive"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : latestObservation.recommendation === "negative"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-amber-100 text-amber-800"
+                  }
+                >
+                  {latestObservation.recommendation === "positive"
+                    ? "Pozytywna"
+                    : latestObservation.recommendation === "negative"
+                      ? "Negatywna"
+                      : "Do obserwacji"}
+                </Badge>
+              )}
+              {avgMatchPerformanceRating != null && (
+                <span className="text-sm text-slate-600">
+                  Śr. ocena za występy: <strong>{avgMatchPerformanceRating}</strong>
+                  {matchObservations.length > 0 && (
+                    <span className="text-slate-500"> ({matchObservations.length} mecz.)</span>
+                  )}
+                </span>
+              )}
+              {typeof latestObservation?.overall_rating === "number" && (
+                <span className="text-sm text-slate-600">
+                  Ocena ogólna: <strong>{latestObservation.overall_rating}</strong>
+                </span>
+              )}
+              {(typeof latestObservation?.potential_now === "number" ||
+                typeof latestObservation?.potential_future === "number") && (
+                <span className="text-sm text-slate-600">
+                  Performance:{" "}
+                  {typeof latestObservation?.potential_now === "number" && (
+                    <strong>{latestObservation.potential_now}</strong>
+                  )}
+                  {typeof latestObservation?.potential_now === "number" &&
+                    typeof latestObservation?.potential_future === "number" && " / "}
+                  {typeof latestObservation?.potential_future === "number" && (
+                    <>przyszłość <strong>{latestObservation.potential_future}</strong></>
+                  )}
+                </span>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
-      {playerDemands.length === 0 && (
+
+      {(data.transfermarkt_url || data.facebook_url || data.instagram_url || data.other_social_url) && (
         <Card>
-          <CardContent className="p-5 flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className="font-semibold text-slate-900">Zapotrzebowania</div>
-              <p className="text-sm text-slate-600 mt-0.5">
-                Przypisz tego zawodnika do zapotrzebowania na pozycję.
-              </p>
+          <CardContent className="p-5 space-y-2">
+            <div className="font-semibold text-slate-900">Portale społecznościowe</div>
+            <div className="flex flex-wrap gap-3 text-sm">
+              {data.transfermarkt_url && (
+                <a
+                  href={data.transfermarkt_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-600 hover:underline"
+                >
+                  TransferMarkt
+                </a>
+              )}
+              {data.facebook_url && (
+                <a
+                  href={data.facebook_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-600 hover:underline"
+                >
+                  Facebook
+                </a>
+              )}
+              {data.instagram_url && (
+                <a
+                  href={data.instagram_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-600 hover:underline"
+                >
+                  Instagram
+                </a>
+              )}
+              {data.other_social_url && (
+                <a
+                  href={data.other_social_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-600 hover:underline"
+                >
+                  Inne
+                </a>
+              )}
             </div>
-            <AssignToDemandButton
-              playerId={data.id}
-              playerName={`${data.first_name} ${data.last_name}`}
-              variant="outline"
-              size="sm"
-              label="Przypisz do zapotrzebowania"
-            />
           </CardContent>
         </Card>
       )}
@@ -181,6 +263,12 @@ export function PlayerDetailPage() {
             className="rounded-full data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
           >
             Obserwacje ({observations.length})
+          </TabsTrigger>
+          <TabsTrigger
+            value="demands"
+            className="rounded-full data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm"
+          >
+            Zapotrzebowania ({playerDemands.length})
           </TabsTrigger>
           <TabsTrigger
             value="multimedia"
@@ -236,8 +324,32 @@ export function PlayerDetailPage() {
                   <CardContent className="p-5">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="space-y-1">
-                        <div className="text-base font-semibold text-slate-900">
-                          {observation.competition ?? "Obserwacja"}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-base font-semibold text-slate-900">
+                            {observation.competition ?? "Obserwacja"}
+                          </span>
+                          {observation.observation_category === "match_player" ? (
+                            <Badge variant="outline" className="text-xs">Meczowa</Badge>
+                          ) : observation.observation_category === "individual" ? (
+                            <Badge variant="outline" className="text-xs">Indywidualna</Badge>
+                          ) : null}
+                          {observation.recommendation && (
+                            <Badge
+                              className={
+                                observation.recommendation === "positive"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : observation.recommendation === "negative"
+                                    ? "bg-red-100 text-red-800"
+                                    : "bg-amber-100 text-amber-800"
+                              }
+                            >
+                              {observation.recommendation === "positive"
+                                ? "Pozytywna"
+                                : observation.recommendation === "negative"
+                                  ? "Negatywna"
+                                  : "Do obserwacji"}
+                            </Badge>
+                          )}
                         </div>
                         <div className="text-xs text-slate-500">
                           {dateLabel}
@@ -253,6 +365,11 @@ export function PlayerDetailPage() {
                             {rating}
                           </Badge>
                         )}
+                        {typeof observation.match_performance_rating === "number" && (
+                          <Badge variant="secondary" className="rounded-full px-2">
+                            Występ: {observation.match_performance_rating}
+                          </Badge>
+                        )}
                         <Button asChild size="icon" variant="outline">
                           <Link
                             to={`/observations/${observation.id}/edit`}
@@ -265,13 +382,72 @@ export function PlayerDetailPage() {
                         </Button>
                       </div>
                     </div>
-                    {observation.notes && (
-                      <p className="mt-3 text-sm text-slate-600">{observation.notes}</p>
+                    {observation.summary?.trim() && (
+                      <p className="mt-3 text-sm text-slate-600">
+                        {observation.summary.trim()}
+                      </p>
                     )}
                   </CardContent>
                 </Card>
               );
             })}
+          {motorEvaluation && (
+            <Card>
+              <CardContent className="p-5">
+                <div className="font-semibold text-slate-900 mb-3">Motoryka (ostatnia obserwacja rozszerzona)</div>
+                <MotorRadarChart motor={motorEvaluation} />
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="demands" className="space-y-4">
+          <Card>
+            <CardContent className="p-5 space-y-3">
+              {playerDemands.length > 0 ? (
+                <>
+                  <div className="font-semibold text-slate-900">Zapotrzebowania</div>
+                  <p className="text-sm text-slate-600">
+                    Zawodnik jest przypisany do {playerDemands.length} zapotrzebowań:
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-slate-700 space-y-1">
+                    {playerDemands.map((d) => (
+                      <li key={d.id}>
+                        <Link
+                          to={`/demands/${d.id}`}
+                          className="text-primary hover:underline"
+                        >
+                          {d.position} · {d.season}
+                          {d.club?.name ? ` (${d.club.name})` : ""}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                  <AssignToDemandButton
+                    playerId={data.id}
+                    playerName={`${data.first_name} ${data.last_name}`}
+                    variant="outline"
+                    size="sm"
+                    label="Przypisz do innego zapotrzebowania"
+                  />
+                </>
+              ) : (
+                <>
+                  <div className="font-semibold text-slate-900">Zapotrzebowania</div>
+                  <p className="text-sm text-slate-600 mt-0.5">
+                    Przypisz tego zawodnika do zapotrzebowania na pozycję.
+                  </p>
+                  <AssignToDemandButton
+                    playerId={data.id}
+                    playerName={`${data.first_name} ${data.last_name}`}
+                    variant="outline"
+                    size="sm"
+                    label="Przypisz do zapotrzebowania"
+                  />
+                </>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="multimedia" className="space-y-4">
@@ -408,9 +584,19 @@ export function PlayerDetailPage() {
                   <div className="text-sm text-slate-700">{data.guardian_phone ?? "-"}</div>
                   <div className="text-sm text-slate-700">{data.guardian_email ?? "-"}</div>
                 </div>
-              ) : (
-                <div>Brak danych kontaktowych.</div>
+              ) : null}
+              {(data.agent_name || data.agent_phone || data.agent_email) && (
+                <div className="space-y-1">
+                  <div className="text-xs text-slate-500">Agent</div>
+                  <div className="text-sm text-slate-700">{data.agent_name ?? "-"}</div>
+                  <div className="text-sm text-slate-700">{data.agent_phone ?? "-"}</div>
+                  <div className="text-sm text-slate-700">{data.agent_email ?? "-"}</div>
+                </div>
               )}
+              {!(data.guardian_name || data.guardian_phone || data.guardian_email) &&
+                !(data.agent_name || data.agent_phone || data.agent_email) && (
+                  <div>Brak danych kontaktowych.</div>
+                )}
             </CardContent>
           </Card>
         </TabsContent>

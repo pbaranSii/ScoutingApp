@@ -16,7 +16,10 @@ type DemandCardProps = {
 export function DemandCard({ demand, canManage = false, onDelete }: DemandCardProps) {
   const navigate = useNavigate();
   const clubName = demand.club?.name ?? "—";
-  const positionLabel = formatPosition(demand.position);
+  const positions = (demand as { positions?: string[] }).positions?.length
+    ? (demand as { positions: string[] }).positions
+    : [demand.position].filter(Boolean);
+  const positionLabel = positions.map(formatPosition).join(", ");
   const candidatesCount = demand.candidates_count ?? 0;
   const quantityNeeded = demand.quantity_needed ?? 1;
   const progress = `${candidatesCount}/${quantityNeeded}`;

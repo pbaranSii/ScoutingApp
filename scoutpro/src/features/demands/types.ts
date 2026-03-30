@@ -8,7 +8,10 @@ export interface PlayerDemand {
   club_id: string;
   season: string;
   league_ids: string[];
+  /** @deprecated Use positions; first element for backward compat. */
   position: string;
+  /** Multi-position codes (e.g. ['LW', 'ST']). */
+  positions: string[];
   quantity_needed: number;
   priority: DemandPriority;
   age_min: number | null;

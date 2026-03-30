@@ -1,7 +1,6 @@
 import React from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFormations, useDefaultFormation } from "@/features/tactical/hooks/useFormations";
-import type { FormationCode } from "../types";
 
 export type FormationSelection = {
   formation_id: string | null;
@@ -56,7 +55,7 @@ export function FormationSelector({ value, onChange, disabled }: FormationSelect
         ) : (
           orderedFormations.map((f) => (
             <SelectItem key={f.id} value={f.id}>
-              {f.name} ({f.code}){f.id === defaultId ? " · domyślny" : ""}
+              {f.name}
             </SelectItem>
           ))
         )}

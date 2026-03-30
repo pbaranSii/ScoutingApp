@@ -164,7 +164,12 @@ export function SatisfactionForm({ onSubmit, isSubmitting }: SatisfactionFormPro
         lepszego zrozumienia potrzeb użytkowników.
       </div>
 
-      <Button type="submit" size="lg" className="w-full" disabled={!canSubmit || isSubmitting}>
+      <Button
+        type="submit"
+        size="lg"
+        className="h-11 w-full min-h-11"
+        disabled={!canSubmit || isSubmitting}
+      >
         {isSubmitting ? "Wysyłanie…" : "Wyślij ankietę"}
       </Button>
     </form>

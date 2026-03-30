@@ -96,15 +96,20 @@ export async function fetchDemandSuggestions(demandId: string): Promise<
 > {
   const { data: demand, error: demandError } = await supabase
     .from("player_demands")
-    .select("position, age_min, age_max")
+    .select("position, positions, age_min, age_max")
     .eq("id", demandId)
     .single();
   if (demandError || !demand) return [];
 
+  const positions = (demand as { positions?: string[] }).positions?.length
+    ? (demand as { positions: string[] }).positions
+    : [demand.position].filter(Boolean);
+  if (positions.length === 0) return [];
+
   let query = supabase
     .from("players")
     .select("id, first_name, last_name, birth_year, primary_position, club_id")
-    .eq("primary_position", demand.position);
+    .in("primary_position", positions);
 
   const currentYear = new Date().getFullYear();
   const ageMin = demand.age_min ?? 0;

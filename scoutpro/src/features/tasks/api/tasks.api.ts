@@ -73,6 +73,27 @@ export async function fetchTasks(): Promise<Task[]> {
   return (data ?? []).map(mapRowToTask);
 }
 
+/** Tasks assigned to or created by the user (for dashboard "Moje zadania"). */
+export async function fetchTasksForUser(
+  userId: string,
+  limit = 8
+): Promise<Task[]> {
+  const { data, error } = await supabase
+    .from("tasks")
+    .select(
+      `
+      *,
+      task_players(player_id, player:players(first_name, last_name))
+    `
+    )
+    .or(`assigned_to.eq.${userId},created_by.eq.${userId}`)
+    .order("deadline", { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []).map(mapRowToTask);
+}
+
 export async function fetchTask(id: string): Promise<Task | null> {
   const { data, error } = await supabase
     .from("tasks")

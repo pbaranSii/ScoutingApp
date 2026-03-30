@@ -3,14 +3,15 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useFormations, useSetFormationDefault, useCloneFormation } from "@/features/tactical/hooks/useFormations";
+import { useFormations, useSetFormationDefault, useCloneFormation, useDeleteFormation } from "@/features/tactical/hooks/useFormations";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Copy, LayoutGrid, Plus, Star, Wrench } from "lucide-react";
+import { ArrowLeft, Copy, LayoutGrid, Plus, Star, Trash2, Wrench } from "lucide-react";
 
 export function TacticalFormationsListPage() {
   const { data: formations = [], isLoading } = useFormations();
   const setDefault = useSetFormationDefault();
   const cloneFormation = useCloneFormation();
+  const deleteFormation = useDeleteFormation();
 
   const handleSetDefault = async (formationId: string) => {
     try {
@@ -32,6 +33,17 @@ export function TacticalFormationsListPage() {
     }
   };
 
+  const handleDelete = async (formationId: string, name: string) => {
+    if (!window.confirm(`Czy na pewno usunąć schemat „${name}"?`)) return;
+    try {
+      await deleteFormation.mutateAsync(formationId);
+      toast({ title: "Usunięto schemat" });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Błąd";
+      toast({ variant: "destructive", title: "Błąd", description: msg });
+    }
+  };
+
   return (
     <div className="mx-auto w-full max-w-[960px] space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
@@ -42,14 +54,9 @@ export function TacticalFormationsListPage() {
       </div>
       <PageHeader
         title="Schematy taktyczne"
-        subtitle="Zarządzaj schematami (formacjami) i ustawieniem domyślnym. Schematy systemowe są tylko do odczytu — można je klonować."
+        subtitle="Zarządzaj schematami (formacjami) i ustawieniem domyślnym."
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link to="/settings/tactical/positions">
-                Słownik pozycji
-              </Link>
-            </Button>
             <Button asChild>
               <Link to="/settings/tactical/formations/new">
                 <Plus className="mr-2 h-4 w-4" />
@@ -117,9 +124,19 @@ export function TacticalFormationsListPage() {
                         Klonuj
                       </Button>
                       <Button variant="outline" size="sm" asChild>
-                        <Link to={isSystem ? `/settings/tactical/formations/${f.id}` : `/settings/tactical/formations/${f.id}`}>
-                          {isSystem ? "Podgląd" : "Edytuj"}
+                        <Link to={`/settings/tactical/formations/${f.id}`}>
+                          Edytuj
                         </Link>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDelete(f.id, f.name)}
+                        disabled={deleteFormation.isPending}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        title="Usuń schemat"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>

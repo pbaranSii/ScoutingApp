@@ -13,6 +13,7 @@ type CreateUserPayload = {
   first_name?: string | null;
   last_name?: string | null;
   business_role?: "scout" | "coach" | "director" | "suspended" | "admin";
+  area_access?: "AKADEMIA" | "SENIOR" | "ALL";
 };
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
@@ -36,7 +37,7 @@ serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceRoleKey) {
     return jsonResponse({ error: "Missing Supabase environment variables" }, { status: 500 });
   }
@@ -88,6 +89,7 @@ serve(async (req) => {
   }
 
   const businessRole = payload.business_role ?? "scout";
+  const areaAccess = payload.area_access ?? (businessRole === "admin" ? "ALL" : "AKADEMIA");
   const fullName = `${payload.first_name ?? ""} ${payload.last_name ?? ""}`.trim();
   const resolvedRole = businessRole === "admin" ? "admin" : "user";
   const isActive = businessRole !== "suspended";
@@ -101,6 +103,7 @@ serve(async (req) => {
       last_name: payload.last_name ?? null,
       full_name: fullName || null,
       business_role: businessRole,
+      area_access: areaAccess,
     },
   });
 
@@ -120,6 +123,7 @@ serve(async (req) => {
     full_name: fullName || null,
     role: resolvedRole,
     business_role: businessRole,
+    area_access: areaAccess,
     is_active: isActive,
   });
 

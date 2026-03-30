@@ -16,7 +16,10 @@ type DemandPreviewCardProps = {
 
 export function DemandPreviewCard({ demand, leagues = [] }: DemandPreviewCardProps) {
   const clubName = demand.club?.name ?? "—";
-  const positionLabel = formatPosition(demand.position);
+  const positions = (demand as { positions?: string[] }).positions?.length
+    ? (demand as { positions: string[] }).positions
+    : [demand.position].filter(Boolean);
+  const positionLabel = positions.map((p) => formatPosition(p)).join(", ");
   const leagueNames =
     demand.league_ids?.length && leagues.length
       ? demand.league_ids
@@ -36,8 +39,8 @@ export function DemandPreviewCard({ demand, leagues = [] }: DemandPreviewCardPro
 
   const rows: { label: string; value: string | number | null }[] = [
     { label: "Klub", value: clubName },
-    { label: "Sezon", value: demand.season || null },
-    { label: "Pozycja", value: positionLabel },
+    { label: "Okres", value: demand.season || null },
+    { label: "Pozycje", value: positionLabel || null },
     { label: "Ligi", value: leagueNames.length > 0 ? leagueNames.join(", ") : null },
     { label: "Liczba poszukiwanych", value: demand.quantity_needed ?? null },
     { label: "Priorytet", value: priorityLabel },

@@ -15,7 +15,9 @@ import type { FetchPlayersResult, PlayersFilters } from "../api/players.api";
 import type { PipelineStatus, Player, PlayerInput } from "../types";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { offlineDb } from "@/features/offline/db/offlineDb";
+import { normalizePipelineStatus } from "@/features/pipeline/types";
 import { useAuthStore } from "@/stores/authStore";
+import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 
 export function usePlayers(filters?: PlayersFilters) {
   const isOnline = useOnlineStatus();
@@ -28,7 +30,14 @@ export function usePlayers(filters?: PlayersFilters) {
     queryFn: async (): Promise<{ data: Player[]; total?: number }> => {
       if (!isOnline) {
         const cached = await offlineDb.cachedPlayers.toArray();
-        const all = cached.map((item) => item.data) as Player[];
+        let all = cached.map((item) => {
+          const p = item.data as Player;
+          const status = normalizePipelineStatus(p.pipeline_status);
+          return status !== p.pipeline_status ? { ...p, pipeline_status: status } : p;
+        }) as Player[];
+        if (filters?.createdBy) {
+          all = all.filter((p) => p.created_by === filters.createdBy);
+        }
         if (usePagination) {
           const from = (page - 1) * pageSize;
           return { data: all.slice(from, from + pageSize), total: all.length };
@@ -73,9 +82,12 @@ export function usePlayers(filters?: PlayersFilters) {
 }
 
 export function useClubs() {
+  const { data: currentUser } = useCurrentUserProfile();
+  const areaAccess =
+    (currentUser as { area_access?: "AKADEMIA" | "SENIOR" | "ALL" } | null)?.area_access ?? "AKADEMIA";
   return useQuery({
-    queryKey: ["clubs"],
-    queryFn: fetchClubs,
+    queryKey: ["clubs", areaAccess],
+    queryFn: () => fetchClubs(areaAccess),
   });
 }
 
@@ -102,7 +114,7 @@ export function useUpdatePlayer() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: PlayerInput }) =>
+    mutationFn: ({ id, input }: { id: string; input: Partial<PlayerInput> }) =>
       updatePlayer(id, input),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["players"] });

@@ -23,6 +23,8 @@ type AssignToDemandButtonProps = {
   /** Optional: filter demands by club id */
   clubId?: string | null;
   label?: string;
+  /** If true, show only icon + count badge (no label); icon filled when on any demand list */
+  showCount?: boolean;
 };
 
 export function AssignToDemandButton({
@@ -33,6 +35,7 @@ export function AssignToDemandButton({
   size = "icon",
   clubId = null,
   label,
+  showCount = false,
 }: AssignToDemandButtonProps) {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -43,6 +46,8 @@ export function AssignToDemandButton({
   const activeDemands = demands.filter((d) => d.status === "open" || d.status === "in_progress");
   const { data: playerDemands = [] } = usePlayerDemandsForPlayer(playerId);
   const playerDemandIds = new Set(playerDemands.map((d) => d.id));
+  const count = playerDemands.length;
+  const isOnAnyDemand = count > 0;
 
   const handleSelect = async (demandId: string) => {
     try {
@@ -76,10 +81,14 @@ export function AssignToDemandButton({
             e.preventDefault();
             e.stopPropagation();
           }}
-          title="Przypisz do zapotrzebowania"
+          title={isOnAnyDemand ? `Na ${count} listach zapotrzebowań` : "Przypisz do zapotrzebowania"}
         >
-          <Target className="h-4 w-4" />
-          {label && <span className="ml-1 text-xs font-medium">{label}</span>}
+          <Target
+            className={`h-4 w-4 shrink-0 ${isOnAnyDemand ? "text-red-600" : ""}`}
+          />
+          {(label || (showCount && count > 0)) && (
+            <span className="ml-1 text-xs font-medium">{showCount ? count : label}</span>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="max-h-64 w-72 bg-white">
@@ -90,7 +99,11 @@ export function AssignToDemandButton({
         ) : (
           filteredDemands.map((d) => {
             const alreadyAssigned = playerDemandIds.has(d.id);
-            const title = `${formatPosition(d.position)} · ${d.season}${d.club?.name ? ` (${d.club.name})` : ""}`;
+            const positions = (d as { positions?: string[] }).positions?.length
+              ? (d as { positions: string[] }).positions
+              : [d.position].filter(Boolean);
+            const positionLabel = positions.map((p) => formatPosition(p)).join(", ");
+            const title = `${positionLabel} · ${d.season}${d.club?.name ? ` (${d.club.name})` : ""}`;
             return (
               <DropdownMenuItem
                 key={d.id}

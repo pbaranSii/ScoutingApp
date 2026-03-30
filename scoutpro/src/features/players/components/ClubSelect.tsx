@@ -7,9 +7,11 @@ type ClubSelectProps = {
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  /** Optional names to show first in the list (e.g. Gospodarz, Gość from match header). */
+  priorityNames?: string[];
 };
 
-export function ClubSelect({ value, onChange, placeholder, disabled }: ClubSelectProps) {
+export function ClubSelect({ value, onChange, placeholder, disabled, priorityNames = [] }: ClubSelectProps) {
   const { data: clubs = [], isLoading, isError } = useClubs();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState(value);
@@ -17,9 +19,18 @@ export function ClubSelect({ value, onChange, placeholder, disabled }: ClubSelec
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return clubs;
-    return clubs.filter((club) => club.name.toLowerCase().includes(normalized));
-  }, [clubs, query]);
+    const matchingClubs = !normalized
+      ? clubs
+      : clubs.filter((club) => club.name.toLowerCase().includes(normalized));
+    const matchingPriority = !normalized
+      ? priorityNames.filter((n) => n.trim())
+      : priorityNames.filter(
+          (n) => n.trim() && n.toLowerCase().includes(normalized)
+        );
+    const prioritySet = new Set(matchingPriority);
+    const restClubs = matchingClubs.filter((c) => !prioritySet.has(c.name));
+    return [...matchingPriority, ...restClubs.map((c) => c.name)];
+  }, [clubs, query, priorityNames]);
 
   const handleChange = (next: string) => {
     setQuery(next);
@@ -52,23 +63,23 @@ export function ClubSelect({ value, onChange, placeholder, disabled }: ClubSelec
               <div className="px-3 py-2 text-red-600">Nie udało się pobrać klubów.</div>
             )}
             {!isLoading && !isError && filtered.length === 0 && (
-              <div className="px-3 py-2 text-slate-500">Brak wynikow.</div>
+              <div className="px-3 py-2 text-slate-500">Brak wyników.</div>
             )}
             {!isLoading &&
               !isError &&
-              filtered.map((club) => (
+              filtered.map((name) => (
                 <button
-                  key={club.id}
+                  key={name}
                   type="button"
                   className="w-full px-3 py-2 text-left text-slate-700 hover:bg-slate-100"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
-                    onChange(club.name);
-                    setQuery(club.name);
+                    onChange(name);
+                    setQuery(name);
                     setIsOpen(false);
                   }}
                 >
-                  {club.name}
+                  {name}
                 </button>
               ))}
           </div>

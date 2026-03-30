@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { format, parseISO } from "date-fns";
 import type { Player } from "../types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { useDeletePipelineHistoryByPlayer, useDeletePlayer } from "@/features/players/hooks/usePlayers";
 import { useDeleteObservationsByPlayer } from "@/features/observations/hooks/useObservations";
+import { useBodyBuild } from "@/features/dictionaries/hooks/useDictionaries";
 import { toast } from "@/hooks/use-toast";
 
 type PlayerProfileProps = {
@@ -25,6 +27,12 @@ export function PlayerProfile({ player, additionalActions }: PlayerProfileProps)
   const deletePlayer = useDeletePlayer();
   const deleteObservations = useDeleteObservationsByPlayer();
   const deletePipelineHistory = useDeletePipelineHistoryByPlayer();
+  const { data: bodyBuildOptions = [] } = useBodyBuild();
+  const bodyBuildLabel = player.body_build
+    ? (bodyBuildOptions as { code?: string; name_pl?: string }[]).find(
+        (o) => String(o.code) === String(player.body_build)
+      )?.name_pl ?? player.body_build
+    : null;
   const canUseDom = typeof document !== "undefined";
   const statusLabel =
     ALL_PIPELINE_STATUSES.find((column) => column.id === (player.pipeline_status ?? "unassigned"))
@@ -66,6 +74,16 @@ export function PlayerProfile({ player, additionalActions }: PlayerProfileProps)
               <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
                 {player.birth_year}
               </Badge>
+              {player.birth_date && (
+                <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
+                  {format(parseISO(player.birth_date), "dd.MM.yyyy")}
+                </Badge>
+              )}
+              {player.contract_end_date && (
+                <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
+                  Kontrakt do: {format(parseISO(player.contract_end_date), "dd.MM.yyyy")}
+                </Badge>
+              )}
               <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
                 {player.club?.name ?? "Brak klubu"}
               </Badge>
@@ -181,38 +199,36 @@ export function PlayerProfile({ player, additionalActions }: PlayerProfileProps)
           document.body
         )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="space-y-1 p-4">
-            <div className="text-xs text-slate-500">Wzrost</div>
-            <div className="text-lg font-semibold text-slate-900">
-              {player.height_cm ? `${player.height_cm} cm` : "Brak"}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="space-y-1 p-4">
-            <div className="text-xs text-slate-500">Waga</div>
-            <div className="text-lg font-semibold text-slate-900">
-              {player.weight_kg ? `${player.weight_kg} kg` : "Brak"}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="space-y-1 p-4">
-            <div className="text-xs text-slate-500">Preferowana noga</div>
-            <div className="text-lg font-semibold text-slate-900">{footLabel}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="space-y-1 p-4">
-            <div className="text-xs text-slate-500">Narodowosc</div>
-            <div className="text-lg font-semibold text-slate-900">
-              {player.nationality ?? "Brak"}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+            <span>
+              <span className="text-slate-500">Wzrost: </span>
+              <span className="font-semibold text-slate-900">
+                {player.height_cm ? `${player.height_cm} cm` : "Brak"}
+              </span>
+            </span>
+            <span>
+              <span className="text-slate-500">Waga: </span>
+              <span className="font-semibold text-slate-900">
+                {player.weight_kg ? `${player.weight_kg} kg` : "Brak"}
+              </span>
+            </span>
+            <span>
+              <span className="text-slate-500">Preferowana noga: </span>
+              <span className="font-semibold text-slate-900">{footLabel}</span>
+            </span>
+            <span>
+              <span className="text-slate-500">Budowa ciała: </span>
+              <span className="font-semibold text-slate-900">{bodyBuildLabel ?? "Brak"}</span>
+            </span>
+            <span>
+              <span className="text-slate-500">Narodowość: </span>
+              <span className="font-semibold text-slate-900">{player.nationality ?? "Brak"}</span>
+            </span>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
