@@ -296,108 +296,112 @@ export function TaskForm({
         </section>
       )}
 
-      {/* 2. Termin i przypisanie */}
+      {/* 2. Termin i przypisanie (w tym Zaproszenie) */}
       {formData.type && (
         <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 className="text-lg font-semibold text-slate-800">2. Termin i przypisanie</h2>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">
-            Przypisz do użytkownika
-          </label>
-            <Select
-              value={formData.assigned_to || "none"}
-              onValueChange={(v) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  assigned_to: v === "none" ? "" : v,
-                }))
-              }
-            >
-              <SelectTrigger className="w-full max-w-xs">
-                <SelectValue placeholder="Wybierz" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">—</SelectItem>
-                {users.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.full_name?.trim() || u.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <h2 className="text-lg font-semibold text-slate-800">
+            2. Termin i przypisanie
+            {isInvitation && " / Zaproszenie"}
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">
+                Przypisz do użytkownika
+              </label>
+              <Select
+                value={formData.assigned_to || "none"}
+                onValueChange={(v) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    assigned_to: v === "none" ? "" : v,
+                  }))
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Wybierz" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">—</SelectItem>
+                  {users.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.full_name?.trim() || u.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="deadline" className="text-sm font-medium text-slate-700">
+                Deadline
+                {formData.type !== "invitation" && (
+                  <> <span className="text-red-500">*</span></>
+                )}
+              </label>
+              <Input
+                id="deadline"
+                type="date"
+                value={formData.deadline}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, deadline: e.target.value }))
+                }
+              />
+              {errors.deadline && (
+                <p className="text-sm text-red-600">{errors.deadline}</p>
+              )}
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <label htmlFor="deadline" className="text-sm font-medium text-slate-700">
-            Deadline
-            {formData.type !== "invitation" && (
-              <> <span className="text-red-500">*</span></>
-            )}
-          </label>
-            <Input
-              id="deadline"
-              type="date"
-              value={formData.deadline}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, deadline: e.target.value }))
-              }
-            />
-            {errors.deadline && (
-              <p className="text-sm text-red-600">{errors.deadline}</p>
-            )}
-          </div>
+          {isInvitation && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="location" className="text-sm font-medium text-slate-700">
+                  Lokalizacja
+                </label>
+                <Input
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, location: e.target.value }))
+                  }
+                  placeholder="np. Akademia Legia Warszawa, sala konferencyjna"
+                />
+                {errors.location && (
+                  <p className="text-sm text-red-600">{errors.location}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="meeting_date" className="text-sm font-medium text-slate-700">
+                  Data i godzina spotkania
+                </label>
+                <Input
+                  id="meeting_date"
+                  type="datetime-local"
+                  value={formData.meeting_date}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, meeting_date: e.target.value }))
+                  }
+                />
+                {errors.meeting_date && (
+                  <p className="text-sm text-red-600">{errors.meeting_date}</p>
+                )}
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <label htmlFor="inviter_info" className="text-sm font-medium text-slate-700">
+                  Informacje o osobie zapraszającej
+                </label>
+                <Input
+                  id="inviter_info"
+                  value={formData.inviter_info}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, inviter_info: e.target.value }))
+                  }
+                  placeholder="np. Anna Kowalska (matka zawodnika)"
+                />
+              </div>
+            </div>
+          )}
         </section>
-      )}
-
-      {/* 3a: Invitation (w ramach Termin i przypisanie) */}
-      {isInvitation && (
-        <>
-          <div className="space-y-2">
-            <label htmlFor="location" className="text-sm font-medium text-slate-700">
-              Lokalizacja
-            </label>
-            <Input
-              id="location"
-              value={formData.location}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, location: e.target.value }))
-              }
-              placeholder="np. Akademia Legia Warszawa, sala konferencyjna"
-            />
-            {errors.location && (
-              <p className="text-sm text-red-600">{errors.location}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="meeting_date" className="text-sm font-medium text-slate-700">
-              Data i godzina spotkania
-            </label>
-            <Input
-              id="meeting_date"
-              type="datetime-local"
-              value={formData.meeting_date}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, meeting_date: e.target.value }))
-              }
-            />
-            {errors.meeting_date && (
-              <p className="text-sm text-red-600">{errors.meeting_date}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="inviter_info" className="text-sm font-medium text-slate-700">
-              Informacje o osobie zapraszającej
-            </label>
-            <Input
-              id="inviter_info"
-              value={formData.inviter_info}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, inviter_info: e.target.value }))
-              }
-              placeholder="np. Anna Kowalska (matka zawodnika)"
-            />
-          </div>
-        </>
       )}
 
       {/* 3. Obserwacja */}

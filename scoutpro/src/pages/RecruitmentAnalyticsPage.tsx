@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useClubs } from "@/features/players/hooks/usePlayers";
-import { useScouts } from "@/features/users/hooks/useUsers";
+import { useCurrentUserProfile, useScouts } from "@/features/users/hooks/useUsers";
 import { PIPELINE_STATUS_COLORS } from "@/features/pipeline/types";
 import { AGE_CATEGORY_FILTER_OPTIONS } from "@/features/pipeline/utils/ageCategory";
 import { POSITION_OPTIONS } from "@/features/players/positions";
@@ -146,8 +146,9 @@ function isComparisonType(v: string): v is (typeof COMPARISON_OPTIONS)[number] {
 
 export function RecruitmentAnalyticsPage() {
   const { user } = useAuthStore();
+  const { data: profile } = useCurrentUserProfile();
   const { data: clubs = [] } = useClubs();
-  const { data: scouts = [] } = useScouts();
+  const { data: scouts = [] } = useScouts((profile as any)?.area_access);
 
   const [draft, setDraft] = useState<StoredState>(
     () => safeParseState(localStorage.getItem(LS_KEY)) ?? defaultState()

@@ -10,6 +10,7 @@ import {
 } from "@/features/observations/api/evaluationCriteria.api";
 import { fetchObservationCriterionNotes } from "@/features/observations/api/observationCriterionNotes.api";
 import { fetchMatchObservationById } from "@/features/observations/api/matchObservations.api";
+import { fetchObservationMatches } from "@/features/observations/api/observationMatches.api";
 import { usePlayerSources } from "@/features/dictionaries/hooks/useDictionaries";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,6 +95,11 @@ export function ObservationDetailPage() {
       Boolean(observation?.match_observation_id) &&
       observation?.observation_category === "match_player",
   });
+  const { data: observationMatches = [] } = useQuery({
+    queryKey: ["observation-matches", observationId],
+    queryFn: () => fetchObservationMatches(observationId),
+    enabled: Boolean(observationId),
+  });
 
   if (isLoading) {
     return <p className="text-sm text-slate-500">Ładowanie...</p>;
@@ -163,8 +169,6 @@ export function ObservationDetailPage() {
   const awayTeamLabel = observation.away_team?.trim() || matchHeader?.away_team?.trim() || "";
   const matchResultLabel =
     observation.match_result?.trim() || matchHeader?.match_result?.trim() || "—";
-  const locationLabel =
-    observation.location?.trim() || matchHeader?.location?.trim() || "—";
   const matchNotesLabel = matchHeader?.match_notes?.trim() || "";
 
   return (
@@ -391,14 +395,24 @@ export function ObservationDetailPage() {
               <span className="text-slate-600">{matchResultLabel}</span>
             </div>
             <div>
-              <span className="font-medium text-slate-700">Lokalizacja: </span>
-              <span className="text-slate-600">{locationLabel}</span>
-            </div>
-            <div>
               <span className="font-medium text-slate-700">Źródło: </span>
               <span className="text-slate-600">{sourceLabel}</span>
             </div>
           </div>
+          {observation.observation_category === "individual" && observationMatches.length > 0 && (
+            <div className="pt-2">
+              <span className="font-medium text-slate-700">Powiązane mecze: </span>
+              <div className="mt-1 space-y-1 rounded bg-slate-50 p-2 text-sm text-slate-600">
+                {observationMatches.map((m) => (
+                  <div key={m.id}>
+                    {m.match_date} — {(m.home_team ?? "—")} vs {(m.away_team ?? "—")}
+                    {m.match_result ? ` (${m.match_result})` : ""}
+                    {m.competition ? ` • ${m.competition}` : ""}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {matchNotesLabel && (
             <div className="pt-2">
               <span className="font-medium text-slate-700">Notatki do meczu: </span>
@@ -437,29 +451,29 @@ export function ObservationDetailPage() {
       {(effectiveFormType === "academy" || observation.observation_category === "match_player") && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-slate-800">4. Oceny ogólne</CardTitle>
+          <CardTitle className="text-lg font-semibold text-slate-800">4. Oceny ogólne</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {typeof observation.technical_rating === "number" && (
-              <RatingBar label="Technika" value={observation.technical_rating} max={10} />
+              <RatingBar label="Technika (1–5)" value={observation.technical_rating} max={5} />
             )}
             {typeof observation.speed_rating === "number" && (
-              <RatingBar label="Szybkość" value={observation.speed_rating} max={10} />
+              <RatingBar label="Szybkość (1–5)" value={observation.speed_rating} max={5} />
             )}
             {typeof observation.motor_rating === "number" && (
-              <RatingBar label="Motoryka" value={observation.motor_rating} max={10} />
+              <RatingBar label="Motoryka (1–5)" value={observation.motor_rating} max={5} />
             )}
             {typeof observation.tactical_rating === "number" && (
-              <RatingBar label="Taktyka" value={observation.tactical_rating} max={10} />
+              <RatingBar label="Taktyka (1–5)" value={observation.tactical_rating} max={5} />
             )}
             {typeof observation.mental_rating === "number" && (
-              <RatingBar label="Mentalność" value={observation.mental_rating} max={10} />
+              <RatingBar label="Mentalność (1–5)" value={observation.mental_rating} max={5} />
             )}
             {typeof observation.potential_now === "number" && (
-              <RatingBar label="Performance" value={observation.potential_now} max={10} />
+              <RatingBar label="Performance (1–5)" value={observation.potential_now} max={5} />
             )}
             {typeof observation.potential_future === "number" && (
-              <RatingBar label="Potencjał przyszły" value={observation.potential_future} max={10} />
+              <RatingBar label="Potencjał przyszły (1–5)" value={observation.potential_future} max={5} />
             )}
             {typeof observation.overall_rating === "number" && (
               <RatingBar label="Ocena ogólna (1–10)" value={observation.overall_rating} max={10} />

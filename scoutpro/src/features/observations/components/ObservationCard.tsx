@@ -8,6 +8,7 @@ import { formatPosition } from "@/features/players/positions";
 
 type ObservationCardProps = {
   observation: Observation;
+  matchCount?: number;
 };
 
 function getCategoryLabel(category: Observation["observation_category"]): string {
@@ -38,7 +39,7 @@ function getRecommendationLabel(recommendation: Observation["recommendation"]): 
   return "";
 }
 
-export function ObservationCard({ observation }: ObservationCardProps) {
+export function ObservationCard({ observation, matchCount }: ObservationCardProps) {
   const player = observation.player;
   const dateLabel = observation.observation_date
     ? format(parseISO(observation.observation_date), "dd.MM.yyyy")
@@ -74,6 +75,10 @@ export function ObservationCard({ observation }: ObservationCardProps) {
   const hasPotential =
     typeof observation.potential_now === "number" ||
     typeof observation.potential_future === "number";
+  const extraMatches =
+    observation.observation_category === "individual" && typeof matchCount === "number" && matchCount > 1
+      ? matchCount - 1
+      : 0;
 
   return (
     <Link to={`/observations/${observation.id}`} className="block relative">
@@ -129,6 +134,9 @@ export function ObservationCard({ observation }: ObservationCardProps) {
               {(player?.club?.name ?? "Brak klubu") +
                 (observation.competition ? ` • ${observation.competition}` : "")}
             </div>
+            {extraMatches > 0 && (
+              <div className="text-xs text-slate-500">Dane meczowe: pierwszy mecz +{extraMatches}</div>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               {categoryLabel && (
                 <Badge
