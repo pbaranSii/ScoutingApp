@@ -2,9 +2,8 @@
 -- with `row_security` forcibly disabled in the function body.
 -- This prevents any recursive evaluation caused by RLS on public.users.
 
-drop function if exists public.is_admin();
-drop function if exists public.current_area_access();
-drop function if exists public.current_business_role();
+-- IMPORTANT: do not DROP these functions. They are referenced by many RLS policies
+-- and PostgreSQL will block dropping due to dependencies. Use CREATE OR REPLACE below.
 
 create or replace function public.is_admin()
 returns boolean

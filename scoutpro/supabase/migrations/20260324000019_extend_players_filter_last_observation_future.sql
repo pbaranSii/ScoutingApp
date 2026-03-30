@@ -26,4 +26,4 @@ as $$
     and (p_potential_future_max is null or (o.potential_future is not null and o.potential_future <= p_potential_future_max));
 $$;
 
-comment on function public.get_player_ids_by_last_observation is 'Returns player IDs whose most recent observation matches the given recommendation and/or potential_now/potential_future ranges. Used for player list filters.';
+comment on function public.get_player_ids_by_last_observation(text, numeric, numeric, numeric, numeric) is 'Returns player IDs whose most recent observation matches the given recommendation and/or potential_now/potential_future ranges. Used for player list filters.';

@@ -128,17 +128,20 @@ async function exportBundle(supabaseAdmin: any, callerId: string) {
 
   const [{ data: clubs }, { data: regions }, { data: categories }] = await Promise.all([
     clubIds.size
-      ? supabaseAdmin.from("clubs").select("name,area,is_active").in("id", Array.from(clubIds))
+      ? supabaseAdmin.from("clubs").select("id,name,area,is_active").in("id", Array.from(clubIds))
       : Promise.resolve({ data: [] }),
     regionIds.size
-      ? supabaseAdmin.from("regions").select("name,is_active").in("id", Array.from(regionIds))
+      ? supabaseAdmin.from("regions").select("id,name,is_active").in("id", Array.from(regionIds))
       : Promise.resolve({ data: [] }),
     categoryIds.size
-      ? supabaseAdmin.from("categories").select("name,area,is_active").in("id", Array.from(categoryIds))
+      ? supabaseAdmin.from("categories").select("id,name,area,is_active").in("id", Array.from(categoryIds))
       : Promise.resolve({ data: [] }),
   ]);
 
   const usersById = new Map((users ?? []).map((u: any) => [u.id, u]));
+  const clubsById = new Map(((clubs?.data ?? clubs) ?? []).map((c: any) => [String(c.id), c]));
+  const regionsById = new Map(((regions?.data ?? regions) ?? []).map((r: any) => [String(r.id), r]));
+  const categoriesById = new Map(((categories?.data ?? categories) ?? []).map((c: any) => [String(c.id), c]));
 
   const bundle: BundleV1 = {
     bundleVersion: "1.0",
@@ -171,10 +174,10 @@ async function exportBundle(supabaseAdmin: any, callerId: string) {
       primary_position: p.primary_position ?? null,
       secondary_positions: p.secondary_positions ?? null,
       contract_end_date: p.contract_end_date ?? null,
-      club_name: null,
-      region_name: null,
-      age_category_name: null,
-      age_category_area: null,
+      club_name: clubsById.get(String(p.club_id ?? ""))?.name ?? null,
+      region_name: regionsById.get(String(p.region_id ?? ""))?.name ?? null,
+      age_category_name: categoriesById.get(String(p.age_category_id ?? ""))?.name ?? null,
+      age_category_area: categoriesById.get(String(p.age_category_id ?? ""))?.area ?? null,
       created_by_email: usersById.get(p.created_by ?? "")?.email ?? null,
       extras: null,
     })),
@@ -380,119 +383,161 @@ async function upsertRegionsClubsCategories(supabaseAdmin: any, bundle: BundleV1
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
-  if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, { status: 405 });
-
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY");
-  if (!supabaseUrl || !serviceRoleKey) {
-    return jsonResponse({ error: "Missing Supabase environment variables" }, { status: 500 });
-  }
-
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const token = authHeader.replace("Bearer ", "");
-  if (!token) return jsonResponse({ error: "Missing authorization token" }, { status: 401 });
-
-  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
-
-  const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
-  if (authError || !authData?.user) return jsonResponse({ error: "Unauthorized" }, { status: 401 });
-
-  const { data: adminRow, error: adminError } = await supabaseAdmin
-    .from("users")
-    .select("role, is_active")
-    .eq("id", authData.user.id)
-    .single();
-  if (adminError) return jsonResponse({ error: "Unauthorized" }, { status: 401 });
-
+  let stage = "init";
   try {
-    assertAdminCaller({ id: authData.user.id }, adminRow);
-  } catch {
-    return jsonResponse({ error: "Forbidden" }, { status: 403 });
-  }
+    stage = "cors_preflight";
+    if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
+    stage = "method_check";
+    if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, { status: 405 });
 
-  let raw: any;
-  try {
-    raw = await req.json();
-  } catch {
-    return jsonResponse({ error: "Invalid JSON payload" }, { status: 400 });
-  }
+    stage = "env";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceRoleKey) {
+      return jsonResponse({ error: "Missing Supabase environment variables" }, { status: 500 });
+    }
 
-  const action = (raw?.action ?? raw?.body?.action) as Action;
-  if (!action || !["export", "preflight", "commit"].includes(action)) {
-    return jsonResponse({ error: "Invalid action" }, { status: 400 });
-  }
+    stage = "auth_header";
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "");
+    if (!token) return jsonResponse({ error: "Missing authorization token" }, { status: 401 });
 
-  if (action === "export") {
-    const bundle = await exportBundle(supabaseAdmin, authData.user.id);
-    return jsonResponse({ bundle });
-  }
+    stage = "supabase_client";
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
 
-  if (action === "preflight") {
-    const bundle = raw?.bundle ?? raw?.body?.bundle;
-    const report = preflightBundle(bundle);
-    // Persist import_run (preflight) for audit
-    const { data: runRow } = await supabaseAdmin
-      .from("import_runs")
-      .insert({
-        created_by: authData.user.id,
-        bundle_version: String((bundle?.bundleVersion ?? "unknown")),
-        source_instance: String((bundle?.sourceInstance ?? "unknown")),
-        status: report.ok ? "preflight_ok" : "preflight_error",
-        stats: report,
-      })
-      .select("id")
+    stage = "auth_getUser";
+    const { data: authData, error: authError } = await supabaseAdmin.auth.getUser(token);
+    if (authError || !authData?.user) return jsonResponse({ error: "Unauthorized" }, { status: 401 });
+
+    stage = "authorize_admin_row";
+    const { data: adminRow, error: adminError } = await supabaseAdmin
+      .from("users")
+      .select("role, is_active")
+      .eq("id", authData.user.id)
       .single();
-    return jsonResponse({ report, runId: runRow?.id ?? null });
+    if (adminError) return jsonResponse({ error: "Unauthorized" }, { status: 401 });
+
+    stage = "authorize_admin_check";
+    try {
+      assertAdminCaller({ id: authData.user.id }, adminRow);
+    } catch {
+      return jsonResponse({ error: "Forbidden" }, { status: 403 });
+    }
+
+    stage = "parse_json";
+    let raw: any;
+    try {
+      raw = await req.json();
+    } catch {
+      return jsonResponse({ error: "Invalid JSON payload" }, { status: 400 });
+    }
+
+    stage = "validate_action";
+    const action = (raw?.action ?? raw?.body?.action) as Action;
+    if (!action || !["export", "preflight", "commit"].includes(action)) {
+      return jsonResponse({ error: "Invalid action" }, { status: 400 });
+    }
+
+    if (action === "export") {
+      stage = "export";
+      const bundle = await exportBundle(supabaseAdmin, authData.user.id);
+      return jsonResponse({ bundle });
+    }
+
+    if (action === "preflight") {
+      stage = "preflight";
+      const bundle = raw?.bundle ?? raw?.body?.bundle;
+      const report = preflightBundle(bundle);
+      // Persist import_run (preflight) for audit
+      stage = "preflight_insert_import_runs";
+      const { data: runRow } = await supabaseAdmin
+        .from("import_runs")
+        .insert({
+          created_by: authData.user.id,
+          bundle_version: String((bundle?.bundleVersion ?? "unknown")),
+          source_instance: String((bundle?.sourceInstance ?? "unknown")),
+          status: report.ok ? "preflight_ok" : "preflight_error",
+          stats: report,
+        })
+        .select("id")
+        .single();
+      return jsonResponse({ report, runId: runRow?.id ?? null });
+    }
+
+    if (action === "commit") {
+      stage = "commit";
+      const bundle = raw?.bundle ?? raw?.body?.bundle;
+      const runId = raw?.runId ?? raw?.body?.runId;
+      const report = preflightBundle(bundle);
+      if (!report.ok) {
+        return jsonResponse({ error: "Preflight failed; import blocked", report }, { status: 400 });
+      }
+
+      const b = bundle as BundleV1;
+      if (!runId) {
+        return jsonResponse({ error: "runId is required for commit" }, { status: 400 });
+      }
+
+      stage = "commit_update_import_runs_commit_running";
+      await supabaseAdmin.from("import_runs").update({ status: "commit_running" }).eq("id", runId);
+
+      // 1) users mapping / creation (cannot be done inside DB transaction)
+      stage = "commit_ensure_users";
+      const userMap = await ensureUsersByEmail(supabaseAdmin, b.users ?? []);
+      // Persist user map for publish validation / audit
+      stage = "commit_upsert_user_map";
+      for (const u of b.users ?? []) {
+        const email = normalizeEmail(u.email);
+        const target = userMap.get(email) ?? null;
+        if (!email) continue;
+        await supabaseAdmin.from("import_user_map").upsert(
+          {
+            run_id: runId,
+            source_user_id: u.sourceId,
+            source_email: email,
+            target_user_id: target,
+            resolution_status: target ? "mapped" : "unresolved",
+          },
+          { onConflict: "run_id,source_email" }
+        );
+      }
+
+      // 2) stage full bundle snapshot in DB
+      stage = "commit_stage_bundle";
+      await supabaseAdmin.from("import_stg_bundle").upsert({ run_id: runId, bundle: b }, { onConflict: "run_id" });
+      stage = "commit_update_import_runs_staged";
+      await supabaseAdmin.from("import_runs").update({ status: "staged" }).eq("id", runId);
+
+      // 3) publish inside DB transaction (atomic players/observations + refs)
+      stage = "commit_rpc_publish";
+      const { data: publishResult, error: publishErr } = await supabaseAdmin.rpc("admin_data_transfer_publish", {
+        p_run_id: runId,
+      });
+      if (publishErr) throw publishErr;
+
+      return jsonResponse({ status: "ok", publish: publishResult, report });
+    }
+
+    return jsonResponse({ error: "Unhandled action" }, { status: 400 });
+  } catch (err) {
+    const e: any = err;
+    const message =
+      typeof e?.message === "string"
+        ? e.message
+        : typeof err === "string"
+          ? err
+          : "Internal Server Error";
+
+    const extra = {
+      stage,
+      name: typeof e?.name === "string" ? e.name : null,
+      code: e?.code ?? e?.status ?? null,
+      details: e?.details ?? null,
+      hint: e?.hint ?? null,
+    };
+
+    console.error("admin-data-transfer unhandled error", { stage, err });
+    return jsonResponse({ error: message, extra }, { status: 500 });
   }
-
-  if (action === "commit") {
-    const bundle = raw?.bundle ?? raw?.body?.bundle;
-    const runId = raw?.runId ?? raw?.body?.runId;
-    const report = preflightBundle(bundle);
-    if (!report.ok) {
-      return jsonResponse({ error: "Preflight failed; import blocked", report }, { status: 400 });
-    }
-
-    const b = bundle as BundleV1;
-    if (!runId) {
-      return jsonResponse({ error: "runId is required for commit" }, { status: 400 });
-    }
-
-    await supabaseAdmin.from("import_runs").update({ status: "commit_running" }).eq("id", runId);
-
-    // 1) users mapping / creation (cannot be done inside DB transaction)
-    const userMap = await ensureUsersByEmail(supabaseAdmin, b.users ?? []);
-    // Persist user map for publish validation / audit
-    for (const u of b.users ?? []) {
-      const email = normalizeEmail(u.email);
-      const target = userMap.get(email) ?? null;
-      if (!email) continue;
-      await supabaseAdmin.from("import_user_map").upsert(
-        {
-          run_id: runId,
-          source_user_id: u.sourceId,
-          source_email: email,
-          target_user_id: target,
-          resolution_status: target ? "mapped" : "unresolved",
-        },
-        { onConflict: "run_id,source_email" }
-      );
-    }
-
-    // 2) stage full bundle snapshot in DB
-    await supabaseAdmin.from("import_stg_bundle").upsert({ run_id: runId, bundle: b }, { onConflict: "run_id" });
-    await supabaseAdmin.from("import_runs").update({ status: "staged" }).eq("id", runId);
-
-    // 3) publish inside DB transaction (atomic players/observations + refs)
-    const { data: publishResult, error: publishErr } = await supabaseAdmin.rpc("admin_data_transfer_publish", {
-      p_run_id: runId,
-    });
-    if (publishErr) throw publishErr;
-
-    return jsonResponse({ status: "ok", publish: publishResult, report });
-  }
-
-  return jsonResponse({ error: "Unhandled action" }, { status: 400 });
 });
 
