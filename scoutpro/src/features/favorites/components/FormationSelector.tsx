@@ -1,25 +1,64 @@
+import React from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FORMATION_OPTIONS } from "../types";
-import type { FormationCode } from "../types";
+import { useFormations, useDefaultFormation } from "@/features/tactical/hooks/useFormations";
+
+export type FormationSelection = {
+  formation_id: string | null;
+  formation: string;
+};
 
 type FormationSelectorProps = {
-  value: FormationCode;
-  onChange: (value: FormationCode) => void;
+  value: FormationSelection;
+  onChange: (value: FormationSelection) => void;
   disabled?: boolean;
 };
 
 export function FormationSelector({ value, onChange, disabled }: FormationSelectorProps) {
+  const { data: formations = [] } = useFormations();
+  const { data: defaultFormation } = useDefaultFormation();
+  const defaultId = defaultFormation?.id ?? null;
+
+  const orderedFormations = React.useMemo(() => {
+    if (!defaultId) return formations;
+    const def = formations.find((f) => f.id === defaultId);
+    const rest = formations.filter((f) => f.id !== defaultId);
+    return def ? [def, ...rest] : formations;
+  }, [formations, defaultId]);
+
+  const selectValue =
+    value.formation_id ??
+    (value.formation ? formations.find((f) => f.code === value.formation)?.id : null) ??
+    defaultId ??
+    "__none";
+
+  const handleChange = (v: string) => {
+    if (!v || v === "__none") return;
+    const f = formations.find((x) => x.id === v);
+    if (f) onChange({ formation_id: f.id, formation: f.code });
+    else onChange({ formation_id: null, formation: "4-4-2" });
+  };
+
   return (
-    <Select value={value} onValueChange={(v) => onChange(v as FormationCode)} disabled={disabled}>
-      <SelectTrigger className="w-[140px]">
-        <SelectValue placeholder="Formacja" />
+    <Select
+      value={selectValue || (defaultId ?? "__none")}
+      onValueChange={handleChange}
+      disabled={disabled}
+    >
+      <SelectTrigger className="min-w-[260px] w-[280px]">
+        <SelectValue placeholder="Schemat taktyczny" />
       </SelectTrigger>
       <SelectContent>
-        {FORMATION_OPTIONS.map((opt) => (
-          <SelectItem key={opt.value} value={opt.value}>
-            {opt.label}
+        {orderedFormations.length === 0 ? (
+          <SelectItem value="__none" disabled>
+            Brak schematów – dodaj w Ustawienia → Schematy taktyczne
           </SelectItem>
-        ))}
+        ) : (
+          orderedFormations.map((f) => (
+            <SelectItem key={f.id} value={f.id}>
+              {f.name}
+            </SelectItem>
+          ))
+        )}
       </SelectContent>
     </Select>
   );

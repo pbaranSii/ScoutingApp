@@ -1,27 +1,27 @@
-## Zarzadzanie uzytkownikami i rolami
+## Zarządzanie użytkownikami i rolami
 
 ### Role w systemie
 
-- Scout: Obserwacje i raporty zawodnikow.
-- Trener: Dostep do obserwacji i zarzadzanie treningami.
-- Dyrektor Sportowy: Pelny dostep do pipeline i decyzji rekrutacyjnych.
-- Zawieszony: Brak dostepu do aplikacji.
-- Administrator: Pelna kontrola nad systemem i uzytkownikami.
+- Scout: Obserwacje i raporty zawodników.
+- Trener: Dostęp do obserwacji i zarządzanie treningami.
+- Dyrektor Sportowy: Pełny dostęp do pipeline i decyzji rekrutacyjnych.
+- Zawieszony: Brak dostępu do aplikacji.
+- Administrator: Pełna kontrola nad systemem i użytkownikami.
 
-### Zasady dostepu
+### Zasady dostępu
 
-- Administrator widzi zarzadzanie uzytkownikami w ustawieniach.
-- Pozostale role maja dostep do funkcji aplikacji, ale bez zarzadzania uzytkownikami.
-- Zawieszenie lub usuniecie dostepu oznacza ustawienie konta jako nieaktywne (uzytkownik nie zaloguje sie do aplikacji).
-- Dane i opinie wprowadzone przez zawieszonego uzytkownika pozostaja widoczne.
+- Administrator widzi zarządzanie użytkownikami w ustawieniach.
+- Pozostałe role mają dostęp do funkcji aplikacji, ale bez zarządzania użytkownikami.
+- Zawieszenie lub usunięcie dostępu oznacza ustawienie konta jako nieaktywne (użytkownik nie zaloguje się do aplikacji).
+- Dane i opinie wprowadzone przez zawieszonego użytkownika pozostają widoczne.
 
 ### Operacje administratora
 
-- Dodanie uzytkownika z imieniem, nazwiskiem, emailem i rola (domyslnie Scout).
-- Edycja danych uzytkownika oraz zmiana roli.
-- Reset hasla u wybranego uzytkownika.
-- Zawieszenie lub przywrocenie dostepu do aplikacji.
+- Dodanie użytkownika z imieniem, nazwiskiem, e-mailem i rolą (domyślnie Scout).
+- Edycja danych użytkownika oraz zmiana roli.
+- Reset hasła u wybranego użytkownika.
+- Zawieszenie lub przywrócenie dostępu do aplikacji.
 
-### Zmiana hasla (uzytkownik)
+### Zmiana hasła (użytkownik)
 
-- W ustawieniach aplikacji kazdy uzytkownik moze samodzielnie ustawic nowe haslo.
+- W ustawieniach aplikacji każdy użytkownik może samodzielnie ustawić nowe hasło.

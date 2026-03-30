@@ -56,7 +56,7 @@ export function InviteForm({ onSuccess }: InviteFormProps) {
     if (!res.ok) {
       setStatus("error");
       setErrorMessage(
-        msg ?? `Blad ${res.status}. Zaloguj sie ponownie lub skontaktuj sie z administratorem.`
+        msg ?? `Błąd ${res.status}. Zaloguj się ponownie lub skontaktuj się z administratorem.`
       );
       return;
     }

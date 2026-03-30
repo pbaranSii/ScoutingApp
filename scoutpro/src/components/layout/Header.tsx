@@ -1,6 +1,13 @@
-import { LogOut, User } from "lucide-react";
+import { Link } from "react-router-dom";
+import { LogOut, User, Settings, Star, ChevronDown } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import logo from "@/assets/logo.png";
 
 export function Header() {
@@ -19,14 +26,34 @@ export function Header() {
           <div className="text-[11px] text-slate-500">System scoutingowy</div>
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        <div className="hidden items-center gap-2 text-sm text-slate-600 sm:flex">
-          <User className="h-4 w-4" />
-          <span>{user?.email ?? "Uzytkownik"}</span>
-        </div>
-        <Button variant="ghost" size="icon" onClick={logout} aria-label="Wyloguj">
-          <LogOut className="h-4 w-4" />
-        </Button>
+      <div className="flex items-center gap-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              <span className="hidden max-w-[120px] truncate sm:inline">{user?.email ?? "Użytkownik"}</span>
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem asChild>
+              <Link to="/settings" className="flex cursor-pointer items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Ustawienia
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/survey/satisfaction" className="flex cursor-pointer items-center gap-2">
+                <Star className="h-4 w-4" />
+                Oceń aplikację
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => void logout()} className="flex items-center gap-2">
+              <LogOut className="h-4 w-4" />
+              Wyloguj się
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

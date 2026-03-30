@@ -27,9 +27,17 @@ Gdy masz zmiany na gałęzi feature (np. feature/metrics-recruitment-funnel) i c
 5. git push origin develop – wypchnij develop na origin
 Alternatywa (gdy develop jest w innym worktree): wykonaj kroki 2–5 w katalogu worktree, gdzie jest sprawdzony develop.
 
----
+Po merge – żeby zmiany były widoczne w aplikacji na http://localhost:5173
 
-Produkcja (master + Vercel)
+- Po zmergowaniu gałęzi feature do develop i wypchnięciu develop na origin, w **głównym katalogu projektu** (ScoutApp) wykonaj: `git checkout develop`. Następnie uruchom aplikację z katalogu `scoutpro/`: `cd scoutpro` (lub z głównego: `cd scoutpro ; npm run dev`). W ten sposób zobaczysz zmiany z develop.
+- Jeśli w głównym katalogu był wcześniej checkout na `master`, to `npm run dev` pokazywał wersję z master (bez nowych funkcji). Przełącz się na `develop` i uruchom ponownie `npm run dev` z `scoutpro/`.
+- Obecne podejście: jeden katalog repozytorium; po merge do develop wystarczy `git checkout develop` w tym katalogu i uruchomienie `npm run dev` z `scoutpro/`. Nie jest wymagany osobny worktree (np. ScoutApp-develop); jeśli taki worktree był używany w przeszłości, można go usunąć.
+
+Instrukcja na przyszłość (dla merge + zamykanie gałęzi):
+
+- Po merge do develop i pushu: jeśli chcesz „zamknąć” gałąź feature (usunąć ją lokalnie i na origin), w głównym katalogu możesz wykonać `git checkout develop` i usunąć gałąź feature (`git branch -d <nazwa>`, `git push origin --delete <nazwa>`). Zostaniesz na develop; uruchom `npm run dev` z `scoutpro/`, aby widzieć zmergowane zmiany.
+- Gdy chcesz wdrożyć na produkcję: merge develop do master, push master; zob. runbook [documentation/runbooks/deploy-dev-to-prod.md](../documentation/runbooks/deploy-dev-to-prod.md).
+
 Gdy chcesz: „Commit + push na branch main w jednej wersji i zaaktualizuj projekt na produkcji (Vercel)” – w tym repo branch produkcyjny to master (nie main). Zrobię:
 1. git checkout master ; git pull origin master
 2. git merge develop -m "Merge develop: ..."

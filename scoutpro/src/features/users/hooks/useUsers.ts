@@ -9,7 +9,7 @@ import {
   updateUserAsAdmin,
   updateUserStatus,
 } from "../api/users.api";
-import type { BusinessRole } from "../types";
+import type { AreaAccess, BusinessRole } from "../types";
 
 export function useUsers() {
   return useQuery({
@@ -18,10 +18,11 @@ export function useUsers() {
   });
 }
 
-export function useScouts() {
+export function useScouts(areaAccess?: AreaAccess) {
   return useQuery({
-    queryKey: ["scouts"],
-    queryFn: fetchScouts,
+    queryKey: ["scouts", areaAccess ?? "ALL"],
+    queryFn: () => fetchScouts(areaAccess),
+    enabled: areaAccess != null,
   });
 }
 
@@ -43,6 +44,7 @@ export function useCreateUser() {
       first_name?: string | null;
       last_name?: string | null;
       business_role?: BusinessRole;
+      area_access?: AreaAccess;
     }) => createUserDirect(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
@@ -59,6 +61,7 @@ export function useUpdateUser() {
       first_name?: string | null;
       last_name?: string | null;
       business_role?: BusinessRole;
+      area_access?: AreaAccess;
       is_active?: boolean | null;
     }) =>
       updateUserAsAdmin({
@@ -67,6 +70,7 @@ export function useUpdateUser() {
         first_name: input.first_name,
         last_name: input.last_name,
         business_role: input.business_role,
+        area_access: input.area_access,
       }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["users"] });

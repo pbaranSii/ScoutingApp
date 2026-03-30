@@ -12,17 +12,53 @@ import type { Observation, ObservationInput } from "../types";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { offlineDb } from "@/features/offline/db/offlineDb";
 
-export function useObservations() {
+export type UseObservationsOptions = {
+  page?: number;
+  pageSize?: number;
+  scoutId?: string;
+};
+
+export function useObservations(options?: UseObservationsOptions) {
   const isOnline = useOnlineStatus();
-  return useQuery({
-    queryKey: ["observations"],
-    queryFn: async () => {
+  const usePagination = options?.page != null || options?.pageSize != null;
+  const page = options?.page ?? 1;
+  const pageSize = options?.pageSize ?? 100;
+
+  const query = useQuery({
+    queryKey: ["observations", options],
+    queryFn: async (): Promise<{ data: Observation[]; total?: number }> => {
       if (!isOnline) {
         const cached = await offlineDb.cachedObservations.toArray();
-        return cached.map((item) => item.data) as Observation[];
+        let all = cached.map((item) => item.data) as Observation[];
+        if (options?.scoutId) {
+          all = all.filter((o) => o.scout_id === options.scoutId);
+        }
+        if (usePagination) {
+          const from = (page - 1) * pageSize;
+          return { data: all.slice(from, from + pageSize), total: all.length };
+        }
+        return { data: all };
       }
 
-      const observations = await fetchObservations();
+      const result = await fetchObservations(
+        usePagination
+          ? { page, pageSize, scoutId: options?.scoutId }
+          : options?.scoutId
+            ? { scoutId: options.scoutId }
+            : undefined
+      );
+      if (Array.isArray(result)) {
+        const now = new Date();
+        await offlineDb.cachedObservations.bulkPut(
+          result.map((obs) => ({
+            id: obs.id,
+            data: obs,
+            cachedAt: now,
+          }))
+        );
+        return { data: result };
+      }
+      const { data: observations, total: totalCount } = result;
       const now = new Date();
       await offlineDb.cachedObservations.bulkPut(
         observations.map((obs) => ({
@@ -31,9 +67,19 @@ export function useObservations() {
           cachedAt: now,
         }))
       );
-      return observations;
+      return { data: observations, total: totalCount };
     },
   });
+
+  const rawData = query.data;
+  const data = rawData?.data ?? [];
+  const total = rawData?.total;
+
+  return {
+    ...query,
+    data,
+    total,
+  };
 }
 
 export function useObservationsByPlayer(playerId: string) {
@@ -78,6 +124,17 @@ export function useUpdateObservation() {
   });
 }
 
+function isObservationsListCache(
+  value: unknown
+): value is { data: Observation[]; total?: number } {
+  return (
+    value != null &&
+    typeof value === "object" &&
+    "data" in value &&
+    Array.isArray((value as { data: Observation[] }).data)
+  );
+}
+
 export function useDeleteObservation() {
   const queryClient = useQueryClient();
 
@@ -86,8 +143,18 @@ export function useDeleteObservation() {
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ["observations"] });
       queryClient.invalidateQueries({ queryKey: ["observations", "player"] });
-      queryClient.setQueryData<Observation[] | undefined>(["observations"], (observations) =>
-        observations?.filter((observation) => observation.id !== id)
+      queryClient.setQueriesData(
+        { queryKey: ["observations"], exact: false },
+        (prev: unknown) => {
+          if (isObservationsListCache(prev)) {
+            const next = prev.data.filter((obs) => obs.id !== id);
+            return { ...prev, data: next, total: (prev.total ?? prev.data.length) - 1 };
+          }
+          if (Array.isArray(prev)) {
+            return prev.filter((obs: Observation) => obs.id !== id);
+          }
+          return prev;
+        }
       );
       queryClient.setQueriesData<Observation[] | undefined>(
         { queryKey: ["observations", "player"], exact: false },
@@ -109,8 +176,23 @@ export function useDeleteObservationsByPlayer() {
     onSuccess: async (_data, playerId) => {
       queryClient.invalidateQueries({ queryKey: ["observations"] });
       queryClient.invalidateQueries({ queryKey: ["observations", "player", playerId] });
-      queryClient.setQueryData<Observation[] | undefined>(["observations"], (observations) =>
-        observations?.filter((observation) => observation.player_id !== playerId)
+      queryClient.setQueriesData(
+        { queryKey: ["observations"], exact: false },
+        (prev: unknown) => {
+          if (isObservationsListCache(prev)) {
+            const next = prev.data.filter((obs) => obs.player_id !== playerId);
+            const removed = prev.data.length - next.length;
+            return {
+              ...prev,
+              data: next,
+              total: prev.total != null ? Math.max(0, prev.total - removed) : undefined,
+            };
+          }
+          if (Array.isArray(prev)) {
+            return prev.filter((obs: Observation) => obs.player_id !== playerId);
+          }
+          return prev;
+        }
       );
       queryClient.removeQueries({ queryKey: ["observations", "player", playerId] });
 

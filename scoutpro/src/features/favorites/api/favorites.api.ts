@@ -9,23 +9,19 @@ export async function fetchFavoriteLists(filter: FavoriteListFilter = "mine"): P
 
   let query = supabase
     .from("favorite_lists")
-    .select("id, name, description, owner_id, formation, region_id, last_used_at, created_at, updated_at")
+    .select("id, name, description, owner_id, formation, formation_id, region_id, last_used_at, created_at, updated_at, slot_assignments")
     .order("last_used_at", { ascending: false, nullsFirst: false });
 
   if (filter === "mine") {
     if (uid) query = query.eq("owner_id", uid.id);
   } else if (filter === "shared") {
     if (uid) {
-      const [collabRes, userRes] = await Promise.all([
-        supabase.from("favorite_list_collaborators").select("list_id").eq("user_id", uid.id),
-        supabase.from("users").select("region_id").eq("id", uid.id).maybeSingle(),
-      ]);
+      const collabRes = await supabase
+        .from("favorite_list_collaborators")
+        .select("list_id")
+        .eq("user_id", uid.id);
       const listIds = (collabRes.data ?? []).map((c) => c.list_id).filter(Boolean);
-      const myRegionId = userRes.data?.region_id ?? null;
-      const orParts: string[] = [];
-      if (listIds.length > 0) orParts.push(`id.in.(${listIds.join(",")})`);
-      if (myRegionId) orParts.push(`region_id.eq.${myRegionId}`);
-      if (orParts.length > 0) query = query.or(orParts.join(","));
+      if (listIds.length > 0) query = query.in("id", listIds);
       else query = query.eq("id", "00000000-0000-0000-0000-000000000000");
     }
   }
@@ -49,7 +45,7 @@ export async function fetchFavoriteLists(filter: FavoriteListFilter = "mine"): P
 export async function fetchFavoriteListById(id: string): Promise<FavoriteList | null> {
   const { data, error } = await supabase
     .from("favorite_lists")
-    .select("id, name, description, owner_id, formation, region_id, last_used_at, created_at, updated_at")
+    .select("id, name, description, owner_id, formation, formation_id, region_id, last_used_at, created_at, updated_at, slot_assignments")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -65,7 +61,7 @@ export async function createFavoriteList(input: {
   name: string;
   description?: string | null;
   formation?: string;
-  region_id?: string | null;
+  formation_id?: string | null;
 }): Promise<FavoriteList> {
   const { data: authUser } = await supabase.auth.getUser();
   const uid = authUser?.user ?? null;
@@ -83,7 +79,8 @@ export async function createFavoriteList(input: {
       name: input.name.trim().slice(0, 100),
       description: input.description?.trim().slice(0, 500) || null,
       formation: input.formation ?? "4-4-2",
-      region_id: input.region_id || null,
+      formation_id: input.formation_id ?? null,
+      region_id: null,
       owner_id: uid.id,
     })
     .select()
@@ -94,13 +91,20 @@ export async function createFavoriteList(input: {
 
 export async function updateFavoriteList(
   id: string,
-  input: { name?: string; description?: string | null; formation?: string; region_id?: string | null }
+  input: {
+    name?: string;
+    description?: string | null;
+    formation?: string;
+    formation_id?: string | null;
+    slot_assignments?: Record<string, string[]> | null;
+  }
 ): Promise<FavoriteList> {
   const payload: Record<string, unknown> = {};
   if (input.name !== undefined) payload.name = input.name.trim().slice(0, 100);
   if (input.description !== undefined) payload.description = input.description?.trim().slice(0, 500) || null;
   if (input.formation !== undefined) payload.formation = input.formation;
-  if (input.region_id !== undefined) payload.region_id = input.region_id || null;
+  if (input.formation_id !== undefined) payload.formation_id = input.formation_id ?? null;
+  if (input.slot_assignments !== undefined) payload.slot_assignments = input.slot_assignments ?? {};
 
   const { data, error } = await supabase.from("favorite_lists").update(payload).eq("id", id).select().single();
   if (error) throw error;

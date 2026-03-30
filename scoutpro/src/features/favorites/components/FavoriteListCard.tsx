@@ -49,7 +49,7 @@ export function FavoriteListCard({ list, isOwner, onEdit, onDelete }: FavoriteLi
                 )}
               </div>
               <p className="mt-1 text-sm text-slate-500">
-                {count} zawodników · {list.formation}
+                {count} zawodników · {(list.formations?.name ?? list.formation) || "—"}
               </p>
               <p className="mt-0.5 text-xs text-slate-400">
                 {ownerName} · {lastUsed}

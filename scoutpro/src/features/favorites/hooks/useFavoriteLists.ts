@@ -27,8 +27,12 @@ export function useFavoriteList(id: string | null) {
 export function useCreateFavoriteList() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { name: string; description?: string | null; formation?: string; region_id?: string | null }) =>
-      createFavoriteList(input),
+    mutationFn: (input: {
+      name: string;
+      description?: string | null;
+      formation?: string;
+      formation_id?: string | null;
+    }) => createFavoriteList(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["favorite-lists"] });
     },
@@ -43,7 +47,13 @@ export function useUpdateFavoriteList() {
       input,
     }: {
       id: string;
-      input: { name?: string; description?: string | null; formation?: string; region_id?: string | null };
+      input: {
+        name?: string;
+        description?: string | null;
+        formation?: string;
+        formation_id?: string | null;
+        slot_assignments?: Record<string, string[]> | null;
+      };
     }) => updateFavoriteList(id, input),
     onSuccess: (updated: FavoriteList) => {
       queryClient.invalidateQueries({ queryKey: ["favorite-lists"] });
