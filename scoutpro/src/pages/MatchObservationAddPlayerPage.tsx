@@ -47,8 +47,15 @@ export function MatchObservationAddPlayerPage() {
           last_name: slot.last_name.trim(),
           birth_year: slot.birth_year,
           birth_date: slot.birth_date?.trim() || null,
+          nationality: slot.nationality?.trim() || null,
+          body_build: slot.body_build?.trim() || null,
           primary_position: slot.primary_position,
+          contract_end_date: slot.contract_end_date?.trim() || null,
+          club_formation: slot.club_formation?.trim() || null,
           club_id: clubId ?? undefined,
+          agent_name: slot.agent_name?.trim() || null,
+          agent_phone: slot.agent_phone?.trim() || null,
+          agent_email: slot.agent_email?.trim() || null,
           pipeline_status: "unassigned",
         });
         playerId = created.id;
@@ -61,7 +68,14 @@ export function MatchObservationAddPlayerPage() {
             birth_year: slot.birth_year,
             birth_date: slot.birth_date?.trim() || null,
             primary_position: slot.primary_position,
+            nationality: slot.nationality?.trim() || null,
+            body_build: slot.body_build?.trim() || null,
+            contract_end_date: slot.contract_end_date?.trim() || null,
+            club_formation: slot.club_formation?.trim() || null,
             club_id: clubId ?? null,
+            agent_name: slot.agent_name?.trim() || null,
+            agent_phone: slot.agent_phone?.trim() || null,
+            agent_email: slot.agent_email?.trim() || null,
           },
         });
       }

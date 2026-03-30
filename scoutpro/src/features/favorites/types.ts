@@ -18,7 +18,7 @@ export interface FavoriteList {
   formations?: { id: string; name: string; code: string } | null;
   formation_ref?: { id: string; name: string; code: string } | null;
   /** Ręczne przypisania slot -> player_id (slotKey: f_<formation_id>_index lub l_<formation>_index). */
-  slot_assignments?: Record<string, string> | null;
+  slot_assignments?: Record<string, string[]> | null;
   players_count?: number;
   average_rating?: number | null;
   is_collaborator?: boolean;

@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { MoreHorizontal, Pencil, Key, Trash2, UserX } from "lucide-react";
-import { BUSINESS_ROLE_LABELS, type BusinessRole, type UserProfile } from "../types";
+import { BUSINESS_ROLE_LABELS, type AreaAccess, type BusinessRole, type UserProfile } from "../types";
 import {
   useCreateUser,
   useSetUserPassword,
@@ -28,6 +28,12 @@ const splitFullName = (fullName?: string | null) => {
   const first_name = parts.shift() ?? "";
   const last_name = parts.join(" ");
   return { first_name, last_name };
+};
+
+const AREA_ACCESS_LABELS: Record<AreaAccess, string> = {
+  AKADEMIA: "Obszar: Akademia",
+  SENIOR: "Obszar: Senior",
+  ALL: "Obszar: Wszystkie",
 };
 
 export function UserManagement() {
@@ -56,6 +62,7 @@ export function UserManagement() {
         first_name: values.first_name,
         last_name: values.last_name,
         business_role: values.business_role,
+        area_access: values.area_access,
       });
       toast({ title: "Utworzono użytkownika" });
       setIsCreateOpen(false);
@@ -75,6 +82,7 @@ export function UserManagement() {
         first_name: values.first_name,
         last_name: values.last_name,
         business_role: values.business_role,
+        area_access: values.area_access,
       });
       toast({ title: "Zaktualizowano użytkownika" });
       setEditUser(null);
@@ -171,6 +179,8 @@ export function UserManagement() {
             const businessRole = user.business_role as BusinessRole;
             const roleMeta = BUSINESS_ROLE_LABELS[businessRole];
             const isSuspended = !user.is_active;
+            const areaAccess =
+              (user as UserProfile & { area_access?: AreaAccess }).area_access ?? "AKADEMIA";
             const displayRole =
               businessRole === "suspended"
                 ? "Zawieszony"
@@ -189,6 +199,9 @@ export function UserManagement() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
                         {displayRole}
+                      </Badge>
+                      <Badge className="rounded-full bg-indigo-100 px-2 text-xs text-indigo-700 hover:bg-indigo-100">
+                        {AREA_ACCESS_LABELS[areaAccess]}
                       </Badge>
                       <Badge
                         className={
@@ -284,12 +297,14 @@ export function UserManagement() {
                     last_name: "",
                     email: "",
                     business_role: "scout",
+                    area_access: "AKADEMIA",
                     password: "",
                   }}
                   includePassword
                   submitLabel="Dodaj"
                   isSubmitting={createUser.isPending}
                   onSubmit={handleCreate}
+                  allowAllAreaAccess
                 />
               </div>
             </div>
@@ -325,12 +340,14 @@ export function UserManagement() {
                     business_role: roleOptions.includes(editUser.business_role as BusinessRole)
                       ? (editUser.business_role as BusinessRole)
                       : "scout",
+                    area_access: (editUser as UserProfile & { area_access?: "AKADEMIA" | "SENIOR" | "ALL" }).area_access ?? "AKADEMIA",
                     password: "",
                   }}
                   submitLabel="Zapisz zmiany"
                   isSubmitting={updateUser.isPending}
                   emailReadOnly={true}
                   onSubmit={(values) => handleUpdate(editUser.id, values)}
+                  allowAllAreaAccess
                 />
               </div>
             </div>

@@ -51,6 +51,7 @@ import { TacticalFormationsListPage } from "@/pages/TacticalFormationsListPage";
 import { TacticalPositionDictionaryPage } from "@/pages/TacticalPositionDictionaryPage";
 import { FormTemplatesPage } from "@/pages/FormTemplatesPage";
 import { FormationEditorPage } from "@/pages/FormationEditorPage";
+import { AdminDataTransferPage } from "@/pages/AdminDataTransferPage";
 
 export default function App() {
   useAuth();
@@ -111,6 +112,7 @@ export default function App() {
               <Route path="users" element={<SettingsUsersPage />} />
               <Route path="admin/usage-statistics" element={<UsageStatisticsPage />} />
               <Route path="admin/user-satisfaction" element={<AdminSurveyResultsPage />} />
+              <Route path="admin/data-transfer" element={<AdminDataTransferPage />} />
               <Route path="tactical/formations" element={<TacticalFormationsListPage />} />
               <Route path="tactical/formations/new" element={<FormationEditorPage />} />
               <Route path="tactical/formations/:id" element={<FormationEditorPage />} />

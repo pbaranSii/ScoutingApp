@@ -8,12 +8,22 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useUsageTrends } from "../hooks/useUsageStatistics";
 import type { TrendsFilters } from "../types";
 
 const MEDAL = ["🥇", "🥈", "🥉"];
+
+function asNumber(value: ValueType | undefined): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
 
 export function TrendsTab() {
   const today = new Date();
@@ -82,7 +92,10 @@ export function TrendsTab() {
                     <XAxis dataKey="bucketLabel" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip
-                      formatter={(value: number | undefined) => [value ?? 0, "Aktywni"]}
+                      formatter={(value: ValueType | undefined, _name: NameType | undefined) => [
+                        asNumber(value),
+                        "Aktywni",
+                      ]}
                       labelFormatter={(label) => `Data: ${label}`}
                     />
                     <Line
@@ -108,7 +121,10 @@ export function TrendsTab() {
                     <XAxis dataKey="bucketLabel" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip
-                      formatter={(value: number | undefined) => [value ?? 0, "Obserwacje"]}
+                      formatter={(value: ValueType | undefined, _name: NameType | undefined) => [
+                        asNumber(value),
+                        "Obserwacje",
+                      ]}
                       labelFormatter={(label) => `Data: ${label}`}
                     />
                     <Line
@@ -134,7 +150,10 @@ export function TrendsTab() {
                     <XAxis dataKey="bucketLabel" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip
-                      formatter={(value: number | undefined) => [`${value ?? 0} min`, "Średni czas"]}
+                      formatter={(value: ValueType | undefined, _name: NameType | undefined) => [
+                        `${asNumber(value)} min`,
+                        "Średni czas",
+                      ]}
                       labelFormatter={(label) => `Data: ${label}`}
                     />
                     <Line

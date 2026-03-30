@@ -17,6 +17,7 @@ import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { offlineDb } from "@/features/offline/db/offlineDb";
 import { normalizePipelineStatus } from "@/features/pipeline/types";
 import { useAuthStore } from "@/stores/authStore";
+import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 
 export function usePlayers(filters?: PlayersFilters) {
   const isOnline = useOnlineStatus();
@@ -81,9 +82,12 @@ export function usePlayers(filters?: PlayersFilters) {
 }
 
 export function useClubs() {
+  const { data: currentUser } = useCurrentUserProfile();
+  const areaAccess =
+    (currentUser as { area_access?: "AKADEMIA" | "SENIOR" | "ALL" } | null)?.area_access ?? "AKADEMIA";
   return useQuery({
-    queryKey: ["clubs"],
-    queryFn: fetchClubs,
+    queryKey: ["clubs", areaAccess],
+    queryFn: () => fetchClubs(areaAccess),
   });
 }
 
@@ -110,7 +114,7 @@ export function useUpdatePlayer() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: PlayerInput }) =>
+    mutationFn: ({ id, input }: { id: string; input: Partial<PlayerInput> }) =>
       updatePlayer(id, input),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["players"] });
