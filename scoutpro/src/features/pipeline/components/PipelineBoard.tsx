@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -9,10 +9,14 @@ import {
 import type { DragEndEvent, DragOverEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import type { Player } from "@/features/players/types";
-import { PIPELINE_BOARD_COLUMNS } from "../types";
+import type { PlayersFilters } from "@/features/players/api/players.api";
+import { PIPELINE_BOARD_COLUMNS, getStatusDotClass } from "../types";
+import type { PipelineStatus } from "../types";
+import { usePipelineEnrichment } from "../hooks/usePipelineEnrichment";
 import { PipelineColumn } from "./PipelineColumn";
 import { usePlayers, useUpdatePlayerStatus } from "@/features/players/hooks/usePlayers";
 import { toast } from "@/hooks/use-toast";
+import type { PipelineFiltersState } from "./PipelineFiltersPanel";
 
 type BoardColumnId = (typeof PIPELINE_BOARD_COLUMNS)[number]["id"];
 type ColumnState = Record<BoardColumnId, Player[]>;
@@ -34,13 +38,38 @@ function findColumnByPlayerId(playerId: string, columns: ColumnState): BoardColu
   )?.id;
 }
 
+function toPlayersFilters(filters: PipelineFiltersState): PlayersFilters {
+  const f: PlayersFilters = {};
+  if (filters.status) f.status = filters.status as PlayersFilters["status"];
+  if (filters.birthYear) f.birthYear = Number(filters.birthYear);
+  if (filters.scoutId) f.scoutId = filters.scoutId;
+  if (filters.position) f.primary_position = filters.position;
+  if (filters.clubId) f.clubIds = [filters.clubId];
+  // Pipeline nie wykorzystuje `observation_count`, więc wyłączamy koszt agregacji.
+  f.includeObservationCount = false;
+  return f;
+}
+
 type PipelineBoardProps = {
   search?: string;
+  filters?: PipelineFiltersState;
 };
 
-export function PipelineBoard({ search = "" }: PipelineBoardProps) {
+const DEFAULT_FILTERS: PipelineFiltersState = {
+  status: "",
+  birthYear: "",
+  scoutId: "",
+  position: "",
+  clubId: "",
+};
+
+export function PipelineBoard({ search = "", filters = DEFAULT_FILTERS }: PipelineBoardProps) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
-  const { data, isLoading } = usePlayers();
+  const playersFilters = useMemo(
+    () => toPlayersFilters(filters),
+    [filters.status, filters.birthYear, filters.scoutId, filters.position, filters.clubId]
+  );
+  const { data, isLoading } = usePlayers(playersFilters);
   const players = data ?? EMPTY_PLAYERS;
   const { mutateAsync: updateStatus } = useUpdatePlayerStatus();
   const [columns, setColumns] = useState<ColumnState>(() => groupByStatus([]));
@@ -56,10 +85,24 @@ export function PipelineBoard({ search = "" }: PipelineBoardProps) {
   }, [players, search]);
 
   const initialColumns = useMemo(() => groupByStatus(filteredPlayers), [filteredPlayers]);
+  const { statusSince, latestRating } = usePipelineEnrichment(filteredPlayers);
+
+  // Stable key so useEffect runs when the board content actually changes:
+  // - include pipeline_status so a programmatic update (e.g. modal "add") is reflected.
+  const filteredPlayersKey = useMemo(
+    () =>
+      filteredPlayers
+        .map((p) => `${p.id}:${p.pipeline_status ?? "unassigned"}`)
+        .sort()
+        .join(","),
+    [filteredPlayers]
+  );
+  const filteredPlayersRef = useRef(filteredPlayers);
+  filteredPlayersRef.current = filteredPlayers;
 
   useEffect(() => {
-    setColumns(initialColumns);
-  }, [initialColumns]);
+    setColumns(groupByStatus(filteredPlayersRef.current));
+  }, [filteredPlayersKey]);
 
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
@@ -122,20 +165,20 @@ export function PipelineBoard({ search = "" }: PipelineBoardProps) {
       if (result?.historyError) {
         toast({
           title: "Status zapisany",
-          description: "Nie udalo sie zapisac wpisu w historii Pipeline.",
+          description: "Nie udało się zapisać wpisu w historii Pipeline.",
         });
       }
     } catch {
       setColumns(initialColumns);
       toast({
-        title: "Nie udalo sie zapisac zmiany",
+        title: "Nie udało się zapisać zmiany",
         description: "Sprobuj ponownie za chwile.",
       });
     }
   };
 
   if (isLoading) {
-    return <p className="text-sm text-slate-500">Ladowanie...</p>;
+    return <p className="text-sm text-slate-500">Ładowanie...</p>;
   }
 
   return (
@@ -145,16 +188,45 @@ export function PipelineBoard({ search = "" }: PipelineBoardProps) {
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="grid gap-4 lg:grid-cols-6">
-        {PIPELINE_BOARD_COLUMNS.map((column) => (
-          <div key={column.id} id={column.id}>
-            <PipelineColumn
-              id={column.id}
-              title={column.label}
-              players={columns[column.id] ?? []}
-            />
-          </div>
-        ))}
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {PIPELINE_BOARD_COLUMNS.map((column) => {
+            const count = (columns[column.id] ?? []).length;
+            const tabLabel = column.shortLabel ?? column.label;
+            return (
+              <button
+                key={column.id}
+                type="button"
+                onClick={() => {
+                  document.getElementById(column.id)?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
+              >
+                <span
+                  className={`h-2 w-2 shrink-0 rounded-full ${getStatusDotClass(column.id as PipelineStatus)}`}
+                  aria-hidden
+                />
+                <span>
+                  {tabLabel} ({count})
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="grid gap-4 lg:grid-cols-6">
+          {PIPELINE_BOARD_COLUMNS.map((column) => (
+            <div key={column.id} id={column.id}>
+              <PipelineColumn
+                id={column.id}
+                title={column.label}
+                players={columns[column.id] ?? []}
+                statusId={column.id as PipelineStatus}
+                statusSince={statusSince}
+                latestRating={latestRating}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </DndContext>
   );

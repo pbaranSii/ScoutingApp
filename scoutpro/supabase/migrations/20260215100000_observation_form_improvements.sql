@@ -31,8 +31,10 @@ create index if not exists idx_dict_team_roles_active on public.dict_team_roles(
 create index if not exists idx_dict_team_roles_display_order on public.dict_team_roles(display_order);
 
 alter table public.dict_team_roles enable row level security;
+drop policy if exists "Dict team roles viewable by authenticated" on public.dict_team_roles;
 create policy "Dict team roles viewable by authenticated"
   on public.dict_team_roles for select to authenticated using (true);
+drop policy if exists "Admin can manage dict team roles" on public.dict_team_roles;
 create policy "Admin can manage dict team roles"
   on public.dict_team_roles for all to authenticated
   using (public.is_admin()) with check (public.is_admin());

@@ -11,7 +11,7 @@ export function ResetPasswordPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Przypomnij haslo</CardTitle>
+            <CardTitle>Przypomnij hasło</CardTitle>
           </CardHeader>
           <CardContent>
             <ResetPasswordForm />

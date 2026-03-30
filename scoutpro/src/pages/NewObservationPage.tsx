@@ -3,7 +3,6 @@ import { ObservationWizard } from "@/features/observations/components/Observatio
 import { useSearchParams, Link } from "react-router-dom";
 import { usePlayer } from "@/features/players/hooks/usePlayers";
 import { Button } from "@/components/ui/button";
-import { Mic } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
 
 class ObservationWizardErrorBoundary extends Component<
@@ -36,7 +35,7 @@ export function NewObservationPage() {
   const { data: player, isLoading } = usePlayer(playerId);
 
   if (playerId && isLoading) {
-    return <p className="text-sm text-slate-500">Ladowanie...</p>;
+    return <p className="text-sm text-slate-500">Ładowanie...</p>;
   }
 
   if (playerId && !player) {
@@ -44,22 +43,16 @@ export function NewObservationPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[960px] space-y-4 min-h-[400px]">
+    <div className="mx-auto w-full max-w-[960px] space-y-4">
       <PageHeader
         title="Nowa obserwacja"
         subtitle="Wypelnij wszystkie sekcje formularza"
         actions={
-          <>
-            <Button type="button" variant="destructive" className="gap-2">
-              <Mic className="h-4 w-4" />
-              Nagraj obserwacje
+          player ? (
+            <Button asChild variant="outline">
+              <Link to={`/players/${player.id}`}>Wroc do zawodnika</Link>
             </Button>
-            {player && (
-              <Button asChild variant="outline">
-                <Link to={`/players/${player.id}`}>Wroc do zawodnika</Link>
-              </Button>
-            )}
-          </>
+          ) : undefined
         }
       />
       <div className="h-px bg-slate-200" />
