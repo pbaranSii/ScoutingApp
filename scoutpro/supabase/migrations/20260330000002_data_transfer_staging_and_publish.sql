@@ -46,11 +46,12 @@ declare
   v_scout_id uuid;
   v_player_id uuid;
   v_exists uuid;
+  v_clubs_area_is_text boolean := false;
+  v_categories_area_is_enum boolean := false;
 begin
-  -- Only admin may publish (defense-in-depth; service role bypasses RLS anyway).
-  if not public.is_admin() then
-    raise exception 'Forbidden';
-  end if;
+  -- Authorization is enforced in the Edge Function (caller must be admin).
+  -- This RPC is invoked with the service role key, so checking `public.is_admin()`
+  -- (which relies on auth context) may fail and break imports.
 
   select * into v_run from public.import_runs where id = p_run_id for update;
   if not found then
@@ -71,14 +72,28 @@ begin
   v_players := coalesce(v_bundle->'players','[]'::jsonb);
   v_observations := coalesce(v_bundle->'observations','[]'::jsonb);
 
+  -- Schema drift guard:
+  -- some environments have `clubs.area` as TEXT while others use enum `public.area_type`.
+  select (c.udt_name = 'text') into v_clubs_area_is_text
+  from information_schema.columns c
+  where c.table_schema='public' and c.table_name='clubs' and c.column_name='area';
+  v_clubs_area_is_text := coalesce(v_clubs_area_is_text, false);
+
+  -- categories.area is expected to be enum `public.area_type` in current schema, but keep it defensive.
+  select (c.udt_name = 'area_type') into v_categories_area_is_enum
+  from information_schema.columns c
+  where c.table_schema='public' and c.table_name='categories' and c.column_name='area';
+  v_categories_area_is_enum := coalesce(v_categories_area_is_enum, true);
+
   -- Validate user mappings exist for referenced emails.
+  -- Note: avoid alias `o` which conflicts with PL/pgSQL variable `o record`.
   if exists (
     select 1
     from (
-      select distinct lower(trim(value::text)) as email
-      from jsonb_array_elements(v_observations) o,
-           jsonb_extract_path_text(o,'scout_email') as value
-      where coalesce(jsonb_extract_path_text(o,'scout_email'), '') <> ''
+      select distinct lower(trim(scout_email_txt::text)) as email
+      from jsonb_array_elements(v_observations) obs,
+           jsonb_extract_path_text(obs,'scout_email') as scout_email_txt
+      where coalesce(jsonb_extract_path_text(obs,'scout_email'), '') <> ''
     ) e
     left join public.import_user_map m
       on m.run_id = p_run_id and lower(trim(m.source_email)) = e.email
@@ -88,33 +103,98 @@ begin
   end if;
 
   -- Upsert reference dictionaries by natural keys (inside transaction).
-  -- Regions
-  insert into public.regions(name, is_active)
-  select distinct r->>'name' as name, coalesce((r->>'is_active')::boolean, true) as is_active
-  from jsonb_array_elements(coalesce(v_bundle->'regions','[]'::jsonb)) r
-  where coalesce(r->>'name','') <> ''
-  on conflict (name) do update set is_active = excluded.is_active;
+  -- NOTE: We intentionally avoid `ON CONFLICT (name)` here because some installations
+  -- may contain duplicates and/or lack a unique constraint on `name`.
 
-  -- Clubs: minimal insert by name; keep existing if present
-  insert into public.clubs(name, is_active, area)
-  select distinct c->>'name' as name,
-         coalesce((c->>'is_active')::boolean, true) as is_active,
-         coalesce(c->>'area','ALL') as area
-  from jsonb_array_elements(coalesce(v_bundle->'clubs','[]'::jsonb)) c
-  where coalesce(c->>'name','') <> ''
-  on conflict (name) do update set
-    is_active = excluded.is_active,
-    area = coalesce(nullif(excluded.area,''), public.clubs.area);
+  -- Regions: update existing by name, then insert missing.
+  update public.regions rr
+  set is_active = src.is_active
+  from (
+    select distinct r->>'name' as name, coalesce((r->>'is_active')::boolean, true) as is_active
+    from jsonb_array_elements(coalesce(v_bundle->'regions','[]'::jsonb)) r
+    where coalesce(r->>'name','') <> ''
+  ) src
+  where rr.name = src.name;
+
+  insert into public.regions(name, is_active)
+  select src.name, src.is_active
+  from (
+    select distinct r->>'name' as name, coalesce((r->>'is_active')::boolean, true) as is_active
+    from jsonb_array_elements(coalesce(v_bundle->'regions','[]'::jsonb)) r
+    where coalesce(r->>'name','') <> ''
+  ) src
+  where not exists (select 1 from public.regions rr where rr.name = src.name);
+
+  -- Clubs: update existing by name, then insert missing. If duplicates exist, all matching rows are updated.
+  if v_clubs_area_is_text then
+    update public.clubs cc
+    set
+      is_active = src.is_active,
+      area = coalesce(nullif(src.area,''), cc.area)
+    from (
+      select distinct c->>'name' as name,
+             coalesce((c->>'is_active')::boolean, true) as is_active,
+             coalesce(c->>'area','ALL') as area
+      from jsonb_array_elements(coalesce(v_bundle->'clubs','[]'::jsonb)) c
+      where coalesce(c->>'name','') <> ''
+    ) src
+    where cc.name = src.name;
+
+    insert into public.clubs(name, is_active, area)
+    select src.name, src.is_active, coalesce(nullif(src.area,''),'ALL')
+    from (
+      select distinct c->>'name' as name,
+             coalesce((c->>'is_active')::boolean, true) as is_active,
+             coalesce(c->>'area','ALL') as area
+      from jsonb_array_elements(coalesce(v_bundle->'clubs','[]'::jsonb)) c
+      where coalesce(c->>'name','') <> ''
+    ) src
+    where not exists (select 1 from public.clubs cc where cc.name = src.name);
+  else
+    update public.clubs cc
+    set
+      is_active = src.is_active,
+      area = coalesce(nullif(src.area,'')::public.area_type, cc.area)
+    from (
+      select distinct c->>'name' as name,
+             coalesce((c->>'is_active')::boolean, true) as is_active,
+             coalesce(c->>'area','ALL') as area
+      from jsonb_array_elements(coalesce(v_bundle->'clubs','[]'::jsonb)) c
+      where coalesce(c->>'name','') <> ''
+    ) src
+    where cc.name = src.name;
+
+    insert into public.clubs(name, is_active, area)
+    select src.name, src.is_active, coalesce(nullif(src.area,''),'ALL')::public.area_type
+    from (
+      select distinct c->>'name' as name,
+             coalesce((c->>'is_active')::boolean, true) as is_active,
+             coalesce(c->>'area','ALL') as area
+      from jsonb_array_elements(coalesce(v_bundle->'clubs','[]'::jsonb)) c
+      where coalesce(c->>'name','') <> ''
+    ) src
+    where not exists (select 1 from public.clubs cc where cc.name = src.name);
+  end if;
 
   -- Categories: insert by (name, area) if present; requires columns existing in schema.
   -- If your schema does not allow duplicate names across areas, adapt as needed.
-  insert into public.categories(name, area, is_active)
-  select distinct cat->>'name' as name,
-         coalesce(cat->>'area','AKADEMIA') as area,
-         coalesce((cat->>'is_active')::boolean, true) as is_active
-  from jsonb_array_elements(coalesce(v_bundle->'categories','[]'::jsonb)) cat
-  where coalesce(cat->>'name','') <> ''
-  on conflict do nothing;
+  if v_categories_area_is_enum then
+    insert into public.categories(name, area, is_active)
+    select distinct cat->>'name' as name,
+           coalesce(cat->>'area','AKADEMIA')::public.area_type as area,
+           coalesce((cat->>'is_active')::boolean, true) as is_active
+    from jsonb_array_elements(coalesce(v_bundle->'categories','[]'::jsonb)) cat
+    where coalesce(cat->>'name','') <> ''
+    on conflict do nothing;
+  else
+    insert into public.categories(name, area, is_active)
+    select distinct cat->>'name' as name,
+           coalesce(cat->>'area','AKADEMIA') as area,
+           coalesce((cat->>'is_active')::boolean, true) as is_active
+    from jsonb_array_elements(coalesce(v_bundle->'categories','[]'::jsonb)) cat
+    where coalesce(cat->>'name','') <> ''
+    on conflict do nothing;
+  end if;
 
   -- Players: dedupe by (first_name,last_name,birth_year,club_name). No unique constraint in schema,
   -- so we do lookup + insert/update deterministically.
@@ -229,24 +309,24 @@ begin
 
       -- Resolve player in DB by matching player fields from bundle by sourceId:
       -- We re-find the player deterministically by (first,last,birth_year,club_name) to avoid relying on UUID from source.
-      select p.id into v_player_id
-      from public.players p
+      select pl.id into v_player_id
+      from public.players pl
       join lateral (
         select value as pr
         from jsonb_array_elements(v_players)
         where value->>'sourceId' = v_player_source
         limit 1
       ) src on true
-      left join public.clubs c on c.id = p.club_id
-      where p.first_name = src.pr->>'first_name'
-        and p.last_name = src.pr->>'last_name'
-        and p.birth_year = (src.pr->>'birth_year')::int
+      left join public.clubs c on c.id = pl.club_id
+      where pl.first_name = src.pr->>'first_name'
+        and pl.last_name = src.pr->>'last_name'
+        and pl.birth_year = (src.pr->>'birth_year')::int
         and (
           (src.pr->>'club_name') is null
           or (src.pr->>'club_name') = ''
           or c.name = src.pr->>'club_name'
         )
-      order by p.created_at desc
+      order by pl.created_at desc
       limit 1;
 
       if v_player_id is null then
