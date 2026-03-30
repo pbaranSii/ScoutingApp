@@ -18,6 +18,7 @@ import { MatchObservationNewPage } from "@/pages/MatchObservationNewPage";
 import { MatchObservationNewLayout } from "@/pages/MatchObservationNewLayout";
 import { MatchObservationPlayerFormPage } from "@/pages/MatchObservationPlayerFormPage";
 import { MatchObservationEditPage } from "@/pages/MatchObservationEditPage";
+import { MatchObservationAddPlayerPage } from "@/pages/MatchObservationAddPlayerPage";
 import { IndividualObservationNewPage } from "@/pages/IndividualObservationNewPage";
 import { ObservationDetailPage } from "@/pages/ObservationDetailPage";
 import { EditObservationPage } from "@/pages/EditObservationPage";
@@ -40,13 +41,17 @@ import { EditDemandPage } from "@/pages/EditDemandPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { AnalyticsRoute } from "@/features/auth/AnalyticsRoute";
 import { AdminRoute } from "@/features/auth/AdminRoute";
+import { SettingsRoute } from "@/features/auth/SettingsRoute";
+import { PipelineRoute } from "@/features/auth/PipelineRoute";
 import { UsageStatisticsPage } from "@/pages/UsageStatisticsPage";
 import { AdminSurveyResultsPage } from "@/pages/AdminSurveyResultsPage";
 import { SurveySatisfactionPage } from "@/pages/SurveySatisfactionPage";
 import { SurveyThankYouPage } from "@/pages/SurveyThankYouPage";
 import { TacticalFormationsListPage } from "@/pages/TacticalFormationsListPage";
 import { TacticalPositionDictionaryPage } from "@/pages/TacticalPositionDictionaryPage";
+import { FormTemplatesPage } from "@/pages/FormTemplatesPage";
 import { FormationEditorPage } from "@/pages/FormationEditorPage";
+import { AdminDataTransferPage } from "@/pages/AdminDataTransferPage";
 
 export default function App() {
   useAuth();
@@ -77,12 +82,13 @@ export default function App() {
                 <Route path="player/:slotId" element={<MatchObservationPlayerFormPage />} />
               </Route>
               <Route path=":matchId/edit" element={<MatchObservationEditPage />} />
+              <Route path=":matchId/player/new" element={<MatchObservationAddPlayerPage />} />
             </Route>
             <Route path="individual/new" element={<IndividualObservationNewPage />} />
             <Route path=":id" element={<ObservationDetailPage />} />
             <Route path=":id/edit" element={<EditObservationPage />} />
           </Route>
-          <Route path="/pipeline" element={<PipelinePage />} />
+          <Route path="/pipeline" element={<PipelineRoute><PipelinePage /></PipelineRoute>} />
           <Route element={<AnalyticsRoute />}>
             <Route
               path="/analytics/recruitment-pipeline"
@@ -100,21 +106,28 @@ export default function App() {
           <Route path="/demands/new" element={<NewDemandPage />} />
           <Route path="/demands/:id" element={<DemandDetailPage />} />
           <Route path="/demands/:id/edit" element={<EditDemandPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route element={<AdminRoute />}>
-            <Route path="/settings/users" element={<SettingsUsersPage />} />
-            <Route path="/settings/admin/usage-statistics" element={<UsageStatisticsPage />} />
-            <Route path="/settings/admin/user-satisfaction" element={<AdminSurveyResultsPage />} />
-            <Route path="/settings/tactical/formations" element={<TacticalFormationsListPage />} />
-            <Route path="/settings/tactical/formations/new" element={<FormationEditorPage />} />
-            <Route path="/settings/tactical/formations/:id" element={<FormationEditorPage />} />
-            <Route path="/settings/tactical/positions" element={<TacticalPositionDictionaryPage />} />
+          <Route path="/settings" element={<SettingsRoute />}>
+            <Route index element={<SettingsPage />} />
+            <Route element={<AdminRoute />}>
+              <Route path="users" element={<SettingsUsersPage />} />
+              <Route path="admin/usage-statistics" element={<UsageStatisticsPage />} />
+              <Route path="admin/user-satisfaction" element={<AdminSurveyResultsPage />} />
+              <Route path="admin/data-transfer" element={<AdminDataTransferPage />} />
+              <Route path="tactical/formations" element={<TacticalFormationsListPage />} />
+              <Route path="tactical/formations/new" element={<FormationEditorPage />} />
+              <Route path="tactical/formations/:id" element={<FormationEditorPage />} />
+              <Route path="tactical/positions" element={<TacticalPositionDictionaryPage />} />
+              {/* Nowy, bardziej intuicyjny adres dla Wzorów formularzy */}
+              <Route path="form-templates" element={<FormTemplatesPage />} />
+              {/* Zachowanie starej ścieżki dla kompatybilności */}
+              <Route path="tactical/form-templates" element={<FormTemplatesPage />} />
+            </Route>
+            <Route path="dictionaries" element={<DictionaryListPage />} />
+            <Route path="dictionaries/:route" element={<DictionaryDetailPage />} />
           </Route>
           <Route path="/survey/satisfaction" element={<SurveySatisfactionPage />} />
           <Route path="/survey/thank-you" element={<SurveyThankYouPage />} />
           <Route path="/admin/settings/analytics" element={<AdminAnalyticsSettingsPage />} />
-          <Route path="/settings/dictionaries" element={<DictionaryListPage />} />
-          <Route path="/settings/dictionaries/:route" element={<DictionaryDetailPage />} />
         </Route>
       </Route>
 

@@ -79,27 +79,35 @@ alter table public.formations enable row level security;
 alter table public.tactical_slots enable row level security;
 alter table public.player_position_mapping enable row level security;
 
--- position_dictionary: wszyscy authenticated czytają; tylko admin modyfikuje
+-- position_dictionary: wszyscy authenticated czytają; tylko admin modyfikuje (drop if exists = idempotent)
+drop policy if exists "Position dictionary viewable by authenticated" on public.position_dictionary;
 create policy "Position dictionary viewable by authenticated"
 on public.position_dictionary for select to authenticated using (true);
+drop policy if exists "Admin can manage position dictionary" on public.position_dictionary;
 create policy "Admin can manage position dictionary"
 on public.position_dictionary for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- formations: wszyscy authenticated czytają; tylko admin modyfikuje (schematy systemowe blokowane w app)
+drop policy if exists "Formations viewable by authenticated" on public.formations;
 create policy "Formations viewable by authenticated"
 on public.formations for select to authenticated using (true);
+drop policy if exists "Admin can manage formations" on public.formations;
 create policy "Admin can manage formations"
 on public.formations for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- tactical_slots: jak formations
+drop policy if exists "Tactical slots viewable by authenticated" on public.tactical_slots;
 create policy "Tactical slots viewable by authenticated"
 on public.tactical_slots for select to authenticated using (true);
+drop policy if exists "Admin can manage tactical slots" on public.tactical_slots;
 create policy "Admin can manage tactical slots"
 on public.tactical_slots for all to authenticated using (public.is_admin()) with check (public.is_admin());
 
 -- player_position_mapping: odczyt dla authenticated; zapis admin (lub później rozszerzyć)
+drop policy if exists "Player position mapping viewable by authenticated" on public.player_position_mapping;
 create policy "Player position mapping viewable by authenticated"
 on public.player_position_mapping for select to authenticated using (true);
+drop policy if exists "Admin can manage player position mapping" on public.player_position_mapping;
 create policy "Admin can manage player position mapping"
 on public.player_position_mapping for all to authenticated using (public.is_admin()) with check (public.is_admin());
 

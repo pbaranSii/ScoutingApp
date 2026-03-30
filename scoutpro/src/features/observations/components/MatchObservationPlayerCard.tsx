@@ -43,7 +43,7 @@ export function MatchObservationPlayerCard({
   const [birth_date, setBirth_date] = useState(slot.birth_date ?? "");
   const [club_name, setClub_name] = useState(slot.club_name ?? "");
   const [primary_position, setPrimary_position] = useState(slot.primary_position);
-  const [overall_rating, setOverall_rating] = useState(slot.overall_rating);
+  const [overall_rating] = useState(slot.overall_rating);
   const [match_performance_rating, setMatch_performance_rating] = useState(slot.match_performance_rating);
   const [recommendation, setRecommendation] = useState<MatchPlayerSlot["recommendation"]>(slot.recommendation);
   const [summary, setSummary] = useState(slot.summary);
@@ -177,22 +177,8 @@ export function MatchObservationPlayerCard({
               </Select>
             </div>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label>Ocena ogólna (1–10) <span className="text-red-600">*</span></Label>
-              <Select value={String(overall_rating)} onValueChange={(v) => setOverall_rating(Number(v))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                    <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Ocena za występ (1–5) <span className="text-red-600">*</span></Label>
+          <div>
+            <Label>Ocena za występ (1–5) <span className="text-red-600">*</span></Label>
               <Select value={String(match_performance_rating)} onValueChange={(v) => setMatch_performance_rating(Number(v))}>
                 <SelectTrigger>
                   <SelectValue />
@@ -203,7 +189,6 @@ export function MatchObservationPlayerCard({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
           </div>
           <div>
             <Label>Rekomendacja <span className="text-red-600">*</span></Label>

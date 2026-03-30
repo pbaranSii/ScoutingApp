@@ -1,29 +1,13 @@
-import { useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { useSurveyCanSubmit, useSurveySubmit } from "@/features/survey/hooks/useSurvey";
+import { useNavigate } from "react-router-dom";
+import { useSurveySubmit } from "@/features/survey/hooks/useSurvey";
 import { SatisfactionForm } from "@/features/survey/components/SatisfactionForm";
 import type { SatisfactionFormValues } from "@/features/survey/components/SatisfactionForm";
+import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 
 export function SurveySatisfactionPage() {
-  const [searchParams] = useSearchParams();
-  const force = searchParams.get("force") === "true";
   const navigate = useNavigate();
-  const { data: canSubmitData, isLoading: canSubmitLoading } = useSurveyCanSubmit();
   const submitMutation = useSurveySubmit();
-
-  useEffect(() => {
-    if (force || canSubmitLoading || !canSubmitData) return;
-    if (!canSubmitData.can_submit) {
-      const days = canSubmitData.days_until_next ?? 90;
-      toast({
-        title: "Dziękujemy!",
-        description: `Ankietę można wypełnić ponownie za ${days} dni.`,
-        variant: "default",
-      });
-      navigate("/", { replace: true });
-    }
-  }, [canSubmitData, canSubmitLoading, force, navigate]);
 
   const handleSubmit = async (values: SatisfactionFormValues) => {
     try {
@@ -38,18 +22,6 @@ export function SurveySatisfactionPage() {
     }
   };
 
-  if (canSubmitLoading && !force) {
-    return (
-      <div className="mx-auto max-w-xl px-4 py-8 text-center text-slate-500">
-        Ładowanie…
-      </div>
-    );
-  }
-
-  if (!force && canSubmitData && !canSubmitData.can_submit) {
-    return null;
-  }
-
   return (
     <div className="mx-auto max-w-xl space-y-6 px-4 py-8">
       <div className="text-center">
@@ -58,7 +30,11 @@ export function SurveySatisfactionPage() {
           Pomóż nam rozwijać aplikację! Twoja opinia zajmie tylko 2 minuty.
         </p>
       </div>
-      <SatisfactionForm onSubmit={handleSubmit} isSubmitting={submitMutation.isPending} />
+      <Card className="border-slate-200 bg-slate-50/50">
+        <CardContent className="p-6">
+          <SatisfactionForm onSubmit={handleSubmit} isSubmitting={submitMutation.isPending} />
+        </CardContent>
+      </Card>
     </div>
   );
 }

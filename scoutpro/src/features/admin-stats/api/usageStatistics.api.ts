@@ -66,10 +66,21 @@ export async function fetchMonthlyBreakdown(
   dateFrom: string,
   dateTo: string
 ): Promise<MonthlyBreakdownResponse> {
+  const fromStr = dateFrom?.trim();
+  const toStr = dateTo?.trim();
+  if (!fromStr || !toStr) {
+    throw new Error("Wymagany jest zakres dat (od i do).");
+  }
   const { data, error } = await (supabase as any).rpc("admin_usage_monthly_breakdown", {
-    p_date_from: dateFrom,
-    p_date_to: dateTo,
+    p_date_from: fromStr,
+    p_date_to: toStr,
   });
-  if (error) throw error;
+  if (error) {
+    const msg =
+      error.message?.toLowerCase().includes("forbidden") || error.code === "PGRST301"
+        ? "Brak dostępu. Tylko administrator może przeglądać rozliczenia."
+        : error.message ?? "Nie udało się załadować rozliczeń.";
+    throw new Error(msg);
+  }
   return data as MonthlyBreakdownResponse;
 }

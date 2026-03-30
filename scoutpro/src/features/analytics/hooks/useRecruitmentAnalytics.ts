@@ -29,7 +29,7 @@ export function usePipelineMetricsEnabled(
 }
 
 export function useAnalyticsPlayerList(params: {
-  status: "first_contact" | "observed" | "shortlist" | "trial" | "offer" | "signed" | "rejected";
+  status: "first_contact" | "observed" | "in_contact" | "evaluation" | "offer" | "signed" | "rejected_by_club" | "rejected_by_player" | "out_of_reach";
   range: RecruitmentAnalyticsDateRange;
   filters: RecruitmentAnalyticsFilters;
   page: number;

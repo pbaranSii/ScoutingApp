@@ -119,7 +119,6 @@ export function useSync() {
               observation_date: obs.data.observation_date,
               competition: obs.data.competition ?? null,
               match_result: obs.data.match_result ?? null,
-              location: obs.data.location ?? null,
               positions: obs.data.positions ?? null,
               overall_rating: obs.data.overall_rating ?? null,
               technical_rating: obs.data.technical_rating ?? null,
@@ -201,13 +200,12 @@ export function useSync() {
           });
           const header = matchObs.matchHeader;
           const match = await createMatchObservation({
-            context_type: header.context_type,
             observation_date: header.observation_date,
             competition: header.competition,
+            league: header.league ?? null,
             home_team: header.home_team ?? null,
             away_team: header.away_team ?? null,
             match_result: header.match_result ?? null,
-            location: header.location ?? null,
             source: header.source,
             scout_id: header.scout_id,
             home_team_formation: header.home_team_formation ?? null,
@@ -247,6 +245,12 @@ export function useSync() {
               weaknesses: slot.weaknesses?.trim() || null,
               potential_now: slot.potential_now ?? null,
               potential_future: slot.potential_future ?? null,
+              created_by: header.created_by ?? header.scout_id,
+              created_by_name: header.created_by_name ?? null,
+              created_by_role: header.created_by_role ?? null,
+              updated_by: header.created_by ?? header.scout_id,
+              updated_by_name: header.created_by_name ?? null,
+              updated_by_role: header.created_by_role ?? null,
             });
           }
           await offlineDb.offlineMatchObservations.update(matchObs.localId, {

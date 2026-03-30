@@ -10,6 +10,7 @@ import {
   Star,
   Users,
   LayoutGrid,
+  ArrowLeftRight,
 } from "lucide-react";
 
 const SETTING_ITEMS = [
@@ -26,6 +27,13 @@ const SETTING_ITEMS = [
     description: "Zarządzaj słownikami używanymi w formularzach.",
     icon: BookOpen,
     adminOnly: false,
+  },
+  {
+    to: "/settings/form-templates",
+    label: "Wzory formularzy pozycji",
+    description: "Zarządzaj wzorami formularzy opisu pozycji (sekcja 4b).",
+    icon: BookOpen,
+    adminOnly: true,
   },
   {
     to: "/admin/settings/analytics",
@@ -49,9 +57,16 @@ const SETTING_ITEMS = [
     adminOnly: true,
   },
   {
+    to: "/settings/admin/data-transfer",
+    label: "Import / Export danych",
+    description: "Eksportuj i importuj zawodników oraz obserwacje (JSON).",
+    icon: ArrowLeftRight,
+    adminOnly: true,
+  },
+  {
     to: "/settings/tactical/formations",
     label: "Schematy taktyczne",
-    description: "Słownik pozycji i schematy taktyczne (formacje).",
+    description: "Schematy taktyczne (formacje) używane w modułach obserwacji.",
     icon: LayoutGrid,
     adminOnly: true,
   },

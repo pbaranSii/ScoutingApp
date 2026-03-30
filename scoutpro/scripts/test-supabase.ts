@@ -4,11 +4,14 @@ import type { Database } from "../src/types/database.types";
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-const adminEmail = process.env.ADMIN_EMAIL ?? "pbaran@sii.pl";
-const adminPassword = process.env.ADMIN_PASSWORD ?? "pbaran";
+const adminEmail = process.env.ADMIN_EMAIL;
+const adminPassword = process.env.ADMIN_PASSWORD;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing SUPABASE_URL or SUPABASE_ANON_KEY.");
+}
+if (!adminEmail || !adminPassword) {
+  throw new Error("Missing ADMIN_EMAIL or ADMIN_PASSWORD. Set them in the environment.");
 }
 
 const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
@@ -32,7 +35,7 @@ async function run() {
     first_name: "Test",
     last_name: "Supabase",
     birth_year: new Date().getFullYear() - 14,
-    pipeline_status: "observed" as Database["public"]["Enums"]["pipeline_status"],
+    pipeline_status: "observed" as Database["public"]["Enums"]["pipeline_status"], // valid after 20260306 migration
   };
 
   const { data: createdPlayer, error: createError } = await supabase

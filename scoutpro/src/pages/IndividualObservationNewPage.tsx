@@ -42,7 +42,7 @@ export function IndividualObservationNewPage() {
           prefillPlayer={prefillPlayer}
           lockPlayerFields={true}
           cancelHref="/observations"
-          defaultFormType="extended"
+          defaultFormType="senior"
         />
       </div>
     );

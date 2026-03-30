@@ -35,8 +35,10 @@ export type OfflineObservation = {
     tactical_rating?: number;
     mental_rating?: number;
     competition?: string;
+    league?: string | null;
+    home_team?: string;
+    away_team?: string;
     match_result?: string;
-    location?: string;
     positions?: string[];
     photo_url?: string;
     potential_now?: number;
@@ -46,7 +48,8 @@ export type OfflineObservation = {
     recommendations?: string;
     summary?: string;
     recommendation?: "positive" | "to_observe" | "negative";
-    form_type?: "simplified" | "extended";
+    // Typ formularza obserwacji – zgodny z enumem form_type w bazie.
+    form_type?: "simplified" | "extended" | "academy" | "senior";
     match_performance_rating?: number;
     match_observation_id?: string | null;
     observation_category?: "match_player" | "individual";
@@ -80,18 +83,20 @@ export type CachedObservation = {
 
 /** Header payload for match observation (matches MatchObservationInput). */
 export type OfflineMatchHeader = {
-  context_type?: "match" | "tournament";
   observation_date: string;
   competition: string;
+  league?: string | null;
   home_team?: string | null;
   away_team?: string | null;
   match_result?: string | null;
-  location?: string | null;
   source: string;
   scout_id: string;
   home_team_formation?: string | null;
   away_team_formation?: string | null;
   match_notes?: string | null;
+  created_by?: string;
+  created_by_name?: string;
+  created_by_role?: string;
 };
 
 /** One player slot for offline match observation (minimal fields to create observation). */

@@ -16,16 +16,16 @@ type SettingField = {
 
 const CONVERSION_FIELDS: SettingField[] = [
   { key: "target_first_to_observed", label: "First Contact → Observed Target (%)", placeholder: "80" },
-  { key: "target_observed_to_shortlist", label: "Observed → Shortlist Target (%)", placeholder: "60" },
-  { key: "target_shortlist_to_trial", label: "Shortlist → Trial Target (%)", placeholder: "65" },
-  { key: "target_trial_to_offer", label: "Trial → Offer Target (%)", placeholder: "70" },
+  { key: "target_observed_to_in_contact", label: "Observed → Kontakt Target (%)", placeholder: "60" },
+  { key: "target_in_contact_to_evaluation", label: "Kontakt → Weryfikacja Target (%)", placeholder: "65" },
+  { key: "target_evaluation_to_offer", label: "Weryfikacja → Offer Target (%)", placeholder: "70" },
   { key: "target_offer_to_signed", label: "Offer → Signed Target (%)", placeholder: "75" },
 ];
 
 const TIME_LIMIT_FIELDS: SettingField[] = [
   { key: "max_days_in_observed", label: "Max Days in Observed", placeholder: "14" },
-  { key: "max_days_in_shortlist", label: "Max Days in Shortlist", placeholder: "21" },
-  { key: "max_days_in_trial", label: "Max Days in Trial", placeholder: "30" },
+  { key: "max_days_in_in_contact", label: "Max Days in Kontakt", placeholder: "21" },
+  { key: "max_days_in_evaluation", label: "Max Days in Weryfikacja", placeholder: "30" },
   { key: "max_days_in_offer", label: "Max Days in Offer", placeholder: "14" },
 ];
 

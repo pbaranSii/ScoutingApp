@@ -17,6 +17,7 @@ import {
 import { TaskPlayerPickerModal } from "./TaskPlayerPickerModal";
 import type { PlayerSearchItem } from "@/features/players/api/players.api";
 import type { UserProfile } from "@/features/users/types";
+import { usePlayerSources } from "@/features/dictionaries/hooks/useDictionaries";
 import {
   ArrowLeft,
   Check,
@@ -36,6 +37,16 @@ const TYPE_BOX_CONFIG: Record<
   invitation: { icon: Calendar, iconBg: "bg-purple-100" },
   observation: { icon: ClipboardList, iconBg: "bg-green-100" },
 };
+
+const OBSERVATION_SOURCE_VALID = new Set([
+  "scouting", "referral", "application", "trainer_report", "scout_report",
+  "video_analysis", "tournament", "training_camp", "live_match", "video_match", "video_clips",
+]);
+const FALLBACK_SOURCE_OPTIONS = [
+  { value: "live_match", label: "Mecz na żywo" },
+  { value: "video_match", label: "Mecz wideo" },
+  { value: "video_clips", label: "Fragmenty wideo" },
+] as const;
 
 const EMPTY_FORM: TaskFormData = {
   type: "",
@@ -115,6 +126,15 @@ export function TaskForm({
   );
   const [errors, setErrors] = useState<TaskFormErrors>({});
   const [playerPickerOpen, setPlayerPickerOpen] = useState(false);
+  const { data: playerSources = [] } = usePlayerSources();
+  const observationSourceOptions = useMemo(() => {
+    const fromDict = (playerSources as { source_code?: string; name_pl?: string }[])
+      .filter((e) => OBSERVATION_SOURCE_VALID.has(String(e.source_code ?? "")))
+      .map((e) => ({ value: String(e.source_code), label: String(e.name_pl ?? e.source_code ?? "") }));
+    const seen = new Set(fromDict.map((o) => o.value));
+    const fallbacks = FALLBACK_SOURCE_OPTIONS.filter((f) => !seen.has(f.value));
+    return [...fromDict, ...fallbacks];
+  }, [playerSources]);
 
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -218,36 +238,36 @@ export function TaskForm({
         )}
       </div>
 
-      {mode === "edit" && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">
-            Status
-          </label>
-          <Select
-            value={(formData.status ?? "pending") as TaskStatus}
-            onValueChange={(v) =>
-              setFormData((prev) => ({ ...prev, status: v as TaskStatus }))
-            }
-          >
-            <SelectTrigger className="w-full max-w-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.entries(TASK_STATUS_LABELS) as [TaskStatus, string][]).map(
-                ([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                )
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      {/* Section 2: Basic */}
+      {/* 1. Typ i opis */}
       {formData.type && (
-        <>
+        <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-lg font-semibold text-slate-800">1. Typ i opis</h2>
+          {mode === "edit" && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">
+                Status
+              </label>
+              <Select
+                value={(formData.status ?? "pending") as TaskStatus}
+                onValueChange={(v) =>
+                  setFormData((prev) => ({ ...prev, status: v as TaskStatus }))
+                }
+              >
+                <SelectTrigger className="w-full max-w-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.entries(TASK_STATUS_LABELS) as [TaskStatus, string][]).map(
+                    ([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-2">
             <label htmlFor="description" className="text-sm font-medium text-slate-700">
               {isObservation ? "Treść" : "Opis"}{" "}
@@ -273,110 +293,121 @@ export function TaskForm({
               <p className="text-sm text-red-600">{errors.description}</p>
             )}
           </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">
-            Przypisz do użytkownika
-          </label>
-            <Select
-              value={formData.assigned_to || "none"}
-              onValueChange={(v) =>
-                setFormData((prev) => ({
-                  ...prev,
-                  assigned_to: v === "none" ? "" : v,
-                }))
-              }
-            >
-              <SelectTrigger className="w-full max-w-xs">
-                <SelectValue placeholder="Wybierz" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">—</SelectItem>
-                {users.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.full_name?.trim() || u.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="deadline" className="text-sm font-medium text-slate-700">
-            Deadline
-            {formData.type !== "invitation" && (
-              <> <span className="text-red-500">*</span></>
-            )}
-          </label>
-            <Input
-              id="deadline"
-              type="date"
-              value={formData.deadline}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, deadline: e.target.value }))
-              }
-            />
-            {errors.deadline && (
-              <p className="text-sm text-red-600">{errors.deadline}</p>
-            )}
-          </div>
-        </>
+        </section>
       )}
 
-      {/* Section 3a: Invitation */}
-      {isInvitation && (
-        <>
-          <div className="space-y-2">
-            <label htmlFor="location" className="text-sm font-medium text-slate-700">
-              Lokalizacja
-            </label>
-            <Input
-              id="location"
-              value={formData.location}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, location: e.target.value }))
-              }
-              placeholder="np. Akademia Legia Warszawa, sala konferencyjna"
-            />
-            {errors.location && (
-              <p className="text-sm text-red-600">{errors.location}</p>
-            )}
+      {/* 2. Termin i przypisanie (w tym Zaproszenie) */}
+      {formData.type && (
+        <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-lg font-semibold text-slate-800">
+            2. Termin i przypisanie
+            {isInvitation && " / Zaproszenie"}
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">
+                Przypisz do użytkownika
+              </label>
+              <Select
+                value={formData.assigned_to || "none"}
+                onValueChange={(v) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    assigned_to: v === "none" ? "" : v,
+                  }))
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Wybierz" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">—</SelectItem>
+                  {users.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.full_name?.trim() || u.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="deadline" className="text-sm font-medium text-slate-700">
+                Deadline
+                {formData.type !== "invitation" && (
+                  <> <span className="text-red-500">*</span></>
+                )}
+              </label>
+              <Input
+                id="deadline"
+                type="date"
+                value={formData.deadline}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, deadline: e.target.value }))
+                }
+              />
+              {errors.deadline && (
+                <p className="text-sm text-red-600">{errors.deadline}</p>
+              )}
+            </div>
           </div>
-          <div className="space-y-2">
-            <label htmlFor="meeting_date" className="text-sm font-medium text-slate-700">
-              Data i godzina spotkania
-            </label>
-            <Input
-              id="meeting_date"
-              type="datetime-local"
-              value={formData.meeting_date}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, meeting_date: e.target.value }))
-              }
-            />
-            {errors.meeting_date && (
-              <p className="text-sm text-red-600">{errors.meeting_date}</p>
-            )}
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="inviter_info" className="text-sm font-medium text-slate-700">
-              Informacje o osobie zapraszającej
-            </label>
-            <Input
-              id="inviter_info"
-              value={formData.inviter_info}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, inviter_info: e.target.value }))
-              }
-              placeholder="np. Anna Kowalska (matka zawodnika)"
-            />
-          </div>
-        </>
+
+          {isInvitation && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="location" className="text-sm font-medium text-slate-700">
+                  Lokalizacja
+                </label>
+                <Input
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, location: e.target.value }))
+                  }
+                  placeholder="np. Akademia Legia Warszawa, sala konferencyjna"
+                />
+                {errors.location && (
+                  <p className="text-sm text-red-600">{errors.location}</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="meeting_date" className="text-sm font-medium text-slate-700">
+                  Data i godzina spotkania
+                </label>
+                <Input
+                  id="meeting_date"
+                  type="datetime-local"
+                  value={formData.meeting_date}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, meeting_date: e.target.value }))
+                  }
+                />
+                {errors.meeting_date && (
+                  <p className="text-sm text-red-600">{errors.meeting_date}</p>
+                )}
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <label htmlFor="inviter_info" className="text-sm font-medium text-slate-700">
+                  Informacje o osobie zapraszającej
+                </label>
+                <Input
+                  id="inviter_info"
+                  value={formData.inviter_info}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, inviter_info: e.target.value }))
+                  }
+                  placeholder="np. Anna Kowalska (matka zawodnika)"
+                />
+              </div>
+            </div>
+          )}
+        </section>
       )}
 
-      {/* Section 3b: Observation */}
+      {/* 3. Obserwacja */}
       {isObservation && (
-        <>
+        <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-lg font-semibold text-slate-800">3. Obserwacja</h2>
           <div className="space-y-2">
             <label htmlFor="observation_location" className="text-sm font-medium text-slate-700">
               Miejsce obserwacji <span className="text-red-500">*</span>
@@ -417,26 +448,38 @@ export function TaskForm({
           </div>
           <div className="space-y-2">
             <label htmlFor="observation_source" className="text-sm font-medium text-slate-700">
-              Źródło zaproszenia / Osoba zapraszająca
+              Źródło
             </label>
-            <Input
-              id="observation_source"
-              value={formData.observation_source}
-              onChange={(e) =>
+            <Select
+              value={formData.observation_source || "__none__"}
+              onValueChange={(v) =>
                 setFormData((prev) => ({
                   ...prev,
-                  observation_source: e.target.value,
+                  observation_source: v === "__none__" ? "" : v,
                 }))
               }
-              placeholder="np. Trener klubu, Dyrektor sportowy"
-            />
+            >
+              <SelectTrigger id="observation_source">
+                <SelectValue placeholder="Wybierz źródło" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">—</SelectItem>
+                {observationSourceOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </>
+        </section>
       )}
 
-      {/* Section 4: Players (observation only) – optional, modal */}
+      {/* 4. Wybór zawodników */}
       {isObservation && (
-        <div className="space-y-2">
+        <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
+          <h2 className="text-lg font-semibold text-slate-800">4. Wybór zawodników</h2>
+          <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">
             Wybór zawodników
             {(formData.selected_player_ids?.length ?? 0) > 0 && (
@@ -481,7 +524,8 @@ export function TaskForm({
             }
             players={players}
           />
-        </div>
+          </div>
+        </section>
       )}
 
       <div className="flex justify-between border-t pt-4">

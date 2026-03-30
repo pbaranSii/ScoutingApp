@@ -31,10 +31,14 @@ export function GaugesPanel({ metrics }: { metrics: PipelineMetricsResponse }) {
   const first = funnel.first_contact || 0;
   const convOverall = first > 0 ? (funnel.signed / first) * 100 : 0;
   const convFirstObserved = first > 0 ? (funnel.observed / first) * 100 : 0;
-  const convObservedShortlist = funnel.observed > 0 ? (funnel.shortlist / funnel.observed) * 100 : 0;
-  const convShortlistTrial = funnel.shortlist > 0 ? (funnel.trial / funnel.shortlist) * 100 : 0;
-  const convTrialOffer = funnel.trial > 0 ? (funnel.offer / funnel.trial) * 100 : 0;
+  const convObservedInContact = funnel.observed > 0 ? (funnel.in_contact / funnel.observed) * 100 : 0;
+  const convInContactEvaluation = funnel.in_contact > 0 ? (funnel.evaluation / funnel.in_contact) * 100 : 0;
+  const convEvaluationOffer = funnel.evaluation > 0 ? (funnel.offer / funnel.evaluation) * 100 : 0;
   const convOfferSigned = funnel.offer > 0 ? (funnel.signed / funnel.offer) * 100 : 0;
+
+  const targetObservedInContact = settings.target_observed_to_in_contact ?? settings.target_observed_to_shortlist;
+  const targetInContactEvaluation = settings.target_in_contact_to_evaluation ?? settings.target_shortlist_to_trial;
+  const targetEvaluationOffer = settings.target_evaluation_to_offer ?? settings.target_trial_to_offer;
 
   return (
     <div className="grid gap-3 md:grid-cols-2">
@@ -45,19 +49,19 @@ export function GaugesPanel({ metrics }: { metrics: PipelineMetricsResponse }) {
         target={parsePercent(settings.target_first_to_observed)}
       />
       <GaugeRow
-        label="Observed → Shortlist"
-        value={convObservedShortlist}
-        target={parsePercent(settings.target_observed_to_shortlist)}
+        label="Observed → Kontakt"
+        value={convObservedInContact}
+        target={parsePercent(targetObservedInContact)}
       />
       <GaugeRow
-        label="Shortlist → Trial"
-        value={convShortlistTrial}
-        target={parsePercent(settings.target_shortlist_to_trial)}
+        label="Kontakt → Weryfikacja"
+        value={convInContactEvaluation}
+        target={parsePercent(targetInContactEvaluation)}
       />
       <GaugeRow
-        label="Trial → Offer"
-        value={convTrialOffer}
-        target={parsePercent(settings.target_trial_to_offer)}
+        label="Weryfikacja → Offer"
+        value={convEvaluationOffer}
+        target={parsePercent(targetEvaluationOffer)}
       />
       <GaugeRow
         label="Offer → Signed"

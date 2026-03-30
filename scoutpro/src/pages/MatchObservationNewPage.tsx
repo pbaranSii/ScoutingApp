@@ -29,6 +29,13 @@ function nextId() {
   return crypto.randomUUID();
 }
 
+const auditName = (user: { user_metadata?: { full_name?: string }; email?: string } | null) =>
+  (user?.user_metadata as { full_name?: string } | undefined)?.full_name ??
+  user?.email ??
+  "Użytkownik";
+const auditRole = (user: { user_metadata?: { role?: string } } | null) =>
+  (user?.user_metadata as { role?: string } | undefined)?.role ?? "user";
+
 export function MatchObservationNewPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -93,18 +100,20 @@ export function MatchObservationNewPage() {
         await addOfflineMatchObservation({
           localId,
           matchHeader: {
-            context_type: headerValues.context_type,
             observation_date: headerValues.observation_date,
-            competition: headerValues.competition,
+            competition: headerValues.competition ?? "",
+            league: headerValues.league?.trim() || null,
             home_team: headerValues.home_team?.trim() || null,
             away_team: headerValues.away_team?.trim() || null,
             match_result: headerValues.match_result?.trim() || null,
-            location: headerValues.location?.trim() || null,
             source: headerValues.source,
             scout_id: user!.id,
             home_team_formation: headerValues.home_team_formation?.trim() || null,
             away_team_formation: headerValues.away_team_formation?.trim() || null,
             match_notes: headerValues.match_notes?.trim() || null,
+            created_by: user!.id,
+            created_by_name: auditName(user),
+            created_by_role: auditRole(user),
           },
           slots: players.map((p) => ({
             player_id: p.player_id,
@@ -122,6 +131,11 @@ export function MatchObservationNewPage() {
             weaknesses: p.weaknesses,
             potential_now: p.potential_now,
             potential_future: p.potential_future,
+            technical_rating: p.technical_rating,
+            speed_rating: p.speed_rating,
+            motor_rating: p.motor_rating,
+            tactical_rating: p.tactical_rating,
+            mental_rating: p.mental_rating,
           })),
           createdAt: new Date(),
           syncStatus: "pending",
@@ -136,13 +150,12 @@ export function MatchObservationNewPage() {
       }
 
       const matchObs = await createMatchObservation({
-        context_type: headerValues.context_type,
         observation_date: headerValues.observation_date,
-        competition: headerValues.competition,
+        competition: headerValues.competition ?? "",
+        league: headerValues.league?.trim() || null,
         home_team: headerValues.home_team?.trim() || null,
         away_team: headerValues.away_team?.trim() || null,
         match_result: headerValues.match_result?.trim() || null,
-        location: headerValues.location?.trim() || null,
         source: headerValues.source,
         scout_id: user!.id,
         home_team_formation: headerValues.home_team_formation?.trim() || null,
@@ -178,6 +191,7 @@ export function MatchObservationNewPage() {
           },
         });
 
+        const formType = slot.form_type ?? "academy";
         const input: ObservationInput = {
           player_id: playerId,
           scout_id: user!.id,
@@ -185,17 +199,28 @@ export function MatchObservationNewPage() {
           observation_date: headerValues.observation_date,
           match_observation_id: matchObs.id,
           observation_category: "match_player",
-          form_type: "simplified",
+          form_type: formType as ObservationInput["form_type"],
           match_performance_rating: slot.match_performance_rating,
           recommendation: slot.recommendation,
           summary: slot.summary.trim(),
-          overall_rating: slot.overall_rating,
-          competition: headerValues.competition.trim() || null,
+          overall_rating: formType === "senior" ? null : slot.overall_rating,
+          competition: headerValues.competition?.trim() || null,
           positions: [slot.primary_position],
           strengths: slot.strengths?.trim() || null,
           weaknesses: slot.weaknesses?.trim() || null,
-          potential_now: slot.potential_now ?? null,
-          potential_future: slot.potential_future ?? null,
+          potential_now: formType === "senior" ? null : (slot.potential_now ?? null),
+          potential_future: formType === "senior" ? null : (slot.potential_future ?? null),
+          technical_rating: formType === "senior" ? null : (slot.technical_rating ?? null),
+          speed_rating: formType === "senior" ? null : (slot.speed_rating ?? null),
+          motor_rating: formType === "senior" ? null : (slot.motor_rating ?? null),
+          tactical_rating: formType === "senior" ? null : (slot.tactical_rating ?? null),
+          mental_rating: formType === "senior" ? null : (slot.mental_rating ?? null),
+          created_by: user!.id,
+          created_by_name: auditName(user),
+          created_by_role: auditRole(user),
+          updated_by: user!.id,
+          updated_by_name: auditName(user),
+          updated_by_role: auditRole(user),
         };
         await createObservation(input);
       }
@@ -218,7 +243,7 @@ export function MatchObservationNewPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[960px] space-y-6">
+    <div className="mx-auto w-full max-w-[960px] space-y-6 pb-24 lg:pb-0">
       <PageHeader
         title="Obserwacja meczowa"
         subtitle="Nagłówek spotkania i wyróżniający się zawodnicy"
@@ -294,11 +319,21 @@ export function MatchObservationNewPage() {
         </DialogContent>
       </Dialog>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end max-lg:hidden">
         <Button
           onClick={handleSaveMatchObservation}
           disabled={isSaving || players.length === 0}
           className="gap-2"
+        >
+          {isSaving ? "Zapisywanie…" : "Zapisz obserwację meczową"}
+        </Button>
+      </div>
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-200 bg-white p-4 lg:hidden">
+        <Button
+          type="button"
+          className="w-full"
+          disabled={isSaving || players.length === 0}
+          onClick={handleSaveMatchObservation}
         >
           {isSaving ? "Zapisywanie…" : "Zapisz obserwację meczową"}
         </Button>

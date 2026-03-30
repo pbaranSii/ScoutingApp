@@ -7,6 +7,7 @@ export type DictionaryId =
   | "player_sources"
   | "regions"
   | "clubs"
+  | "leagues"
   | "categories"
   | "strengths"
   | "weaknesses"
@@ -45,6 +46,7 @@ export const DICTIONARIES: DictionaryConfig[] = [
     orderColumn: "display_order",
     activeColumn: "id",
     route: "positions",
+    hidden: true,
   },
   {
     id: "player_sources",
@@ -81,6 +83,17 @@ export const DICTIONARIES: DictionaryConfig[] = [
     route: "clubs",
   },
   {
+    id: "leagues",
+    table: "leagues",
+    namePl: "Ligi piłkarskie",
+    nameEn: "Football leagues",
+    codeColumn: "code",
+    nameColumn: "name",
+    orderColumn: "name",
+    activeColumn: "is_active",
+    route: "leagues",
+  },
+  {
     id: "categories",
     table: "categories",
     namePl: "Kategorie wiekowe",
@@ -88,7 +101,7 @@ export const DICTIONARIES: DictionaryConfig[] = [
     codeColumn: "id",
     nameColumn: "name",
     orderColumn: "id",
-    activeColumn: "id",
+    activeColumn: "is_active",
     route: "categories",
   },
   {

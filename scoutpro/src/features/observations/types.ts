@@ -29,8 +29,10 @@ export type Observation = {
   motor_acceleration_rating?: number | null;
   motor_strength_rating?: number | null;
   competition?: string | null;
+  league?: string | null;
+  home_team?: string | null;
+  away_team?: string | null;
   match_result?: string | null;
-  location?: string | null;
   positions?: string[] | null;
   photo_url?: string | null;
   potential_now?: number | null;
@@ -58,6 +60,7 @@ export type Observation = {
     first_name: string;
     last_name: string;
     birth_year?: number;
+    nationality?: string | null;
     primary_position?: string | null;
     pipeline_status?: string | null;
     club?: { name: string } | null;
@@ -90,8 +93,10 @@ export type ObservationInput = {
   motor_acceleration_rating?: number | null;
   motor_strength_rating?: number | null;
   competition?: string | null;
+  league?: string | null;
+  home_team?: string | null;
+  away_team?: string | null;
   match_result?: string | null;
-  location?: string | null;
   positions?: string[] | null;
   photo_url?: string | null;
   potential_now?: number | null;
@@ -116,6 +121,9 @@ export type ObservationInput = {
   motor_description?: string | null;
 };
 
+/** Match observation per-player form type (Akademia = full simplified fields, Senior = reduced). */
+export type MatchFormType = "academy" | "senior";
+
 /** One player slot in match observation flow (before save). */
 export type MatchPlayerSlot = {
   id: string;
@@ -123,9 +131,19 @@ export type MatchPlayerSlot = {
   first_name: string;
   last_name: string;
   birth_year: number;
+  nationality?: string | null;
   /** Optional ISO date string (yyyy-MM-dd). */
   birth_date?: string | null;
+  /** Optional ISO date string (yyyy-MM-dd). */
+  contract_end_date?: string | null;
   club_name?: string;
+  /** Body build (np. z słownika dict_body_build) */
+  body_build?: string | null;
+  /** Taktyczny schemat klubu zawodnika (formation) */
+  club_formation?: string | null;
+  agent_name?: string | null;
+  agent_phone?: string | null;
+  agent_email?: string | null;
   primary_position: string;
   overall_rating: number;
   match_performance_rating: number;
@@ -135,4 +153,12 @@ export type MatchPlayerSlot = {
   weaknesses?: string;
   potential_now?: number;
   potential_future?: number;
+  /** Academy: ratings 1–5 for section "4. Oceny ogólne". */
+  technical_rating?: number;
+  speed_rating?: number;
+  motor_rating?: number;
+  tactical_rating?: number;
+  mental_rating?: number;
+  /** Used when saving observation (academy | senior). */
+  form_type?: MatchFormType;
 };

@@ -43,30 +43,46 @@ export type Database = {
       }
       clubs: {
         Row: {
+          area: string
           city: string | null
+          country_pl: string | null
           created_at: string
           id: string
           is_active: boolean
+          league_id: string | null
           name: string
           region_id: string | null
         }
         Insert: {
+          area?: string
           city?: string | null
+          country_pl?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
+          league_id?: string | null
           name: string
           region_id?: string | null
         }
         Update: {
+          area?: string
           city?: string | null
+          country_pl?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
+          league_id?: string | null
           name?: string
           region_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "clubs_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "clubs_region_id_fkey"
             columns: ["region_id"]
@@ -81,8 +97,9 @@ export type Database = {
           code: string | null
           created_at: string
           id: string
+          is_required: boolean
           name: string
-          position_id: string
+          position_dictionary_id: string
           section: Database["public"]["Enums"]["criterion_section"] | null
           sort_order: number
           weight: number
@@ -91,8 +108,9 @@ export type Database = {
           code?: string | null
           created_at?: string
           id?: string
+          is_required?: boolean
           name: string
-          position_id: string
+          position_dictionary_id: string
           section?: Database["public"]["Enums"]["criterion_section"] | null
           sort_order?: number
           weight?: number
@@ -101,18 +119,19 @@ export type Database = {
           code?: string | null
           created_at?: string
           id?: string
+          is_required?: boolean
           name?: string
-          position_id?: string
+          position_dictionary_id?: string
           section?: Database["public"]["Enums"]["criterion_section"] | null
           sort_order?: number
           weight?: number
         }
         Relationships: [
           {
-            foreignKeyName: "evaluation_criteria_position_id_fkey"
-            columns: ["position_id"]
+            foreignKeyName: "evaluation_criteria_position_dictionary_id_fkey"
+            columns: ["position_dictionary_id"]
             isOneToOne: false
-            referencedRelation: "positions"
+            referencedRelation: "position_dictionary"
             referencedColumns: ["id"]
           },
         ]
@@ -157,25 +176,58 @@ export type Database = {
       }
       leagues: {
         Row: {
+          area: string
+          code: string | null
+          country_en: string | null
+          country_iso: string | null
+          country_pl: string | null
           created_at: string
+          display_name: string | null
           id: string
           is_active: boolean
+          is_observed: boolean
           level: number | null
           name: string
+          name_pl: string | null
+          notes: string | null
+          official_name: string | null
+          group_name: string | null
         }
         Insert: {
+          area?: string
+          code?: string | null
+          country_en?: string | null
+          country_iso?: string | null
+          country_pl?: string | null
           created_at?: string
+          display_name?: string | null
           id?: string
           is_active?: boolean
+          is_observed?: boolean
           level?: number | null
           name: string
+          name_pl?: string | null
+          notes?: string | null
+          official_name?: string | null
+          group_name?: string | null
         }
         Update: {
+          area?: string
+          code?: string | null
+          country_en?: string | null
+          country_iso?: string | null
+          country_pl?: string | null
           created_at?: string
+          display_name?: string | null
           id?: string
           is_active?: boolean
+          is_observed?: boolean
           level?: number | null
           name?: string
+          name_pl?: string | null
+          notes?: string | null
+          official_name?: string | null
+          group_name?: string | null
         }
         Relationships: []
       }
@@ -259,10 +311,13 @@ export type Database = {
           id: string
           is_offline_created: boolean
           location: string | null
+          league: string | null
           match_id: string | null
           match_observation_id: string | null
           match_performance_rating: number | null
           match_result: string | null
+          home_team: string | null
+          away_team: string | null
           mental_description: string | null
           mental_rating: number | null
           motor_rating: number | null
@@ -367,10 +422,13 @@ export type Database = {
           id?: string
           is_offline_created?: boolean
           location?: string | null
+          league?: string | null
           match_id?: string | null
           match_observation_id?: string | null
           match_performance_rating?: number | null
           match_result?: string | null
+          home_team?: string | null
+          away_team?: string | null
           mental_description?: string | null
           mental_rating?: number | null
           motor_rating?: number | null
@@ -449,6 +507,7 @@ export type Database = {
           context_type: Database["public"]["Enums"]["observation_context_type"]
           observation_date: string
           competition: string
+          league: string | null
           home_team: string | null
           away_team: string | null
           match_result: string | null
@@ -468,6 +527,7 @@ export type Database = {
           context_type?: Database["public"]["Enums"]["observation_context_type"]
           observation_date?: string
           competition: string
+          league?: string | null
           home_team?: string | null
           away_team?: string | null
           match_result?: string | null
@@ -487,6 +547,7 @@ export type Database = {
           context_type?: Database["public"]["Enums"]["observation_context_type"]
           observation_date?: string
           competition?: string
+          league?: string | null
           home_team?: string | null
           away_team?: string | null
           match_result?: string | null
@@ -1246,6 +1307,8 @@ export type Database = {
           display_order: number
           created_at: string
           updated_at: string
+          criteria_template_position_id: string | null
+          form_template_id: string | null
         }
         Insert: {
           id?: string
@@ -1257,6 +1320,8 @@ export type Database = {
           display_order?: number
           created_at?: string
           updated_at?: string
+          criteria_template_position_id?: string | null
+          form_template_id?: string | null
         }
         Update: {
           id?: string
@@ -1268,6 +1333,62 @@ export type Database = {
           display_order?: number
           created_at?: string
           updated_at?: string
+          criteria_template_position_id?: string | null
+          form_template_id?: string | null
+        }
+        Relationships: []
+      }
+      position_form_template: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      position_form_template_element: {
+        Row: {
+          id: string
+          template_id: string
+          element_type: string
+          sort_order: number
+          header_label: string | null
+          evaluation_criterion_id: string | null
+          is_required: boolean | null
+        }
+        Insert: {
+          id?: string
+          template_id: string
+          element_type: string
+          sort_order?: number
+          header_label?: string | null
+          evaluation_criterion_id?: string | null
+          is_required?: boolean | null
+        }
+        Update: {
+          id?: string
+          template_id?: string
+          element_type?: string
+          sort_order?: number
+          header_label?: string | null
+          evaluation_criterion_id?: string | null
+          is_required?: boolean | null
         }
         Relationships: []
       }
@@ -1588,7 +1709,7 @@ export type Database = {
           formation: string
           formation_id: string | null
           region_id: string | null
-          slot_assignments?: Record<string, string> | null
+          slot_assignments: Record<string, string[]> | null
           last_used_at: string | null
           created_at: string
           updated_at: string
@@ -1601,7 +1722,7 @@ export type Database = {
           formation?: string
           formation_id?: string | null
           region_id?: string | null
-          slot_assignments?: Record<string, string> | null
+          slot_assignments?: Record<string, string[]> | null
           last_used_at?: string | null
           created_at?: string
           updated_at?: string
@@ -1614,7 +1735,7 @@ export type Database = {
           formation?: string
           formation_id?: string | null
           region_id?: string | null
-          slot_assignments?: Record<string, string> | null
+          slot_assignments?: Record<string, string[]> | null
           last_used_at?: string | null
           created_at?: string
           updated_at?: string
@@ -1681,6 +1802,7 @@ export type Database = {
           season: string
           league_ids: string[]
           position: string
+          positions: string[]
           quantity_needed: number
           priority: string
           age_min: number | null
@@ -1700,6 +1822,7 @@ export type Database = {
           season: string
           league_ids?: string[]
           position: string
+          positions?: string[]
           quantity_needed?: number
           priority?: string
           age_min?: number | null
@@ -1719,6 +1842,7 @@ export type Database = {
           season?: string
           league_ids?: string[]
           position?: string
+          positions?: string[]
           quantity_needed?: number
           priority?: string
           age_min?: number | null
@@ -1769,14 +1893,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_player_ids_by_last_observation: {
+        Args: {
+          p_recommendation?: string | null
+          p_potential_now_min?: number | null
+          p_potential_now_max?: number | null
+          p_potential_future_min?: number | null
+          p_potential_future_max?: number | null
+        }
+        Returns: string[]
+      }
     }
     Enums: {
       contact_type: "parent" | "guardian" | "agent" | "other"
       criterion_section: "defense" | "offense" | "transition_oa" | "transition_ao"
       default_form_type_enum: "simplified" | "extended"
       dominant_foot: "left" | "right" | "both"
-      form_type: "simplified" | "extended"
+      form_type: "simplified" | "extended" | "academy" | "senior"
       match_type: "live" | "video"
       observation_category_type: "match_player" | "individual"
       observation_context_type: "match" | "tournament"
@@ -1790,15 +1923,20 @@ export type Database = {
         | "video_analysis"
         | "tournament"
         | "training_camp"
+        | "live_match"
+        | "video_match"
+        | "video_clips"
       recommendation_type: "positive" | "to_observe" | "negative"
       pipeline_status:
         | "unassigned"
         | "observed"
-        | "shortlist"
-        | "trial"
+        | "in_contact"
+        | "evaluation"
         | "offer"
         | "signed"
-        | "rejected"
+        | "rejected_by_club"
+        | "rejected_by_player"
+        | "out_of_reach"
       sync_status: "pending" | "synced" | "failed"
       task_status: "pending" | "completed" | "cancelled"
       task_type: "task" | "invitation" | "observation"
@@ -1935,7 +2073,7 @@ export const Constants = {
       criterion_section: ["defense", "offense", "transition_oa", "transition_ao"],
       default_form_type_enum: ["simplified", "extended"],
       dominant_foot: ["left", "right", "both"],
-      form_type: ["simplified", "extended"],
+      form_type: ["simplified", "extended", "academy", "senior"],
       match_type: ["live", "video"],
       observation_category_type: ["match_player", "individual"],
       observation_context_type: ["match", "tournament"],
@@ -1950,15 +2088,20 @@ export const Constants = {
         "video_analysis",
         "tournament",
         "training_camp",
+        "live_match",
+        "video_match",
+        "video_clips",
       ],
       pipeline_status: [
         "unassigned",
         "observed",
-        "shortlist",
-        "trial",
+        "in_contact",
+        "evaluation",
         "offer",
         "signed",
-        "rejected",
+        "rejected_by_club",
+        "rejected_by_player",
+        "out_of_reach",
       ],
       sync_status: ["pending", "synced", "failed"],
       task_status: ["pending", "completed", "cancelled"],

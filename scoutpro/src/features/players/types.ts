@@ -9,7 +9,11 @@ export type Player = {
   last_name: string;
   birth_year: number;
   birth_date?: string | null;
+  contract_end_date?: string | null;
+  age_category_id?: string | null;
+  age_category?: { id: string; name: string; area?: string | null } | null;
   body_build?: string | null;
+  club_formation?: string | null;
   club_id?: string | null;
   club?: { name: string } | null;
   region_id?: string | null;
@@ -34,6 +38,7 @@ export type Player = {
   video_urls?: string[] | null;
   pipeline_status?: PipelineStatus | null;
   observation_count?: number | null;
+  created_by?: string | null;
   created_at?: string;
   updated_at?: string;
 };

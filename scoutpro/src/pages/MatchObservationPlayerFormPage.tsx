@@ -14,7 +14,7 @@ function nextId() {
 export function MatchObservationPlayerFormPage() {
   const { slotId } = useParams<{ slotId: string }>();
   const navigate = useNavigate();
-  const { players, setPlayers, headerTeamNames } = useMatchObservationNew();
+  const { players, setPlayers, headerTeamNames, headerFormValues } = useMatchObservationNew();
 
   const slot = slotId ? players.find((p) => p.id === slotId) : null;
   const isEdit = Boolean(slotId && slot);
@@ -53,6 +53,7 @@ export function MatchObservationPlayerFormPage() {
         onSave={handleSave}
         onCancel={handleCancel}
         headerTeamNames={headerTeamNames.filter(Boolean)}
+        competition={headerFormValues?.competition}
       />
     </div>
   );
