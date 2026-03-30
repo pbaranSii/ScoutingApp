@@ -12,19 +12,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { BUSINESS_ROLE_LABELS, type BusinessRole } from "../types";
+import { BUSINESS_ROLE_LABELS, type AreaAccess, type BusinessRole } from "../types";
 
 const baseSchema = z.object({
   first_name: z.string(),
   last_name: z.string(),
   email: z.string().email("Podaj poprawny email"),
   business_role: z.enum(["scout", "coach", "director", "suspended", "admin"]),
+  area_access: z.enum(["AKADEMIA", "SENIOR", "ALL"]),
   // Przy edycji pole hasła jest niewidoczne i puste – nie walidujemy min długości
   password: z.string().optional(),
 });
 
 const createSchema = baseSchema.extend({
-  first_name: z.string().min(1, "Podaj imie"),
+  first_name: z.string().min(1, "Podaj imię"),
   last_name: z.string().min(1, "Podaj nazwisko"),
 });
 
@@ -39,8 +40,9 @@ type UserFormProps = {
   submitLabel: string;
   includePassword?: boolean;
   isSubmitting?: boolean;
-  /** Gdy true, pole email jest tylko do odczytu (np. przy edycji uzytkownika). */
+  /** Gdy true, pole email jest tylko do odczytu (np. przy edycji użytkownika). */
   emailReadOnly?: boolean;
+  allowAllAreaAccess?: boolean;
 };
 
 export function UserForm({
@@ -50,11 +52,12 @@ export function UserForm({
   includePassword = false,
   isSubmitting = false,
   emailReadOnly = false,
+  allowAllAreaAccess = false,
 }: UserFormProps) {
   const schema = useMemo(() => {
     if (includePassword) {
       return createSchema.extend({
-        password: z.string().min(8, "Haslo musi miec co najmniej 8 znakow"),
+        password: z.string().min(8, "Hasło musi mieć co najmniej 8 znaków"),
       });
     }
     return baseSchema;
@@ -68,6 +71,13 @@ export function UserForm({
   const roleOptions = (
     Object.entries(BUSINESS_ROLE_LABELS) as [BusinessRole, { label: string; description: string }][]
   ).filter(([key]) => key !== "suspended");
+  const areaOptions: { value: AreaAccess; label: string }[] = [
+    { value: "AKADEMIA", label: "Akademia" },
+    { value: "SENIOR", label: "Senior" },
+  ];
+  if (allowAllAreaAccess) {
+    areaOptions.push({ value: "ALL", label: "Wszystkie obszary" });
+  }
 
   return (
     <Form {...form}>
@@ -78,7 +88,7 @@ export function UserForm({
             name="first_name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Imie</FormLabel>
+                <FormLabel>Imię</FormLabel>
                 <FormControl>
                   <Input placeholder="Jan" {...field} />
                 </FormControl>
@@ -110,14 +120,14 @@ export function UserForm({
               <FormControl>
                 <Input
                   type="email"
-                  placeholder="uzytkownik@scoutpro.pl"
+                  placeholder="użytkownik@scoutpro.pl"
                   {...field}
                   readOnly={emailReadOnly}
                   className={emailReadOnly ? "bg-slate-50 cursor-not-allowed" : ""}
                 />
               </FormControl>
               {emailReadOnly && (
-                <p className="text-xs text-slate-500">Adres email nie moze byc zmieniony.</p>
+                <p className="text-xs text-slate-500">Adres email nie może być zmieniony.</p>
               )}
               <FormMessage />
             </FormItem>
@@ -131,7 +141,7 @@ export function UserForm({
             <FormItem>
               <FormLabel>Rola</FormLabel>
               <p className="text-xs text-slate-500 mb-1">
-                Okresla funkcje i uprawnienia uzytkownika (Scout, Trener, Dyrektor, Administrator).
+                Określa funkcję i uprawnienia użytkownika (Scout, Trener, Dyrektor, Administrator).
               </p>
               <Select
                 onValueChange={field.onChange}
@@ -159,15 +169,40 @@ export function UserForm({
           )}
         />
 
+        <FormField
+          control={form.control}
+          name="area_access"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Obszar dostępu</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Wybierz obszar" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {areaOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         {includePassword && (
           <FormField
             control={form.control}
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Haslo</FormLabel>
+                <FormLabel>Hasło</FormLabel>
                 <FormControl>
-                  <Input type="password" placeholder="Min. 8 znakow" {...field} />
+                  <Input type="password" placeholder="Min. 8 znaków" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

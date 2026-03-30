@@ -1,0 +1,170 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { DictionaryConfig } from "../config";
+import {
+  createDictionaryEntry,
+  deleteDictionaryEntry,
+  fetchDictionaryCount,
+  fetchDictionaryEntries,
+  toggleDictionaryEntryActive,
+  updateDictionaryEntry,
+} from "../api/dictionaries.api";
+import { getDictionaryById } from "../config";
+import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
+
+export function useDictionaryCounts() {
+  return useQuery({
+    queryKey: ["dictionary-counts"],
+    queryFn: async () => {
+      const { DICTIONARIES } = await import("../config");
+      const counts = await Promise.all(
+        DICTIONARIES.map(async (config) => {
+          const { total, active } = await fetchDictionaryCount(config);
+          return { id: config.id, config, total, active };
+        })
+      );
+      return counts;
+    },
+  });
+}
+
+export function useDictionaryEntries(
+  config: DictionaryConfig | null,
+  options?: { activeOnly?: boolean; search?: string }
+) {
+  return useQuery({
+    queryKey: ["dictionary-entries", config?.id, options?.activeOnly, options?.search],
+    queryFn: () => fetchDictionaryEntries(config!, options),
+    enabled: Boolean(config),
+  });
+}
+
+export function useCreateDictionaryEntry(config: DictionaryConfig | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Record<string, unknown>) => createDictionaryEntry(config!, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dictionary-entries", config?.id] });
+      queryClient.invalidateQueries({ queryKey: ["dictionary-counts"] });
+    },
+  });
+}
+
+export function useUpdateDictionaryEntry(config: DictionaryConfig | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Record<string, unknown> }) =>
+      updateDictionaryEntry(config!, id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dictionary-entries", config?.id] });
+      queryClient.invalidateQueries({ queryKey: ["dictionary-counts"] });
+    },
+  });
+}
+
+export function useToggleDictionaryEntryActive(config: DictionaryConfig | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      toggleDictionaryEntryActive(config!, id, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dictionary-entries", config?.id] });
+      queryClient.invalidateQueries({ queryKey: ["dictionary-counts"] });
+    },
+  });
+}
+
+export function useDeleteDictionaryEntry(config: DictionaryConfig | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteDictionaryEntry(config!, id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["dictionary-entries", config?.id] });
+      queryClient.invalidateQueries({ queryKey: ["dictionary-counts"] });
+    },
+  });
+}
+
+/** Aktywne pozycje słownika Źródła pozyskania – do użycia w formularzu obserwacji (kontrolka Źródło). */
+export function usePlayerSources() {
+  const config = getDictionaryById("player_sources");
+  return useDictionaryEntries(config ?? null, { activeOnly: true });
+}
+
+/** Lista województw – do wyboru w definicji klubu (opcjonalnie). */
+export function useRegions() {
+  const config = getDictionaryById("regions");
+  return useDictionaryEntries(config ?? null, { activeOnly: true });
+}
+
+/** Kategorie wiekowe – do wyboru w polu Rozgrywki w formularzu obserwacji. Tylko aktywne. */
+export function useCategories() {
+  const config = getDictionaryById("categories");
+  return useDictionaryEntries(config ?? null, { activeOnly: true });
+}
+
+/** Ligi piłkarskie – aktywne pozycje słownika. */
+export function useLeagues() {
+  const config = getDictionaryById("leagues");
+  return useDictionaryEntries(config ?? null, { activeOnly: true });
+}
+
+/** Ligi przefiltrowane do obszaru zalogowanego użytkownika. */
+export function useLeaguesForCurrentArea() {
+  const leaguesQuery = useLeagues();
+  const { data: currentUser } = useCurrentUserProfile();
+  const areaAccess = (currentUser as { area_access?: "AKADEMIA" | "SENIOR" | "ALL" } | null)?.area_access ?? "AKADEMIA";
+
+  const filtered = (leaguesQuery.data ?? []).filter((l) => {
+    const area = String((l as Record<string, unknown>).area ?? "ALL").toUpperCase();
+    if (areaAccess === "ALL") return true;
+    if (area === "ALL") return true;
+    return area === areaAccess;
+  });
+
+  return {
+    ...leaguesQuery,
+    data: filtered,
+  };
+}
+
+/** Kategorie wiekowe przefiltrowane do obszaru zalogowanego użytkownika. */
+export function useCategoriesForCurrentArea() {
+  const categoriesQuery = useCategories();
+  const { data: currentUser } = useCurrentUserProfile();
+  const areaAccess = (currentUser as { area_access?: "AKADEMIA" | "SENIOR" | "ALL" } | null)?.area_access ?? "AKADEMIA";
+
+  const filtered = (categoriesQuery.data ?? []).filter((c) => {
+    if (areaAccess === "ALL") return true;
+    const area = String((c as Record<string, unknown>).area ?? "AKADEMIA");
+    return area === areaAccess;
+  });
+
+  return {
+    ...categoriesQuery,
+    data: filtered,
+  };
+}
+
+/** Aktywne pozycje słownika Mocne strony – do tagów w formularzu obserwacji. */
+export function useStrengths() {
+  const config = getDictionaryById("strengths");
+  return useDictionaryEntries(config ?? null, { activeOnly: true });
+}
+
+/** Aktywne pozycje słownika Słabe strony – do tagów w formularzu obserwacji. */
+export function useWeaknesses() {
+  const config = getDictionaryById("weaknesses");
+  return useDictionaryEntries(config ?? null, { activeOnly: true });
+}
+
+/** Aktywne pozycje słownika Rola w drużynie – do formularza obserwacji. */
+export function useTeamRoles() {
+  const config = getDictionaryById("team_roles");
+  return useDictionaryEntries(config ?? null, { activeOnly: true });
+}
+
+/** Aktywne pozycje słownika Budowa ciała – do formularza zawodnika. */
+export function useBodyBuild() {
+  const config = getDictionaryById("body_build");
+  return useDictionaryEntries(config ?? null, { activeOnly: true });
+}

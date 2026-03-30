@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { format, parseISO } from "date-fns";
 import type { Player } from "../types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,19 +11,28 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { useDeletePipelineHistoryByPlayer, useDeletePlayer } from "@/features/players/hooks/usePlayers";
 import { useDeleteObservationsByPlayer } from "@/features/observations/hooks/useObservations";
+import { useBodyBuild } from "@/features/dictionaries/hooks/useDictionaries";
 import { toast } from "@/hooks/use-toast";
 
 type PlayerProfileProps = {
   player: Player;
+  /** Additional action buttons rendered next to Edytuj/Usuń */
+  additionalActions?: React.ReactNode;
 };
 
-export function PlayerProfile({ player }: PlayerProfileProps) {
+export function PlayerProfile({ player, additionalActions }: PlayerProfileProps) {
   const navigate = useNavigate();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const deletePlayer = useDeletePlayer();
   const deleteObservations = useDeleteObservationsByPlayer();
   const deletePipelineHistory = useDeletePipelineHistoryByPlayer();
+  const { data: bodyBuildOptions = [] } = useBodyBuild();
+  const bodyBuildLabel = player.body_build
+    ? (bodyBuildOptions as { code?: string; name_pl?: string }[]).find(
+        (o) => String(o.code) === String(player.body_build)
+      )?.name_pl ?? player.body_build
+    : null;
   const canUseDom = typeof document !== "undefined";
   const statusLabel =
     ALL_PIPELINE_STATUSES.find((column) => column.id === (player.pipeline_status ?? "unassigned"))
@@ -64,6 +74,16 @@ export function PlayerProfile({ player }: PlayerProfileProps) {
               <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
                 {player.birth_year}
               </Badge>
+              {player.birth_date && (
+                <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
+                  {format(parseISO(player.birth_date), "dd.MM.yyyy")}
+                </Badge>
+              )}
+              {player.contract_end_date && (
+                <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
+                  Kontrakt do: {format(parseISO(player.contract_end_date), "dd.MM.yyyy")}
+                </Badge>
+              )}
               <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
                 {player.club?.name ?? "Brak klubu"}
               </Badge>
@@ -74,6 +94,7 @@ export function PlayerProfile({ player }: PlayerProfileProps) {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
+          {additionalActions}
           <Button asChild className="gap-2 bg-red-600 hover:bg-red-700">
             <Link to={`/players/${player.id}/edit`}>
               <Pencil className="h-4 w-4" />
@@ -112,7 +133,7 @@ export function PlayerProfile({ player }: PlayerProfileProps) {
               <div className="space-y-2">
                 <h2 className="text-lg font-semibold text-slate-900">Usun zawodnika?</h2>
                 <p className="text-sm text-slate-600">
-                  Ta operacja jest nieodwracalna. Wraz z zawodnikiem zostana usuniete jego obserwacje.
+                  Ta operacja jest nieodwracalna. Wraz z zawodnikiem zostaną usunięte jego obserwacje.
                 </p>
               </div>
               {deleteError && <p className="mt-3 text-sm text-red-600">{deleteError}</p>}
@@ -141,7 +162,7 @@ export function PlayerProfile({ player }: PlayerProfileProps) {
                       await deletePlayer.mutateAsync(player.id);
                       toast({
                         title: "Usunieto zawodnika",
-                        description: "Zawodnik i jego obserwacje zostaly trwale usuniete.",
+                        description: "Zawodnik i jego obserwacje zostały trwale usunięte.",
                       });
                       setIsDeleteOpen(false);
                       navigate("/players");
@@ -154,11 +175,11 @@ export function PlayerProfile({ player }: PlayerProfileProps) {
                         rawMessage.includes("pipeline_history");
                       const message = isForeignKeyIssue
                         ? "Nie mozna usunac zawodnika z powodu powiazanych obserwacji."
-                        : rawMessage || "Nie udalo sie usunac zawodnika";
+                        : rawMessage || "Nie udało się usunąć zawodnika";
                       setDeleteError(message);
                       toast({
                         variant: "destructive",
-                        title: "Nie udalo sie usunac",
+                        title: "Nie udało się usunąć",
                         description: message,
                       });
                       console.error("Delete player failed:", error);
@@ -178,38 +199,36 @@ export function PlayerProfile({ player }: PlayerProfileProps) {
           document.body
         )}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="space-y-1 p-4">
-            <div className="text-xs text-slate-500">Wzrost</div>
-            <div className="text-lg font-semibold text-slate-900">
-              {player.height_cm ? `${player.height_cm} cm` : "Brak"}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="space-y-1 p-4">
-            <div className="text-xs text-slate-500">Waga</div>
-            <div className="text-lg font-semibold text-slate-900">
-              {player.weight_kg ? `${player.weight_kg} kg` : "Brak"}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="space-y-1 p-4">
-            <div className="text-xs text-slate-500">Preferowana noga</div>
-            <div className="text-lg font-semibold text-slate-900">{footLabel}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="space-y-1 p-4">
-            <div className="text-xs text-slate-500">Narodowosc</div>
-            <div className="text-lg font-semibold text-slate-900">
-              {player.nationality ?? "Brak"}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+            <span>
+              <span className="text-slate-500">Wzrost: </span>
+              <span className="font-semibold text-slate-900">
+                {player.height_cm ? `${player.height_cm} cm` : "Brak"}
+              </span>
+            </span>
+            <span>
+              <span className="text-slate-500">Waga: </span>
+              <span className="font-semibold text-slate-900">
+                {player.weight_kg ? `${player.weight_kg} kg` : "Brak"}
+              </span>
+            </span>
+            <span>
+              <span className="text-slate-500">Preferowana noga: </span>
+              <span className="font-semibold text-slate-900">{footLabel}</span>
+            </span>
+            <span>
+              <span className="text-slate-500">Budowa ciała: </span>
+              <span className="font-semibold text-slate-900">{bodyBuildLabel ?? "Brak"}</span>
+            </span>
+            <span>
+              <span className="text-slate-500">Narodowość: </span>
+              <span className="font-semibold text-slate-900">{player.nationality ?? "Brak"}</span>
+            </span>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

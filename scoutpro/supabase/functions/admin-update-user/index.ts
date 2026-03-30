@@ -13,6 +13,7 @@ type UpdateUserPayload = {
   first_name?: string | null;
   last_name?: string | null;
   business_role?: "scout" | "coach" | "director" | "suspended" | "admin";
+  area_access?: "AKADEMIA" | "SENIOR" | "ALL";
   is_active?: boolean | null;
 };
 
@@ -37,7 +38,7 @@ serve(async (req) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceRoleKey) {
     return jsonResponse({ error: "Missing Supabase environment variables" }, { status: 500 });
   }
@@ -67,20 +68,25 @@ serve(async (req) => {
     return jsonResponse({ error: "Forbidden" }, { status: 403 });
   }
 
-  let payload: UpdateUserPayload;
+  let raw: unknown;
   try {
-    payload = await req.json();
+    raw = await req.json();
   } catch {
     return jsonResponse({ error: "Invalid JSON payload" }, { status: 400 });
   }
 
-  if (!payload.user_id) {
+  const payload: UpdateUserPayload =
+    raw && typeof raw === "object" && "body" in raw && (raw as { body?: UpdateUserPayload }).body
+      ? (raw as { body: UpdateUserPayload }).body
+      : (raw as UpdateUserPayload);
+
+  if (!payload?.user_id) {
     return jsonResponse({ error: "user_id is required" }, { status: 400 });
   }
 
   const { data: existingUser, error: existingError } = await supabaseAdmin
     .from("users")
-    .select("email, full_name, role, business_role, is_active")
+    .select("email, full_name, role, business_role, area_access, is_active")
     .eq("id", payload.user_id)
     .single();
 
@@ -111,19 +117,23 @@ serve(async (req) => {
       ? false
       : payload.is_active ?? existingUser.is_active ?? true;
   const resolvedRole = businessRole === "admin" ? "admin" : "user";
+  const areaAccess =
+    payload.area_access ?? (businessRole === "admin" ? "ALL" : (existingUser.area_access ?? "AKADEMIA"));
 
   const updateAuthPayload: Record<string, unknown> = {};
   if (payload.email) updateAuthPayload.email = payload.email;
-  if (
+  const shouldUpdateMetadata =
     payload.first_name !== undefined ||
     payload.last_name !== undefined ||
-    businessRole !== undefined
-  ) {
+    businessRole !== undefined ||
+    payload.area_access !== undefined;
+  if (shouldUpdateMetadata) {
     updateAuthPayload.user_metadata = {
       first_name: payload.first_name ?? null,
       last_name: payload.last_name ?? null,
       full_name: fullName || null,
       business_role: businessRole ?? null,
+      area_access: areaAccess ?? null,
     };
   }
 
@@ -140,6 +150,7 @@ serve(async (req) => {
   const updateData: Record<string, unknown> = {
     role: resolvedRole,
     business_role: businessRole,
+    area_access: areaAccess,
     is_active: isActive,
   };
   if (payload.email) updateData.email = payload.email;

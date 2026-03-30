@@ -1,3 +1,11 @@
+# Environment and secrets (do not commit)
+.env
+.env.local
+.env.*.local
+
+# Supabase CLI temp files
+supabase/.temp/
+
 # Logs
 logs
 *.log

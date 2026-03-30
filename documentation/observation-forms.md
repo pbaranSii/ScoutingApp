@@ -2,6 +2,8 @@
 
 Dokument opiera sie o `Materials/observation-form-analysis.md`.
 
+**Pełna specyfikacja** wymagań, struktury, zbieranych informacji oraz zasad działania formularzy (meczowe vs indywidualne, uproszczone vs rozszerzone) — z myślą o programistach i dalszym rozwoju — znajduje się w **[observation-forms-specification.md](observation-forms-specification.md)**.
+
 ## Scenariusze
 1. Nowa obserwacja z listy obserwacji (ObservationWizard).
 2. Edycja obserwacji z listy (EditObservationPage).

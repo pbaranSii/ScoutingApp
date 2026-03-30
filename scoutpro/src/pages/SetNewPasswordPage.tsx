@@ -7,11 +7,11 @@ export function SetNewPasswordPage() {
       <div className="mx-auto flex w-full max-w-sm flex-col gap-6">
         <div className="text-center">
           <div className="text-2xl font-bold text-slate-900">ScoutPro</div>
-          <p className="mt-1 text-sm text-slate-600">Ustaw nowe haslo</p>
+          <p className="mt-1 text-sm text-slate-600">Ustaw nowe hasło</p>
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Nowe haslo</CardTitle>
+            <CardTitle>Nowe hasło</CardTitle>
           </CardHeader>
           <CardContent>
             <SetNewPasswordForm />
