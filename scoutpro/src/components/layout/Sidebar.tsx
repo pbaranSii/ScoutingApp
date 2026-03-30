@@ -1,25 +1,53 @@
-import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, ClipboardList, KanbanSquare, CheckSquare, Settings } from "lucide-react";
+import { NavLink, Link } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Users,
+  ClipboardList,
+  KanbanSquare,
+  CheckSquare,
+  Settings,
+  BarChart3,
+  Star,
+  LogOut,
+  ChevronDown,
+  Target,
+} from "lucide-react";
+import { ShadowTeamIcon } from "@/components/icons/ShadowTeamIcon";
 import { useAuthStore } from "@/stores/authStore";
 import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
+import { canViewAnalytics, canAccessSettings, canAccessPipeline } from "@/features/users/types";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import logo from "@/assets/logo.png";
 
-const navItems = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/players", label: "Zawodnicy", icon: Users },
-  { to: "/observations", label: "Obserwacje", icon: ClipboardList },
-  { to: "/pipeline", label: "Pipeline", icon: KanbanSquare },
-  { to: "/tasks", label: "Zadania", icon: CheckSquare },
-  { to: "/settings", label: "Ustawienia", icon: Settings },
-];
-
 export function Sidebar() {
-  const { user, logout } = useAuthStore();
+  const { logout } = useAuthStore();
   const { data: profile } = useCurrentUserProfile();
+  const showAnalytics = canViewAnalytics(profile?.business_role);
+  const showSettings = canAccessSettings(profile?.business_role);
+  const showPipeline = canAccessPipeline(profile?.business_role);
+
+  const navItems = [
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/players", label: "Zawodnicy", icon: Users },
+    { to: "/observations", label: "Obserwacje", icon: ClipboardList },
+    { to: "/favorites", label: "Shadow Team", icon: ShadowTeamIcon },
+    { to: "/demands", label: "Zapotrzebowania", icon: Target },
+    ...(showPipeline ? [{ to: "/pipeline", label: "Pipeline", icon: KanbanSquare }] : []),
+    { to: "/tasks", label: "Zadania", icon: CheckSquare },
+    ...(showAnalytics
+      ? [{ to: "/analytics/recruitment-pipeline", label: "Analytics", icon: BarChart3 }]
+      : []),
+    ...(showSettings ? [{ to: "/settings", label: "Ustawienia", icon: Settings }] : []),
+  ];
 
   return (
-    <aside className="hidden h-full w-60 flex-shrink-0 border-r border-slate-200 bg-white lg:flex lg:flex-col">
+    <aside className="hidden h-full max-h-full min-h-0 w-60 flex-shrink-0 overflow-hidden border-r border-slate-200 bg-white lg:flex lg:flex-col">
       <div className="flex min-h-0 flex-1 flex-col p-4">
         <div className="flex flex-1 flex-col gap-6 min-h-0">
           <div className="flex items-center gap-3 flex-shrink-0">
@@ -61,15 +89,36 @@ export function Sidebar() {
         </div>
 
         <div className="mt-auto flex flex-shrink-0 flex-col gap-3 border-t border-slate-200 pt-4">
-          <div className="min-w-0 rounded-md bg-slate-50 px-3 py-2">
-            <div className="truncate text-sm font-medium text-slate-900">
-              {profile?.full_name?.trim() || "Zalogowany użytkownik"}
-            </div>
-            <div className="truncate text-xs text-slate-500">{user?.email ?? "—"}</div>
-          </div>
-          <Button variant="outline" onClick={logout} className="w-full">
-            Wyloguj się
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full justify-between">
+                <span className="truncate text-left">
+                  {profile?.full_name?.trim() || "Zalogowany użytkownik"}
+                </span>
+                <ChevronDown className="h-4 w-4 shrink-0" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {showSettings && (
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="flex cursor-pointer items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    Ustawienia
+                  </Link>
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem asChild>
+                <Link to="/survey/satisfaction" className="flex cursor-pointer items-center gap-2">
+                  <Star className="h-4 w-4" />
+                  Oceń aplikację
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void logout()} className="flex items-center gap-2">
+                <LogOut className="h-4 w-4" />
+                Wyloguj się
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </aside>

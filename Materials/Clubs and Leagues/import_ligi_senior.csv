@@ -1,0 +1,38 @@
+liga_id,kraj_pl,kraj_iso,kraj_en,poziom,nazwa_oficjalna,nazwa_pl,nazwa_wyswietlana,grupa,obserwowana,kategoria,uwagi
+BG-SEN-1,Bułgaria,BG,Bulgaria,1,First Professional Football League,Pierwsza Profesjonalna Liga Bułgarii,efbet Liga - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+CY-SEN-1,Cypr,CY,Cyprus,1,Cyprus 1. Division,Pierwsza Liga Cypru,1. Division - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+CZ-SEN-1,Czechy,CZ,Czech Republic,1,Czech First League,Czeska Pierwsza Liga,Fortuna liga - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+CZ-SEN-2,Czechy,CZ,Czech Republic,2,Czech National Football League,Czeska Druga Liga,Fortuna:Národní liga - 2.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+DK-SEN-2,Dania,DK,Denmark,2,Danish 1st Division,Duńska 1. Dywizja,1. Division - 2.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+EE-SEN-1,Estonia,EE,Estonia,1,Estonian Meistriliiga,Estońska Meistriliiga,Meistriliiga - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+FI-SEN-1,Finlandia,FI,Finland,1,Finnish Veikkausliiga,Fińska Veikkausliiga,Veikkausliiga - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+FR-SEN-3,Francja,FR,France,3,Championnat National,Championnat National,National - 3.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+GE-SEN-1,Gruzja,GE,Georgia,1,Georgian Erovnuli Liga,Gruzińska Erovnuli Liga,Erovnuli Liga - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+NL-SEN-2,Holandia,NL,Netherlands,2,Dutch Eerste Divisie,Holenderska Eerste Divisie,Keuken Kampioen Divisie - 2.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+ES-SEN-3,Hiszpania,ES,Spain,3,Primera Federación,Pierwsza Federacja Hiszpańska,Primera Federación - 3.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+ES-SEN-4-G1,Hiszpania,ES,Spain,4,Segunda Federación - Grupo 1,Druga Federacja Gr.1,2ª Federación Gr.1 - 4.liga,Grupo 1,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+LT-SEN-1,Litwa,LT,Lithuania,1,Lithuanian A Lyga,Litewska A Lyga,A Lyga - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+LV-SEN-1,Łotwa,LV,Latvia,1,Latvian Virslīga,Łotewska Virslīga,Virslīga - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+DE-SEN-3,Niemcy,DE,Germany,3,3. Liga,Trzecia Liga Niemiec,3. Liga - 3.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+NO-SEN-1,Norwegia,NO,Norway,1,Eliteserien,Norweska Eliteserien,Eliteserien - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+NO-SEN-2,Norwegia,NO,Norway,2,1. divisjon,Norweska 1. Dywizja,Obos-ligaen (1. divisjon) - 2.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+NO-SEN-3,Norwegia,NO,Norway,3,2. divisjon,Norweska 2. Dywizja,2. divisjon - 3.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+PL-SEN-1,Polska,PL,Poland,1,PKO BP Ekstraklasa,PKO BP Ekstraklasa,PKO BP Ekstraklasa - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+PL-SEN-2,Polska,PL,Poland,2,Betclic 1 Liga,Betclic 1 Liga,Betclic 1 Liga - 2.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+PL-SEN-3,Polska,PL,Poland,3,Betclic 2 Liga,Betclic 2 Liga,Betclic 2 Liga - 3.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+PT-SEN-2,Portugalia,PT,Portugal,2,Liga Portugal 2,Liga Portugal 2,Liga Portugal 2 - 2.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+PT-SEN-3,Portugalia,PT,Portugal,3,Liga 3,Liga 3 Portugalia,Liga 3 - 3.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+RO-SEN-1,Rumunia,RO,Romania,1,Romanian SuperLiga,SuperLiga Rumunii,SuperLiga - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+RO-SEN-2,Rumunia,RO,Romania,2,Romanian Liga II,Liga II Rumunii,Casa Pariurilor Liga II - 2.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+RS-SEN-1,Serbia,RS,Serbia,1,Serbian SuperLiga,SuperLiga Serbii,SuperLiga Srbije - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+RS-SEN-2,Serbia,RS,Serbia,2,Serbian Prva Liga,Pierwsza Liga Serbii,Prva Liga Srbije - 2.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+SK-SEN-1,Słowacja,SK,Slovakia,1,Slovak First Football League,Pierwsza Liga Słowacka,Niké liga - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+SK-SEN-2,Słowacja,SK,Slovakia,2,Slovak Second League,Druga Liga Słowacka,II. liga (SK) - 2.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+SI-SEN-1,Słowenia,SI,Slovenia,1,Slovenian PrvaLiga,Pierwsza Liga Słowenii,NLB liga (Prva liga) - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+SE-SEN-1,Szwecja,SE,Sweden,1,Allsvenskan,Szwedzka Allsvenskan,Allsvenskan - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+SE-SEN-2,Szwecja,SE,Sweden,2,Superettan,Szwedzka Superettan,Superettan - 2.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+SE-SEN-3-N,Szwecja,SE,Sweden,3,Ettan - Norra,Ettan Norra,Ettan Norra - 3.liga,Norra,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+SE-SEN-3-S,Szwecja,SE,Sweden,3,Ettan - Södra,Ettan Södra,Ettan Södra - 3.liga,Södra,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+UA-SEN-1,Ukraina,UA,Ukraine,1,Ukrainian Premier League,Ukraińska Premier Liga,УПЛ (Premier Liga) - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+HU-SEN-1,Węgry,HU,Hungary,1,Nemzeti Bajnokság I,Pierwsza Liga Węgierska,OTP Bank Liga (NB I) - 1.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem
+HU-SEN-2,Węgry,HU,Hungary,2,Nemzeti Bajnokság II,Druga Liga Węgierska,Nemzeti Bajnokság II - 2.liga,,TAK,Seniorzy,Dane wg sezonu 2024/25 – wymagana weryfikacja przed importem

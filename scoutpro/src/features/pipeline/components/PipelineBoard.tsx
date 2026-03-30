@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -45,6 +45,8 @@ function toPlayersFilters(filters: PipelineFiltersState): PlayersFilters {
   if (filters.scoutId) f.scoutId = filters.scoutId;
   if (filters.position) f.primary_position = filters.position;
   if (filters.clubId) f.clubIds = [filters.clubId];
+  // Pipeline nie wykorzystuje `observation_count`, więc wyłączamy koszt agregacji.
+  f.includeObservationCount = false;
   return f;
 }
 
@@ -63,7 +65,10 @@ const DEFAULT_FILTERS: PipelineFiltersState = {
 
 export function PipelineBoard({ search = "", filters = DEFAULT_FILTERS }: PipelineBoardProps) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
-  const playersFilters = toPlayersFilters(filters);
+  const playersFilters = useMemo(
+    () => toPlayersFilters(filters),
+    [filters.status, filters.birthYear, filters.scoutId, filters.position, filters.clubId]
+  );
   const { data, isLoading } = usePlayers(playersFilters);
   const players = data ?? EMPTY_PLAYERS;
   const { mutateAsync: updateStatus } = useUpdatePlayerStatus();
@@ -82,9 +87,22 @@ export function PipelineBoard({ search = "", filters = DEFAULT_FILTERS }: Pipeli
   const initialColumns = useMemo(() => groupByStatus(filteredPlayers), [filteredPlayers]);
   const { statusSince, latestRating } = usePipelineEnrichment(filteredPlayers);
 
+  // Stable key so useEffect runs when the board content actually changes:
+  // - include pipeline_status so a programmatic update (e.g. modal "add") is reflected.
+  const filteredPlayersKey = useMemo(
+    () =>
+      filteredPlayers
+        .map((p) => `${p.id}:${p.pipeline_status ?? "unassigned"}`)
+        .sort()
+        .join(","),
+    [filteredPlayers]
+  );
+  const filteredPlayersRef = useRef(filteredPlayers);
+  filteredPlayersRef.current = filteredPlayers;
+
   useEffect(() => {
-    setColumns(initialColumns);
-  }, [initialColumns]);
+    setColumns(groupByStatus(filteredPlayersRef.current));
+  }, [filteredPlayersKey]);
 
   const handleDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
@@ -147,20 +165,20 @@ export function PipelineBoard({ search = "", filters = DEFAULT_FILTERS }: Pipeli
       if (result?.historyError) {
         toast({
           title: "Status zapisany",
-          description: "Nie udalo sie zapisac wpisu w historii Pipeline.",
+          description: "Nie udało się zapisać wpisu w historii Pipeline.",
         });
       }
     } catch {
       setColumns(initialColumns);
       toast({
-        title: "Nie udalo sie zapisac zmiany",
+        title: "Nie udało się zapisać zmiany",
         description: "Sprobuj ponownie za chwile.",
       });
     }
   };
 
   if (isLoading) {
-    return <p className="text-sm text-slate-500">Ladowanie...</p>;
+    return <p className="text-sm text-slate-500">Ładowanie...</p>;
   }
 
   return (

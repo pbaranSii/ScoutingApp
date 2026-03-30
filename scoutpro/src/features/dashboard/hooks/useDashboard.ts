@@ -5,38 +5,65 @@ import {
   fetchPlayerCount,
   fetchPlayersByStatus,
   fetchRecentObservations,
+  fetchRecentPlayers,
   fetchTopRankedPlayers,
 } from "../api/dashboard.api";
+import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
+import { fetchTasksForUser } from "@/features/tasks/api/tasks.api";
+import { fetchRecentDemands } from "@/features/demands/api/demands.api";
 
 export function useObservationStats() {
+  const { data: profile } = useCurrentUserProfile();
+  const scoutId =
+    profile?.business_role === "scout" && profile?.id ? profile.id : undefined;
   return useQuery({
-    queryKey: ["dashboard", "observations"],
+    queryKey: ["dashboard", "observations", scoutId],
     queryFn: () =>
       fetchObservationCounts(
         format(startOfMonth(new Date()), "yyyy-MM-dd"),
-        format(subDays(new Date(), 7), "yyyy-MM-dd")
+        format(subDays(new Date(), 7), "yyyy-MM-dd"),
+        scoutId
       ),
   });
 }
 
 export function usePlayerCount() {
+  const { data: profile } = useCurrentUserProfile();
+  const createdBy =
+    profile?.business_role === "scout" && profile?.id ? profile.id : undefined;
   return useQuery({
-    queryKey: ["dashboard", "players-count"],
-    queryFn: fetchPlayerCount,
+    queryKey: ["dashboard", "players-count", createdBy],
+    queryFn: () => fetchPlayerCount(createdBy),
   });
 }
 
 export function usePlayersByStatus() {
+  const { data: profile } = useCurrentUserProfile();
+  const createdBy =
+    profile?.business_role === "scout" && profile?.id ? profile.id : undefined;
   return useQuery({
-    queryKey: ["dashboard", "players-status"],
-    queryFn: fetchPlayersByStatus,
+    queryKey: ["dashboard", "players-status", createdBy],
+    queryFn: () => fetchPlayersByStatus(createdBy),
   });
 }
 
-export function useRecentObservations() {
+export function useRecentPlayers(limit = 8) {
+  const { data: profile } = useCurrentUserProfile();
+  const createdBy =
+    profile?.business_role === "scout" && profile?.id ? profile.id : undefined;
   return useQuery({
-    queryKey: ["dashboard", "recent-observations"],
-    queryFn: fetchRecentObservations,
+    queryKey: ["dashboard", "recent-players", limit, createdBy],
+    queryFn: () => fetchRecentPlayers(limit, createdBy),
+  });
+}
+
+export function useRecentObservations(limit = 5) {
+  const { data: profile } = useCurrentUserProfile();
+  const scoutId =
+    profile?.business_role === "scout" && profile?.id ? profile.id : undefined;
+  return useQuery({
+    queryKey: ["dashboard", "recent-observations", limit, scoutId],
+    queryFn: () => fetchRecentObservations(limit, scoutId),
   });
 }
 
@@ -44,5 +71,22 @@ export function useTopRankedPlayers() {
   return useQuery({
     queryKey: ["dashboard", "top-ranked"],
     queryFn: fetchTopRankedPlayers,
+  });
+}
+
+export function useMyTasks(limit = 8) {
+  const { data: profile } = useCurrentUserProfile();
+  const userId = profile?.id ?? "";
+  return useQuery({
+    queryKey: ["dashboard", "my-tasks", userId, limit],
+    queryFn: () => fetchTasksForUser(userId, limit),
+    enabled: Boolean(userId),
+  });
+}
+
+export function useRecentDemands(limit = 5) {
+  return useQuery({
+    queryKey: ["dashboard", "recent-demands", limit],
+    queryFn: () => fetchRecentDemands(limit),
   });
 }

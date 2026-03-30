@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FormLabel } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 import type { TagOption } from "./TagSelectModal";
 import { TagSelectModal } from "./TagSelectModal";
 
@@ -10,6 +10,8 @@ type StrengthsWeaknessesTagFieldProps = {
   value: string;
   onChange: (value: string) => void;
   dictionaryOptions: TagOption[];
+  /** Green for strengths, red for weaknesses. */
+  variant?: "strengths" | "weaknesses";
 };
 
 function parseItems(value: string): string[] {
@@ -20,14 +22,21 @@ function parseItems(value: string): string[] {
 }
 
 /** Pole tylko na tagi (wybór ze słownika). Opis tekstowy jest w osobnym polu. */
+const tagStyles = {
+  strengths: "border-emerald-300 bg-emerald-100 text-emerald-800",
+  weaknesses: "border-red-300 bg-red-100 text-red-800",
+};
+
 export function StrengthsWeaknessesTagField({
   label,
   value,
   onChange,
   dictionaryOptions,
+  variant = "strengths",
 }: StrengthsWeaknessesTagFieldProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const items = parseItems(value);
+  const tagClass = tagStyles[variant];
 
   const removeItem = (name: string) => {
     const next = items.filter((i) => i !== name);
@@ -43,7 +52,7 @@ export function StrengthsWeaknessesTagField({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <FormLabel className="mb-0">{label}</FormLabel>
+        <Label className="mb-0">{label}</Label>
         <Button
           type="button"
           variant="outline"
@@ -59,7 +68,7 @@ export function StrengthsWeaknessesTagField({
           {items.map((name) => (
             <span
               key={name}
-              className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-50 px-2.5 py-1 text-sm"
+              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm ${tagClass}`}
             >
               {name}
               <button

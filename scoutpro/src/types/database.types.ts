@@ -17,6 +17,7 @@ export type Database = {
       categories: {
         Row: {
           created_at: string
+          default_form_type: Database["public"]["Enums"]["default_form_type_enum"]
           id: string
           max_birth_year: number | null
           min_birth_year: number | null
@@ -24,6 +25,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          default_form_type?: Database["public"]["Enums"]["default_form_type_enum"]
           id?: string
           max_birth_year?: number | null
           min_birth_year?: number | null
@@ -31,6 +33,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          default_form_type?: Database["public"]["Enums"]["default_form_type_enum"]
           id?: string
           max_birth_year?: number | null
           min_birth_year?: number | null
@@ -40,30 +43,46 @@ export type Database = {
       }
       clubs: {
         Row: {
+          area: string
           city: string | null
+          country_pl: string | null
           created_at: string
           id: string
           is_active: boolean
+          league_id: string | null
           name: string
           region_id: string | null
         }
         Insert: {
+          area?: string
           city?: string | null
+          country_pl?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
+          league_id?: string | null
           name: string
           region_id?: string | null
         }
         Update: {
+          area?: string
           city?: string | null
+          country_pl?: string | null
           created_at?: string
           id?: string
           is_active?: boolean
+          league_id?: string | null
           name?: string
           region_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "clubs_league_id_fkey"
+            columns: ["league_id"]
+            isOneToOne: false
+            referencedRelation: "leagues"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "clubs_region_id_fkey"
             columns: ["region_id"]
@@ -75,35 +94,44 @@ export type Database = {
       }
       evaluation_criteria: {
         Row: {
+          code: string | null
           created_at: string
           id: string
+          is_required: boolean
           name: string
-          position_id: string
+          position_dictionary_id: string
+          section: Database["public"]["Enums"]["criterion_section"] | null
           sort_order: number
           weight: number
         }
         Insert: {
+          code?: string | null
           created_at?: string
           id?: string
+          is_required?: boolean
           name: string
-          position_id: string
+          position_dictionary_id: string
+          section?: Database["public"]["Enums"]["criterion_section"] | null
           sort_order?: number
           weight?: number
         }
         Update: {
+          code?: string | null
           created_at?: string
           id?: string
+          is_required?: boolean
           name?: string
-          position_id?: string
+          position_dictionary_id?: string
+          section?: Database["public"]["Enums"]["criterion_section"] | null
           sort_order?: number
           weight?: number
         }
         Relationships: [
           {
-            foreignKeyName: "evaluation_criteria_position_id_fkey"
-            columns: ["position_id"]
+            foreignKeyName: "evaluation_criteria_position_dictionary_id_fkey"
+            columns: ["position_dictionary_id"]
             isOneToOne: false
-            referencedRelation: "positions"
+            referencedRelation: "position_dictionary"
             referencedColumns: ["id"]
           },
         ]
@@ -148,25 +176,58 @@ export type Database = {
       }
       leagues: {
         Row: {
+          area: string
+          code: string | null
+          country_en: string | null
+          country_iso: string | null
+          country_pl: string | null
           created_at: string
+          display_name: string | null
           id: string
           is_active: boolean
+          is_observed: boolean
           level: number | null
           name: string
+          name_pl: string | null
+          notes: string | null
+          official_name: string | null
+          group_name: string | null
         }
         Insert: {
+          area?: string
+          code?: string | null
+          country_en?: string | null
+          country_iso?: string | null
+          country_pl?: string | null
           created_at?: string
+          display_name?: string | null
           id?: string
           is_active?: boolean
+          is_observed?: boolean
           level?: number | null
           name: string
+          name_pl?: string | null
+          notes?: string | null
+          official_name?: string | null
+          group_name?: string | null
         }
         Update: {
+          area?: string
+          code?: string | null
+          country_en?: string | null
+          country_iso?: string | null
+          country_pl?: string | null
           created_at?: string
+          display_name?: string | null
           id?: string
           is_active?: boolean
+          is_observed?: boolean
           level?: number | null
           name?: string
+          name_pl?: string | null
+          notes?: string | null
+          official_name?: string | null
+          group_name?: string | null
         }
         Relationships: []
       }
@@ -250,18 +311,34 @@ export type Database = {
           id: string
           is_offline_created: boolean
           location: string | null
+          league: string | null
           match_id: string | null
+          match_observation_id: string | null
+          match_performance_rating: number | null
           match_result: string | null
+          home_team: string | null
+          away_team: string | null
+          mental_description: string | null
           mental_rating: number | null
           motor_rating: number | null
+          motor_speed_rating: number | null
+          motor_endurance_rating: number | null
+          motor_jump_rating: number | null
+          motor_agility_rating: number | null
+          motor_acceleration_rating: number | null
+          motor_strength_rating: number | null
+          motor_description: string | null
           notes: string | null
+          observation_category: Database["public"]["Enums"]["observation_category_type"] | null
           observation_date: string
+          form_type: Database["public"]["Enums"]["form_type"] | null
           positions: string[] | null
           player_id: string
           photo_url: string | null
           potential_future: number | null
           potential_now: number | null
           rank: string | null
+          recommendation: Database["public"]["Enums"]["recommendation_type"] | null
           recommendations: string | null
           scout_id: string
           source: Database["public"]["Enums"]["observation_source"]
@@ -269,6 +346,7 @@ export type Database = {
           status: string
           strengths: string | null
           strengths_notes: string | null
+          summary: string | null
           tactical_rating: number | null
           technical_rating: number | null
           team_role: string | null
@@ -291,17 +369,30 @@ export type Database = {
           is_offline_created?: boolean
           location?: string | null
           match_id?: string | null
+          match_observation_id?: string | null
+          match_performance_rating?: number | null
           match_result?: string | null
+          mental_description?: string | null
           mental_rating?: number | null
           motor_rating?: number | null
+          motor_speed_rating?: number | null
+          motor_endurance_rating?: number | null
+          motor_jump_rating?: number | null
+          motor_agility_rating?: number | null
+          motor_acceleration_rating?: number | null
+          motor_strength_rating?: number | null
+          motor_description?: string | null
           notes?: string | null
+          observation_category?: Database["public"]["Enums"]["observation_category_type"] | null
           observation_date?: string
+          form_type?: Database["public"]["Enums"]["form_type"] | null
           positions?: string[] | null
           player_id: string
           photo_url?: string | null
           potential_future?: number | null
           potential_now?: number | null
           rank?: string | null
+          recommendation?: Database["public"]["Enums"]["recommendation_type"] | null
           recommendations?: string | null
           scout_id: string
           source?: Database["public"]["Enums"]["observation_source"]
@@ -309,6 +400,7 @@ export type Database = {
           status?: string
           strengths?: string | null
           strengths_notes?: string | null
+          summary?: string | null
           tactical_rating?: number | null
           technical_rating?: number | null
           team_role?: string | null
@@ -330,18 +422,34 @@ export type Database = {
           id?: string
           is_offline_created?: boolean
           location?: string | null
+          league?: string | null
           match_id?: string | null
+          match_observation_id?: string | null
+          match_performance_rating?: number | null
           match_result?: string | null
+          home_team?: string | null
+          away_team?: string | null
+          mental_description?: string | null
           mental_rating?: number | null
           motor_rating?: number | null
+          motor_speed_rating?: number | null
+          motor_endurance_rating?: number | null
+          motor_jump_rating?: number | null
+          motor_agility_rating?: number | null
+          motor_acceleration_rating?: number | null
+          motor_strength_rating?: number | null
+          motor_description?: string | null
           notes?: string | null
+          observation_category?: Database["public"]["Enums"]["observation_category_type"] | null
           observation_date?: string
+          form_type?: Database["public"]["Enums"]["form_type"] | null
           positions?: string[] | null
           player_id?: string
           photo_url?: string | null
           potential_future?: number | null
           potential_now?: number | null
           rank?: string | null
+          recommendation?: Database["public"]["Enums"]["recommendation_type"] | null
           recommendations?: string | null
           scout_id?: string
           source?: Database["public"]["Enums"]["observation_source"]
@@ -349,6 +457,7 @@ export type Database = {
           status?: string
           strengths?: string | null
           strengths_notes?: string | null
+          summary?: string | null
           tactical_rating?: number | null
           technical_rating?: number | null
           team_role?: string | null
@@ -370,6 +479,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "observations_match_observation_id_fkey"
+            columns: ["match_observation_id"]
+            isOneToOne: false
+            referencedRelation: "match_observations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "observations_player_id_fkey"
             columns: ["player_id"]
             isOneToOne: false
@@ -381,6 +497,163 @@ export type Database = {
             columns: ["scout_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      match_observations: {
+        Row: {
+          id: string
+          context_type: Database["public"]["Enums"]["observation_context_type"]
+          observation_date: string
+          competition: string
+          league: string | null
+          home_team: string | null
+          away_team: string | null
+          match_result: string | null
+          location: string | null
+          source: Database["public"]["Enums"]["observation_source"]
+          scout_id: string
+          home_team_formation: string | null
+          away_team_formation: string | null
+          match_notes: string | null
+          status: string
+          is_offline_created: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          context_type?: Database["public"]["Enums"]["observation_context_type"]
+          observation_date?: string
+          competition: string
+          league?: string | null
+          home_team?: string | null
+          away_team?: string | null
+          match_result?: string | null
+          location?: string | null
+          source?: Database["public"]["Enums"]["observation_source"]
+          scout_id: string
+          home_team_formation?: string | null
+          away_team_formation?: string | null
+          match_notes?: string | null
+          status?: string
+          is_offline_created?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          context_type?: Database["public"]["Enums"]["observation_context_type"]
+          observation_date?: string
+          competition?: string
+          league?: string | null
+          home_team?: string | null
+          away_team?: string | null
+          match_result?: string | null
+          location?: string | null
+          source?: Database["public"]["Enums"]["observation_source"]
+          scout_id?: string
+          home_team_formation?: string | null
+          away_team_formation?: string | null
+          match_notes?: string | null
+          status?: string
+          is_offline_created?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_observations_scout_id_fkey"
+            columns: ["scout_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      motor_evaluations: {
+        Row: {
+          id: string
+          observation_id: string
+          speed: number
+          endurance: number
+          jumping: number
+          agility: number
+          acceleration: number
+          strength: number
+          description: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          observation_id: string
+          speed: number
+          endurance: number
+          jumping: number
+          agility: number
+          acceleration: number
+          strength: number
+          description?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          observation_id?: string
+          speed?: number
+          endurance?: number
+          jumping?: number
+          agility?: number
+          acceleration?: number
+          strength?: number
+          description?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "motor_evaluations_observation_id_fkey"
+            columns: ["observation_id"]
+            isOneToOne: true
+            referencedRelation: "observations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      observation_criterion_notes: {
+        Row: {
+          id: string
+          observation_id: string
+          criteria_id: string
+          description: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          observation_id: string
+          criteria_id: string
+          description?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          observation_id?: string
+          criteria_id?: string
+          description?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "observation_criterion_notes_observation_id_fkey"
+            columns: ["observation_id"]
+            isOneToOne: false
+            referencedRelation: "observations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "observation_criterion_notes_criteria_id_fkey"
+            columns: ["criteria_id"]
+            isOneToOne: false
+            referencedRelation: "evaluation_criteria"
             referencedColumns: ["id"]
           },
         ]
@@ -641,76 +914,103 @@ export type Database = {
       }
       players: {
         Row: {
+          agent_email: string | null
+          agent_name: string | null
+          agent_phone: string | null
           birth_date: string | null
           birth_year: number
+          body_build: string | null
           club_id: string | null
+          contract_end_date: string | null
           created_at: string
           decision_notes: string | null
           decision_status: string | null
           dominant_foot: Database["public"]["Enums"]["dominant_foot"] | null
+          facebook_url: string | null
           first_name: string
           guardian_email: string | null
           guardian_name: string | null
           guardian_phone: string | null
           height_cm: number | null
           id: string
+          instagram_url: string | null
           last_name: string
           nationality: string | null
+          other_social_url: string | null
           photo_urls: string[] | null
           pipeline_status: Database["public"]["Enums"]["pipeline_status"]
           primary_position: string | null
           region_id: string | null
           secondary_positions: string[] | null
+          transfermarkt_url: string | null
           updated_at: string
           video_urls: string[] | null
           weight_kg: number | null
         }
         Insert: {
+          agent_email?: string | null
+          agent_name?: string | null
+          agent_phone?: string | null
           birth_date?: string | null
           birth_year: number
+          body_build?: string | null
           club_id?: string | null
+          contract_end_date?: string | null
           created_at?: string
           decision_notes?: string | null
           decision_status?: string | null
           dominant_foot?: Database["public"]["Enums"]["dominant_foot"] | null
+          facebook_url?: string | null
           first_name: string
           guardian_email?: string | null
           guardian_name?: string | null
           guardian_phone?: string | null
           height_cm?: number | null
           id?: string
+          instagram_url?: string | null
           last_name: string
           nationality?: string | null
+          other_social_url?: string | null
           photo_urls?: string[] | null
           pipeline_status?: Database["public"]["Enums"]["pipeline_status"]
           primary_position?: string | null
           region_id?: string | null
           secondary_positions?: string[] | null
+          transfermarkt_url?: string | null
           updated_at?: string
           video_urls?: string[] | null
           weight_kg?: number | null
         }
         Update: {
+          agent_email?: string | null
+          agent_name?: string | null
+          agent_phone?: string | null
           birth_date?: string | null
           birth_year?: number
+          body_build?: string | null
+          contract_end_date?: string | null
           club_id?: string | null
           created_at?: string
           decision_notes?: string | null
           decision_status?: string | null
           dominant_foot?: Database["public"]["Enums"]["dominant_foot"] | null
+          facebook_url?: string | null
           first_name?: string
           guardian_email?: string | null
           guardian_name?: string | null
           guardian_phone?: string | null
           height_cm?: number | null
           id?: string
+          instagram_url?: string | null
           last_name?: string
           nationality?: string | null
+          other_social_url?: string | null
           photo_urls?: string[] | null
           pipeline_status?: Database["public"]["Enums"]["pipeline_status"]
           primary_position?: string | null
           region_id?: string | null
           secondary_positions?: string[] | null
+          transfermarkt_url?: string | null
           updated_at?: string
           video_urls?: string[] | null
           weight_kg?: number | null
@@ -731,6 +1031,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      dict_body_build: {
+        Row: {
+          id: string
+          code: string
+          name_pl: string
+          name_en: string | null
+          display_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          name_pl: string
+          name_en?: string | null
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          code?: string
+          name_pl?: string
+          name_en?: string | null
+          display_order?: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       dict_preferred_foot: {
         Row: {
@@ -963,6 +1296,239 @@ export type Database = {
         }
         Relationships: []
       }
+      position_dictionary: {
+        Row: {
+          id: string
+          position_number: number
+          position_code: string
+          position_name_pl: string
+          description: string | null
+          is_active: boolean
+          display_order: number
+          created_at: string
+          updated_at: string
+          criteria_template_position_id: string | null
+          form_template_id: string | null
+        }
+        Insert: {
+          id?: string
+          position_number: number
+          position_code: string
+          position_name_pl: string
+          description?: string | null
+          is_active?: boolean
+          display_order?: number
+          created_at?: string
+          updated_at?: string
+          criteria_template_position_id?: string | null
+          form_template_id?: string | null
+        }
+        Update: {
+          id?: string
+          position_number?: number
+          position_code?: string
+          position_name_pl?: string
+          description?: string | null
+          is_active?: boolean
+          display_order?: number
+          created_at?: string
+          updated_at?: string
+          criteria_template_position_id?: string | null
+          form_template_id?: string | null
+        }
+        Relationships: []
+      }
+      position_form_template: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      position_form_template_element: {
+        Row: {
+          id: string
+          template_id: string
+          element_type: string
+          sort_order: number
+          header_label: string | null
+          evaluation_criterion_id: string | null
+          is_required: boolean | null
+        }
+        Insert: {
+          id?: string
+          template_id: string
+          element_type: string
+          sort_order?: number
+          header_label?: string | null
+          evaluation_criterion_id?: string | null
+          is_required?: boolean | null
+        }
+        Update: {
+          id?: string
+          template_id?: string
+          element_type?: string
+          sort_order?: number
+          header_label?: string | null
+          evaluation_criterion_id?: string | null
+          is_required?: boolean | null
+        }
+        Relationships: []
+      }
+      formations: {
+        Row: {
+          id: string
+          name: string
+          code: string
+          description: string | null
+          is_default: boolean
+          is_system: boolean
+          created_by: string | null
+          version: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          code: string
+          description?: string | null
+          is_default?: boolean
+          is_system?: boolean
+          created_by?: string | null
+          version?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          code?: string
+          description?: string | null
+          is_default?: boolean
+          is_system?: boolean
+          created_by?: string | null
+          version?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tactical_slots: {
+        Row: {
+          id: string
+          formation_id: string
+          position_id: string
+          slot_label: string | null
+          x: number
+          y: number
+          side: string
+          depth: string
+          is_required: boolean
+          role_hint: string | null
+          display_order: number
+        }
+        Insert: {
+          id?: string
+          formation_id: string
+          position_id: string
+          slot_label?: string | null
+          x: number
+          y: number
+          side?: string
+          depth?: string
+          is_required?: boolean
+          role_hint?: string | null
+          display_order?: number
+        }
+        Update: {
+          id?: string
+          formation_id?: string
+          position_id?: string
+          slot_label?: string | null
+          x?: number
+          y?: number
+          side?: string
+          depth?: string
+          is_required?: boolean
+          role_hint?: string | null
+          display_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tactical_slots_formation_id_fkey"
+            columns: ["formation_id"]
+            isOneToOne: false
+            referencedRelation: "formations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tactical_slots_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "position_dictionary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      player_position_mapping: {
+        Row: {
+          player_id: string
+          position_id: string
+          is_primary: boolean
+        }
+        Insert: {
+          player_id: string
+          position_id: string
+          is_primary?: boolean
+        }
+        Update: {
+          player_id?: string
+          position_id?: string
+          is_primary?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_position_mapping_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_position_mapping_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "position_dictionary"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       regions: {
         Row: {
           created_at: string
@@ -1103,6 +1669,7 @@ export type Database = {
           is_active: boolean
           last_login_at: string | null
           phone: string | null
+          region_id: string | null
           role: Database["public"]["Enums"]["user_role"]
         }
         Insert: {
@@ -1115,6 +1682,7 @@ export type Database = {
           is_active?: boolean
           last_login_at?: string | null
           phone?: string | null
+          region_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
         }
         Update: {
@@ -1127,7 +1695,196 @@ export type Database = {
           is_active?: boolean
           last_login_at?: string | null
           phone?: string | null
+          region_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: []
+      }
+      favorite_lists: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          owner_id: string
+          formation: string
+          formation_id: string | null
+          region_id: string | null
+          slot_assignments: Record<string, string[]> | null
+          last_used_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          owner_id: string
+          formation?: string
+          formation_id?: string | null
+          region_id?: string | null
+          slot_assignments?: Record<string, string[]> | null
+          last_used_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          owner_id?: string
+          formation?: string
+          formation_id?: string | null
+          region_id?: string | null
+          slot_assignments?: Record<string, string[]> | null
+          last_used_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "favorite_lists_formation_id_fkey"
+            columns: ["formation_id"]
+            isOneToOne: false
+            referencedRelation: "formations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      favorite_list_members: {
+        Row: {
+          id: string
+          list_id: string
+          player_id: string
+          added_by: string
+          added_at: string
+        }
+        Insert: {
+          id?: string
+          list_id: string
+          player_id: string
+          added_by: string
+          added_at?: string
+        }
+        Update: {
+          id?: string
+          list_id?: string
+          player_id?: string
+          added_by?: string
+          added_at?: string
+        }
+        Relationships: []
+      }
+      favorite_list_collaborators: {
+        Row: {
+          id: string
+          list_id: string
+          user_id: string
+          added_at: string
+        }
+        Insert: {
+          id?: string
+          list_id: string
+          user_id: string
+          added_at?: string
+        }
+        Update: {
+          id?: string
+          list_id?: string
+          user_id?: string
+          added_at?: string
+        }
+        Relationships: []
+      }
+      player_demands: {
+        Row: {
+          id: string
+          club_id: string
+          season: string
+          league_ids: string[]
+          position: string
+          positions: string[]
+          quantity_needed: number
+          priority: string
+          age_min: number | null
+          age_max: number | null
+          preferred_foot: string | null
+          style_notes: string | null
+          notes: string | null
+          status: string
+          filled_by_player_id: string | null
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          club_id: string
+          season: string
+          league_ids?: string[]
+          position: string
+          positions?: string[]
+          quantity_needed?: number
+          priority?: string
+          age_min?: number | null
+          age_max?: number | null
+          preferred_foot?: string | null
+          style_notes?: string | null
+          notes?: string | null
+          status?: string
+          filled_by_player_id?: string | null
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          club_id?: string
+          season?: string
+          league_ids?: string[]
+          position?: string
+          positions?: string[]
+          quantity_needed?: number
+          priority?: string
+          age_min?: number | null
+          age_max?: number | null
+          preferred_foot?: string | null
+          style_notes?: string | null
+          notes?: string | null
+          status?: string
+          filled_by_player_id?: string | null
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      player_demand_candidates: {
+        Row: {
+          id: string
+          demand_id: string
+          player_id: string
+          assignment_type: string
+          accepted: boolean
+          assigned_by: string
+          assigned_at: string
+        }
+        Insert: {
+          id?: string
+          demand_id: string
+          player_id: string
+          assignment_type?: string
+          accepted?: boolean
+          assigned_by: string
+          assigned_at?: string
+        }
+        Update: {
+          id?: string
+          demand_id?: string
+          player_id?: string
+          assignment_type?: string
+          accepted?: boolean
+          assigned_by?: string
+          assigned_at?: string
         }
         Relationships: []
       }
@@ -1136,12 +1893,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_player_ids_by_last_observation: {
+        Args: {
+          p_recommendation?: string | null
+          p_potential_now_min?: number | null
+          p_potential_now_max?: number | null
+          p_potential_future_min?: number | null
+          p_potential_future_max?: number | null
+        }
+        Returns: string[]
+      }
     }
     Enums: {
       contact_type: "parent" | "guardian" | "agent" | "other"
+      criterion_section: "defense" | "offense" | "transition_oa" | "transition_ao"
+      default_form_type_enum: "simplified" | "extended"
       dominant_foot: "left" | "right" | "both"
+      form_type: "simplified" | "extended" | "academy" | "senior"
       match_type: "live" | "video"
+      observation_category_type: "match_player" | "individual"
+      observation_context_type: "match" | "tournament"
       multimedia_file_type: "image" | "video" | "youtube_link"
       observation_source:
         | "scouting"
@@ -1152,14 +1923,20 @@ export type Database = {
         | "video_analysis"
         | "tournament"
         | "training_camp"
+        | "live_match"
+        | "video_match"
+        | "video_clips"
+      recommendation_type: "positive" | "to_observe" | "negative"
       pipeline_status:
         | "unassigned"
         | "observed"
-        | "shortlist"
-        | "trial"
+        | "in_contact"
+        | "evaluation"
         | "offer"
         | "signed"
-        | "rejected"
+        | "rejected_by_club"
+        | "rejected_by_player"
+        | "out_of_reach"
       sync_status: "pending" | "synced" | "failed"
       task_status: "pending" | "completed" | "cancelled"
       task_type: "task" | "invitation" | "observation"
@@ -1293,8 +2070,14 @@ export const Constants = {
   public: {
     Enums: {
       contact_type: ["parent", "guardian", "agent", "other"],
+      criterion_section: ["defense", "offense", "transition_oa", "transition_ao"],
+      default_form_type_enum: ["simplified", "extended"],
       dominant_foot: ["left", "right", "both"],
+      form_type: ["simplified", "extended", "academy", "senior"],
       match_type: ["live", "video"],
+      observation_category_type: ["match_player", "individual"],
+      observation_context_type: ["match", "tournament"],
+      recommendation_type: ["positive", "to_observe", "negative"],
       multimedia_file_type: ["image", "video", "youtube_link"],
       observation_source: [
         "scouting",
@@ -1305,15 +2088,20 @@ export const Constants = {
         "video_analysis",
         "tournament",
         "training_camp",
+        "live_match",
+        "video_match",
+        "video_clips",
       ],
       pipeline_status: [
         "unassigned",
         "observed",
-        "shortlist",
-        "trial",
+        "in_contact",
+        "evaluation",
         "offer",
         "signed",
-        "rejected",
+        "rejected_by_club",
+        "rejected_by_player",
+        "out_of_reach",
       ],
       sync_status: ["pending", "synced", "failed"],
       task_status: ["pending", "completed", "cancelled"],

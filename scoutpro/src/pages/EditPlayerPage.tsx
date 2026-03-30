@@ -11,7 +11,7 @@ export function EditPlayerPage() {
   const { data: player, isLoading } = usePlayer(playerId);
 
   if (isLoading) {
-    return <p className="text-sm text-slate-500">Ladowanie...</p>;
+    return <p className="text-sm text-slate-500">Ładowanie...</p>;
   }
 
   if (!player) {
@@ -22,16 +22,25 @@ export function EditPlayerPage() {
     first_name: player.first_name,
     last_name: player.last_name,
     birth_year: player.birth_year,
+    birth_date: player.birth_date ?? "",
     nationality: player.nationality ?? "",
     club_name: player.club?.name ?? "",
     primary_position: player.primary_position ?? "",
     dominant_foot: player.dominant_foot ?? "",
     pipeline_status: player.pipeline_status ?? "unassigned",
+    body_build: player.body_build ?? "",
     height_cm: player.height_cm ?? undefined,
     weight_kg: player.weight_kg ?? undefined,
     guardian_name: player.guardian_name ?? "",
     guardian_phone: player.guardian_phone ?? "",
     guardian_email: player.guardian_email ?? "",
+    agent_name: player.agent_name ?? "",
+    agent_phone: player.agent_phone ?? "",
+    agent_email: player.agent_email ?? "",
+    transfermarkt_url: player.transfermarkt_url ?? "",
+    facebook_url: player.facebook_url ?? "",
+    instagram_url: player.instagram_url ?? "",
+    other_social_url: player.other_social_url ?? "",
     photo_url: player.photo_urls?.[0] ?? "",
   };
 
@@ -39,7 +48,7 @@ export function EditPlayerPage() {
     <div className="mx-auto w-full max-w-[960px] space-y-4">
       <PageHeader
         title="Edytuj zawodnika"
-        subtitle="Zmien dane zawodnika i zapisz aktualizacje."
+        subtitle="Zmień dane zawodnika i zapisz aktualizacje."
         actions={
           <Button variant="outline" type="button" onClick={() => navigate(`/players/${player.id}`)}>
             Wroc do profilu

@@ -30,7 +30,7 @@ export function DictionaryListPage() {
         <div className="text-sm text-slate-500">Ładowanie…</div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {DICTIONARIES.map((dict) => (
+          {DICTIONARIES.filter((dict) => !dict.hidden).map((dict) => (
             <Link key={dict.id} to={`/settings/dictionaries/${dict.route}`}>
               <Card className="transition-colors hover:bg-slate-50">
                 <CardContent className="flex flex-row items-center justify-between p-4">
@@ -48,6 +48,23 @@ export function DictionaryListPage() {
               </Card>
             </Link>
           ))}
+          {/* Słownik pozycji (taktyka) jako osobna pozycja na liście słowników */}
+          <Link to="/settings/tactical/positions">
+            <Card className="transition-colors hover:bg-slate-50">
+              <CardContent className="flex flex-row items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-lg bg-slate-100 p-2">
+                    <BookOpen className="h-5 w-5 text-slate-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-900">Słownik pozycji (taktyka)</p>
+                    <p className="text-sm text-slate-500">Pozycje wykorzystywane w schematach taktycznych.</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-slate-400" />
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       )}
     </div>

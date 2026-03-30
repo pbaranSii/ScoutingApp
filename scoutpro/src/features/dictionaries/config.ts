@@ -7,10 +7,12 @@ export type DictionaryId =
   | "player_sources"
   | "regions"
   | "clubs"
+  | "leagues"
   | "categories"
   | "strengths"
   | "weaknesses"
-  | "team_roles";
+  | "team_roles"
+  | "body_build";
 
 export interface DictionaryConfig {
   id: DictionaryId;
@@ -29,6 +31,8 @@ export interface DictionaryConfig {
   activeColumn: string;
   /** Route segment for this dictionary. */
   route: string;
+  /** If true, dictionary is not shown in Settings list (e.g. deprecated but kept for data). */
+  hidden?: boolean;
 }
 
 export const DICTIONARIES: DictionaryConfig[] = [
@@ -42,6 +46,7 @@ export const DICTIONARIES: DictionaryConfig[] = [
     orderColumn: "display_order",
     activeColumn: "id",
     route: "positions",
+    hidden: true,
   },
   {
     id: "player_sources",
@@ -78,6 +83,17 @@ export const DICTIONARIES: DictionaryConfig[] = [
     route: "clubs",
   },
   {
+    id: "leagues",
+    table: "leagues",
+    namePl: "Ligi piłkarskie",
+    nameEn: "Football leagues",
+    codeColumn: "code",
+    nameColumn: "name",
+    orderColumn: "name",
+    activeColumn: "is_active",
+    route: "leagues",
+  },
+  {
     id: "categories",
     table: "categories",
     namePl: "Kategorie wiekowe",
@@ -85,7 +101,7 @@ export const DICTIONARIES: DictionaryConfig[] = [
     codeColumn: "id",
     nameColumn: "name",
     orderColumn: "id",
-    activeColumn: "id",
+    activeColumn: "is_active",
     route: "categories",
   },
   {
@@ -123,6 +139,19 @@ export const DICTIONARIES: DictionaryConfig[] = [
     orderColumn: "display_order",
     activeColumn: "is_active",
     route: "team-roles",
+    hidden: true,
+  },
+  {
+    id: "body_build",
+    table: "dict_body_build",
+    namePl: "Budowa ciała",
+    nameEn: "Body build",
+    codeColumn: "code",
+    nameColumn: "name_pl",
+    nameEnColumn: "name_en",
+    orderColumn: "display_order",
+    activeColumn: "is_active",
+    route: "body-build",
   },
 ];
 
