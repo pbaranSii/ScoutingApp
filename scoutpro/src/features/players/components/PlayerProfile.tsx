@@ -79,6 +79,11 @@ export function PlayerProfile({ player, additionalActions }: PlayerProfileProps)
                   {format(parseISO(player.birth_date), "dd.MM.yyyy")}
                 </Badge>
               )}
+              {player.contract_end_date && (
+                <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
+                  Kontrakt do: {format(parseISO(player.contract_end_date), "dd.MM.yyyy")}
+                </Badge>
+              )}
               <Badge className="rounded-full bg-slate-100 px-2 text-xs text-slate-700 hover:bg-slate-100">
                 {player.club?.name ?? "Brak klubu"}
               </Badge>

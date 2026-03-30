@@ -306,7 +306,7 @@ export function FormTemplatesPage() {
                   />
                 </div>
                 <div>
-                  <Label>Opis (opcjonalnie)</Label>
+                  <Label>Opis</Label>
                   <Textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}

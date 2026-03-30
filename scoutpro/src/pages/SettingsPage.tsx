@@ -10,6 +10,7 @@ import {
   Star,
   Users,
   LayoutGrid,
+  ArrowLeftRight,
 } from "lucide-react";
 
 const SETTING_ITEMS = [
@@ -53,6 +54,13 @@ const SETTING_ITEMS = [
     label: "Ankiety satysfakcji",
     description: "Przeglądaj opinie użytkowników.",
     icon: Star,
+    adminOnly: true,
+  },
+  {
+    to: "/settings/admin/data-transfer",
+    label: "Import / Export danych",
+    description: "Eksportuj i importuj zawodników oraz obserwacje (JSON).",
+    icon: ArrowLeftRight,
     adminOnly: true,
   },
   {

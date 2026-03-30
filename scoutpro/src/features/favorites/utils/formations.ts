@@ -284,22 +284,37 @@ export function groupPlayersByFormationSlots(
   return { slots: resultSlots, benchPlayerIds };
 }
 
-/** Apply manual slot_assignments (slotKey -> player_id) to auto-assigned slots. Returns updated slots and bench. */
+/** Apply manual slot_assignments (slotKey -> [player_id]) to auto-assigned slots. Returns updated slots and bench.
+ *  Wspiera zarówno nowy format (tablica ID), jak i stary (pojedyncze ID jako string). */
 export function applySlotAssignments<T extends { playerIds: string[]; count: number }>(
   slots: T[],
   slotKeys: string[],
-  slot_assignments: Record<string, string> | null | undefined,
+  slot_assignments: Record<string, unknown> | null | undefined,
   memberIds: string[]
 ): { slots: T[]; benchPlayerIds: string[] } {
   const assignments = slot_assignments ?? {};
+
+  const getAssignedArray = (value: unknown): string[] => {
+    if (Array.isArray(value)) {
+      return value.filter((v): v is string => typeof v === "string");
+    }
+    if (typeof value === "string") {
+      return [value];
+    }
+    return [];
+  };
+
   const assignedPlayerIds = new Set(
-    Object.values(assignments).filter((id) => memberIds.includes(id))
+    Object.values(assignments)
+      .flatMap((v) => getAssignedArray(v))
+      .filter((id) => memberIds.includes(id))
   );
   const slotsResult = slots.map((slot, i) => {
     const key = slotKeys[i];
-    const assignedId = key ? assignments[key] : undefined;
-    if (assignedId && memberIds.includes(assignedId)) {
-      return { ...slot, playerIds: [assignedId], count: 1 };
+    const assignedList = key ? getAssignedArray(assignments[key]) : [];
+    const validAssigned = assignedList.filter((id) => memberIds.includes(id));
+    if (validAssigned.length > 0) {
+      return { ...slot, playerIds: validAssigned, count: validAssigned.length };
     }
     const filtered = slot.playerIds.filter((id) => !assignedPlayerIds.has(id));
     return { ...slot, playerIds: filtered, count: filtered.length };

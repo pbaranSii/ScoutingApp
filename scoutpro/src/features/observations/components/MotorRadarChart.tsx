@@ -6,6 +6,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
+import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
 import type { MotorEvaluation } from "../api/motorEvaluations.api";
 
 const MOTOR_LABELS: Record<keyof Pick<MotorEvaluation, "speed" | "endurance" | "jumping" | "agility" | "acceleration" | "strength">, string> = {
@@ -18,6 +19,15 @@ const MOTOR_LABELS: Record<keyof Pick<MotorEvaluation, "speed" | "endurance" | "
 };
 
 const MOTOR_KEYS = ["speed", "endurance", "jumping", "agility", "acceleration", "strength"] as const;
+
+function asNumber(value: ValueType | undefined): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
 
 function motorToChartData(motor: MotorEvaluation): { subject: string; value: number; fullMark: number }[] {
   return MOTOR_KEYS.map((key) => ({
@@ -42,7 +52,12 @@ export function MotorRadarChart({ motor, className }: MotorRadarChartProps) {
           <PolarGrid />
           <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12 }} />
           <Radar name="Motoryka" dataKey="value" stroke="#dc2626" fill="#dc2626" fillOpacity={0.4} />
-          <Tooltip formatter={(value: number | undefined) => [value ?? 0, "Ocena"]} />
+          <Tooltip
+            formatter={(value: ValueType | undefined, _name: NameType | undefined) => [
+              asNumber(value),
+              "Ocena",
+            ]}
+          />
         </RechartsRadarChart>
       </ResponsiveContainer>
     </div>
