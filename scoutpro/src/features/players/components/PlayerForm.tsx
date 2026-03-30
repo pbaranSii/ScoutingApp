@@ -303,12 +303,13 @@ export function PlayerForm({
         ? (values.pipeline_status as PipelineStatus)
         : undefined;
 
-      // `age_category_id` jest wymagane przez RLS (musi należeć do bieżącego obszaru).
-      // Nie polegamy wyłącznie na kategoriach z UI (mogą być puste w czasie ładowania),
-      // tylko wyliczamy fallback na podstawie `current_area_access()` w bazie.
+      // `age_category_id` jest wymagane przez RLS (musi należeć do bieżącego obszaru),
+      // także dla obszaru SENIOR. Nie polegamy wyłącznie na kategoriach z UI
+      // (mogą być puste w czasie ładowania), tylko wyliczamy fallback na podstawie
+      // `current_area_access()` w bazie.
       let resolvedAgeCategoryId: string | null = toNullable(values.age_category_id);
 
-      if (!resolvedAgeCategoryId && !isSeniorArea) {
+      if (!resolvedAgeCategoryId) {
         // Funkcja pozostaje jako "heurystyka" dla UI; główny fallback i tak robimy po stronie bazy.
         void resolveAgeCategoryId(values.birth_year);
         const { data: areaAccessRaw, error: areaAccessErr } = await (supabase as any).rpc(
@@ -377,7 +378,7 @@ export function PlayerForm({
           (typeof idFromFallback === "string" && idFromFallback.length > 0 ? idFromFallback : null);
       }
 
-      if (!resolvedAgeCategoryId && !isSeniorArea) {
+      if (!resolvedAgeCategoryId) {
         throw new Error(
           "Nie udało się ustalić kategorii wiekowej dla bieżącego obszaru. Zmień rocznik lub wybierz kategorię."
         );
@@ -386,7 +387,7 @@ export function PlayerForm({
         first_name: values.first_name,
         last_name: values.last_name,
         birth_year: values.birth_year,
-        age_category_id: isSeniorArea ? null : resolvedAgeCategoryId,
+        age_category_id: resolvedAgeCategoryId,
         birth_date: toNullable(values.birth_date),
         contract_end_date: toNullable(values.contract_end_date),
         club_id: clubId ?? null,

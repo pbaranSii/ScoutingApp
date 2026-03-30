@@ -3,6 +3,17 @@ import type { PipelineHistoryEntry, PipelineStatus, Player, PlayerInput } from "
 
 type AreaAccess = "AKADEMIA" | "SENIOR" | "ALL";
 
+function toNumberOrNull(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const normalized = value.replace(",", ".").trim();
+    if (!normalized) return null;
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 export type PlayerSearchItem = {
   id: string;
   first_name: string;
@@ -281,8 +292,8 @@ async function fetchPlayerIdsByLatestObservationFilters(input: {
     const result: string[] = [];
     for (const [pid, row] of latestByPlayer.entries()) {
       const recommendation = String(row.recommendation ?? "");
-      const performance = typeof row.potential_now === "number" ? row.potential_now : null;
-      const future = typeof row.potential_future === "number" ? row.potential_future : null;
+      const performance = toNumberOrNull(row.potential_now);
+      const future = toNumberOrNull(row.potential_future);
       if (input.recommendation && recommendation !== input.recommendation) continue;
       if (input.performanceMin != null && (performance == null || performance < input.performanceMin)) continue;
       if (input.performanceMax != null && (performance == null || performance > input.performanceMax)) continue;

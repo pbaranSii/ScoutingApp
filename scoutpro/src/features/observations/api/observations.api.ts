@@ -69,6 +69,43 @@ export type FetchObservationsResult = {
   total: number;
 };
 
+const NUMERIC_OBSERVATION_KEYS = [
+  "overall_rating",
+  "potential_now",
+  "potential_future",
+  "technical_rating",
+  "speed_rating",
+  "motor_rating",
+  "tactical_rating",
+  "mental_rating",
+  "motor_speed_rating",
+  "motor_endurance_rating",
+  "motor_jump_rating",
+  "motor_agility_rating",
+  "motor_acceleration_rating",
+  "motor_strength_rating",
+  "match_performance_rating",
+] as const;
+
+function toNumberOrNull(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const normalized = value.replace(",", ".").trim();
+    if (!normalized) return null;
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function normalizeObservationRow(row: Observation): Observation {
+  const normalized = { ...row } as Observation & Record<string, unknown>;
+  for (const key of NUMERIC_OBSERVATION_KEYS) {
+    normalized[key] = toNumberOrNull(normalized[key]);
+  }
+  return normalized as Observation;
+}
+
 export async function fetchObservations(options?: {
   page?: number;
   pageSize?: number;
@@ -94,12 +131,13 @@ export async function fetchObservations(options?: {
     const to = from + pageSize - 1;
     const { data, error, count } = await query.range(from, to);
     if (error) throw error;
-    return { data: (data ?? []) as Observation[], total: count ?? 0 };
+    const rows = ((data ?? []) as Observation[]).map(normalizeObservationRow);
+    return { data: rows, total: count ?? 0 };
   }
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as Observation[];
+  return ((data ?? []) as Observation[]).map(normalizeObservationRow);
 }
 
 export async function fetchObservationsByPlayer(playerId: string) {
@@ -112,7 +150,7 @@ export async function fetchObservationsByPlayer(playerId: string) {
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data ?? []) as Observation[];
+  return ((data ?? []) as Observation[]).map(normalizeObservationRow);
 }
 
 export async function fetchObservationsByMatchObservation(matchObservationId: string) {
@@ -125,7 +163,7 @@ export async function fetchObservationsByMatchObservation(matchObservationId: st
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (data ?? []) as Observation[];
+  return ((data ?? []) as Observation[]).map(normalizeObservationRow);
 }
 
 /** Max IDs per request to avoid 400 from URL length (PostgREST .in() in query string). */
@@ -166,7 +204,7 @@ export async function fetchObservationById(id: string) {
     .single();
 
   if (error) throw error;
-  return data as Observation;
+  return normalizeObservationRow(data as Observation);
 }
 
 const BASE_OPTIONAL = [
@@ -275,7 +313,7 @@ export async function createObservation(input: ObservationInput) {
     console.error("createObservation error", error.message, error.details, error.hint, payload);
     throw error;
   }
-  return data as Observation;
+  return normalizeObservationRow(data as Observation);
 }
 
 /** Build a payload safe for PATCH: only allowed keys, no undefined, valid enum for source. */
