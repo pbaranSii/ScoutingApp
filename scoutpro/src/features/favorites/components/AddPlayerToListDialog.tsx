@@ -20,6 +20,7 @@ type AddPlayerToListDialogProps = {
   onClose: () => void;
   listId: string | null;
   existingPlayerIds?: string[];
+  onAdded?: (playerId: string) => void;
 };
 
 export function AddPlayerToListDialog({
@@ -27,6 +28,7 @@ export function AddPlayerToListDialog({
   onClose,
   listId,
   existingPlayerIds = [],
+  onAdded,
 }: AddPlayerToListDialogProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PlayerSearchItem[]>([]);
@@ -71,6 +73,7 @@ export function AddPlayerToListDialog({
     addMutation.mutate(player.id, {
       onSuccess: () => {
         toast({ title: `Dodano ${player.first_name} ${player.last_name} do listy` });
+        onAdded?.(player.id);
         onClose();
       },
       onError: (e) => {

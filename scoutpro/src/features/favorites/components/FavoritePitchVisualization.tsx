@@ -11,7 +11,11 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowDown, ArrowUp } from "lucide-react";
+import { DndContext, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type FavoritePitchVisualizationProps = {
   /** Legacy formation code when slotsWithCoords not used */
@@ -30,6 +34,12 @@ type FavoritePitchVisualizationProps = {
   onSelectPosition: (positionCode: string | null) => void;
   /** When set, called to assign a set of players to a slot. */
   onAssignSlot?: (slotKey: string, playerIds: string[]) => void;
+  onRequestAddPlayerToSlot?: (slotKey: string) => void;
+  /** Ordering for assigned players per position code (e.g. { DM: [playerId...] }). */
+  positionOrderByCode?: Record<string, string[]>;
+  /** When set, next click on a slot assigns this player to that slot. */
+  pendingAssignPlayerId?: string | null;
+  onAssignPendingToSlot?: (slotKey: string, playerId: string) => void;
 };
 
 /** One (x, y) per unique position code in formation order (attack to defence). */
@@ -86,12 +96,17 @@ export function FavoritePitchVisualization({
   selectedPositionCode,
   onSelectPosition,
   onAssignSlot,
+  onRequestAddPlayerToSlot,
+  positionOrderByCode = {},
+  pendingAssignPlayerId = null,
+  onAssignPendingToSlot,
 }: FavoritePitchVisualizationProps) {
   const [assignDialog, setAssignDialog] = useState<{
     slotKey: string;
     positionCode: string;
   } | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [candidateQuery, setCandidateQuery] = useState("");
   const viewBoxW = 600;
   const viewBoxH = 900;
   const pitch = getPitchMarkings(viewBoxW, viewBoxH);
@@ -119,6 +134,10 @@ export function FavoritePitchVisualization({
   const canAssign = Boolean(onAssignSlot && slotKeys.length === slotCoords.length);
 
   const handleSlotClick = (index: number, positionCode: string) => {
+    if (pendingAssignPlayerId && canAssign && slotKeys[index] && onAssignPendingToSlot) {
+      onAssignPendingToSlot(slotKeys[index], pendingAssignPlayerId);
+      return;
+    }
     const isSelected = selectedPositionCode === positionCode;
     // First click selects (filters). Second click on the same slot opens assign dialog (if enabled).
     if (!isSelected) {
@@ -127,7 +146,19 @@ export function FavoritePitchVisualization({
     }
     if (canAssign && slotKeys[index]) {
       const data = slotCoords[index]?.data as SlotCount | SlotWithCoords;
-      const initialIds = (data?.playerIds ?? []) as string[];
+      const rawInitialIds = (data?.playerIds ?? []) as string[];
+      const order = positionOrderByCode[positionCode] ?? [];
+      const seen = new Set<string>();
+      const initialIds: string[] = [];
+      for (const pid of order) {
+        if (rawInitialIds.includes(pid) && !seen.has(pid)) {
+          seen.add(pid);
+          initialIds.push(pid);
+        }
+      }
+      for (const pid of rawInitialIds) {
+        if (!seen.has(pid)) initialIds.push(pid);
+      }
       setAssignDialog({ slotKey: slotKeys[index], positionCode });
       setSelectedIds(initialIds);
       return;
@@ -220,49 +251,116 @@ export function FavoritePitchVisualization({
           if (!open) {
             setAssignDialog(null);
             setSelectedIds([]);
+            setCandidateQuery("");
           }
         }}
       >
         <DialogContent className="max-w-sm">
-          <DialogClose asChild>
-            <button
-              type="button"
-              className="absolute right-4 top-4 rounded-full p-1 text-slate-500 hover:bg-slate-100"
-              aria-label="Zamknij"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </DialogClose>
           <DialogHeader className="pr-8">
             <DialogTitle className="text-left">
               Przypisz zawodnika do slotu {assignDialog?.positionCode ?? ""}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto mt-2">
-            {allMemberIds.map((playerId, index) => {
-              const isSelected = selectedIds.includes(playerId);
-              const playerName = memberNames[playerId] ?? playerId;
-              return (
-                <Button
-                  key={`assign-${playerId}-${index}`}
-                  variant={isSelected ? "default" : "outline"}
-                  className="justify-start text-left font-normal"
-                  onClick={() =>
-                    setSelectedIds((prev) =>
-                      prev.includes(playerId)
-                        ? prev.filter((id) => id !== playerId)
-                        : [...prev, playerId]
-                    )
-                  }
-                >
-                  <div className="flex flex-col items-start">
-                    <span>{playerName}</span>
-                    {/* Informacja o pozycji zawodnika – jeżeli nazwa pozycji jest częścią nazwy, można tu ją dodatkowo wyróżnić */}
+          {onRequestAddPlayerToSlot && assignDialog?.slotKey && (
+            <div className="space-y-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="justify-start"
+                onClick={() => onRequestAddPlayerToSlot(assignDialog.slotKey)}
+              >
+                Dodaj zawodnika
+              </Button>
+              <p className="text-xs text-slate-500">
+                Doda zawodnika do listy i przypisze go bezpośrednio do tego slota.
+              </p>
+            </div>
+          )}
+          <DndContext
+            collisionDetection={closestCenter}
+            onDragEnd={(event: DragEndEvent) => {
+              const { active, over } = event;
+              if (!over || active.id === over.id) return;
+              const oldIndex = selectedIds.indexOf(String(active.id));
+              const newIndex = selectedIds.indexOf(String(over.id));
+              if (oldIndex < 0 || newIndex < 0) return;
+              setSelectedIds((prev) => arrayMove(prev, oldIndex, newIndex));
+            }}
+          >
+            <SortableContext items={selectedIds} strategy={verticalListSortingStrategy}>
+              <div className="flex flex-col gap-2 max-h-[50vh] overflow-y-auto mt-2">
+                <div className="text-sm font-semibold text-slate-800">
+                  Kolejność w slocie
+                </div>
+                {selectedIds.length > 0 && (
+                  <div className="text-xs text-slate-500">
+                    Przeciągnij, aby ustalić kolejność przypisanych zawodników.
                   </div>
-                </Button>
-              );
-            })}
-          </div>
+                )}
+                {selectedIds.map((playerId) => (
+                  <SortableSelectedRow
+                    key={`sel-${playerId}`}
+                    playerId={playerId}
+                    playerName={memberNames[playerId] ?? playerId}
+                    onMoveUp={() => {
+                      const idx = selectedIds.indexOf(playerId);
+                      if (idx <= 0) return;
+                      setSelectedIds((prev) => arrayMove(prev, idx, idx - 1));
+                    }}
+                    onMoveDown={() => {
+                      const idx = selectedIds.indexOf(playerId);
+                      if (idx < 0 || idx >= selectedIds.length - 1) return;
+                      setSelectedIds((prev) => arrayMove(prev, idx, idx + 1));
+                    }}
+                    onRemove={() => setSelectedIds((prev) => prev.filter((id) => id !== playerId))}
+                  />
+                ))}
+
+                <div className="pt-2 border-t border-slate-200">
+                  <div className="text-sm font-semibold text-slate-800 mb-2">
+                    Dodaj/usuń zawodników
+                  </div>
+                  <Input
+                    value={candidateQuery}
+                    onChange={(e) => setCandidateQuery(e.target.value)}
+                    placeholder="Szukaj zawodnika..."
+                  />
+                  <div className="mt-2">
+                  {allMemberIds
+                    .filter((playerId) => {
+                      const q = candidateQuery.trim().toLowerCase();
+                      if (!q) return true;
+                      const name = (memberNames[playerId] ?? playerId).toLowerCase();
+                      return name.includes(q);
+                    })
+                    .map((playerId, index) => {
+                    const isSelected = selectedIds.includes(playerId);
+                    const playerName = memberNames[playerId] ?? playerId;
+                    return (
+                      <Button
+                        key={`assign-${playerId}-${index}`}
+                        variant={isSelected ? "default" : "outline"}
+                        className="justify-between text-left font-normal w-full mb-2"
+                        onClick={() =>
+                          setSelectedIds((prev) =>
+                            prev.includes(playerId)
+                              ? prev.filter((id) => id !== playerId)
+                              : [...prev, playerId]
+                          )
+                        }
+                      >
+                        <span className="truncate">{playerName}</span>
+                        <span className="text-xs text-slate-500">
+                          {isSelected ? "Usuń" : "Dodaj"}
+                        </span>
+                      </Button>
+                    );
+                  })}
+                  </div>
+                </div>
+              </div>
+            </SortableContext>
+          </DndContext>
           <div className="mt-4 flex justify-end gap-2">
             <DialogClose asChild>
               <Button
@@ -302,6 +400,58 @@ export function FavoritePitchVisualization({
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+function SortableSelectedRow({
+  playerId,
+  playerName,
+  onMoveUp,
+  onMoveDown,
+  onRemove,
+}: {
+  playerId: string;
+  playerName: string;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onRemove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: playerId,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center justify-between gap-2 rounded border border-slate-200 bg-white p-2 ${
+        isDragging ? "opacity-70" : "opacity-100"
+      }`}
+    >
+      <button
+        type="button"
+        className="min-w-0 flex-1 text-left text-sm text-slate-900"
+        {...attributes}
+        {...listeners}
+        aria-label="Przeciągnij"
+      >
+        {playerName}
+      </button>
+      <div className="flex items-center gap-1">
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={onMoveUp} title="Góra">
+          <ArrowUp className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={onMoveDown} title="Dół">
+          <ArrowDown className="h-4 w-4" />
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={onRemove}>
+          Usuń
+        </Button>
+      </div>
     </div>
   );
 }

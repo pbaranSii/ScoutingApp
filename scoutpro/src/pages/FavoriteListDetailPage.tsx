@@ -1,13 +1,20 @@
 import { useParams, Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Plus, Trash2, Share2 } from "lucide-react";
+import { ArrowLeft, GripVertical, Plus, Trash2, Share2, ArrowUp, ArrowDown } from "lucide-react";
 import { useFavoriteList, useUpdateFavoriteList, useListMembers, useRemovePlayerFromList } from "@/features/favorites/hooks";
 import { AddPlayerToListDialog } from "@/features/favorites/components/AddPlayerToListDialog";
 import { FormationSelector } from "@/features/favorites/components/FormationSelector";
 import { FavoritePitchVisualization } from "@/features/favorites/components/FavoritePitchVisualization";
 import { ShareListDialog } from "@/features/favorites/components/ShareListDialog";
 import { ExportButtons } from "@/features/favorites/components/ExportButtons";
+import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   groupPlayersByFormationSlots,
   groupPlayersByFormationSlotsFromDb,
@@ -22,8 +29,10 @@ import { toast } from "@/hooks/use-toast";
 export function FavoriteListDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [selectedPositionCode, setSelectedPositionCode] = useState<string | null>(null);
+  const [pendingAssignPlayerId, setPendingAssignPlayerId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [addPlayerOpen, setAddPlayerOpen] = useState(false);
+  const [assignDialogTargetSlotKey, setAssignDialogTargetSlotKey] = useState<string | null>(null);
 
   const { data: list, isLoading: listLoading } = useFavoriteList(id ?? null);
   const { data: members = [], isLoading: membersLoading } = useListMembers(id ?? null);
@@ -110,13 +119,6 @@ export function FavoriteListDetailPage() {
     return m;
   }, [members]);
 
-  const averageRating = useMemo(() => {
-    const withRating = members.filter((m) => m.player && typeof (m.player as { overall_rating?: number }).overall_rating === "number");
-    if (withRating.length === 0) return null;
-    const sum = withRating.reduce((a, m) => a + Number((m.player as { overall_rating?: number }).overall_rating), 0);
-    return Math.round((sum / withRating.length) * 10) / 10;
-  }, [members]);
-
   const selectedAssignedPlayerIds = useMemo(() => {
     if (!selectedPositionCode) return null;
     const ids = new Set<string>();
@@ -148,11 +150,156 @@ export function FavoriteListDetailPage() {
   const handleRemove = async (playerId: string) => {
     try {
       await removeMember.mutateAsync(playerId);
+      // Wyczyść usuniętego zawodnika z zapisanych kolejek per pozycja (pos_<CODE>)
+      if (id && list?.slot_assignments) {
+        const current = (list.slot_assignments ?? {}) as Record<string, unknown>;
+        const next: Record<string, string[]> = {};
+        for (const [k, v] of Object.entries(current)) {
+          if (!k.startsWith("pos_")) continue;
+          const arr = Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+          const filtered = arr.filter((x) => x !== playerId);
+          if (filtered.length > 0) next[k] = filtered;
+        }
+        // zachowaj pozostałe klucze (sloty boiska) bez zmian
+        for (const [k, v] of Object.entries(current)) {
+          if (k.startsWith("pos_")) continue;
+          const arr = Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : (typeof v === "string" ? [v] : []);
+          if (arr.length > 0) next[k] = arr;
+        }
+        updateList.mutate({ id, input: { slot_assignments: next } });
+      }
       toast({ title: "Zawodnik usunięty z listy" });
     } catch (e) {
       toast({ variant: "destructive", title: "Błąd", description: e instanceof Error ? e.message : "Nie udało się usunąć." });
     }
   };
+
+  const positionOrderKey = selectedPositionCode ? `pos_${selectedPositionCode}` : null;
+  const currentAssignments = ((list?.slot_assignments ?? {}) as Record<string, unknown>) ?? {};
+  const positionOrderByCode = useMemo(() => {
+    const out: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(currentAssignments)) {
+      if (!k.startsWith("pos_")) continue;
+      const code = k.slice("pos_".length).trim();
+      if (!code) continue;
+      const arr = Array.isArray(v)
+        ? v.filter((x): x is string => typeof x === "string")
+        : typeof v === "string"
+          ? [v]
+          : [];
+      if (arr.length > 0) out[code] = arr;
+    }
+    return out;
+  }, [currentAssignments]);
+  const savedOrderForPosition: string[] = useMemo(() => {
+    if (!positionOrderKey) return [];
+    const raw = currentAssignments[positionOrderKey];
+    if (Array.isArray(raw)) return raw.filter((v): v is string => typeof v === "string");
+    if (typeof raw === "string") return [raw];
+    return [];
+  }, [currentAssignments, positionOrderKey]);
+
+  const orderedFilteredMembers = useMemo(() => {
+    if (!selectedPositionCode) return filteredMembers;
+    const order = savedOrderForPosition;
+    if (order.length === 0) return filteredMembers;
+    const byPlayerId = new Map(filteredMembers.map((m) => [m.player_id, m]));
+    const seen = new Set<string>();
+    const result: typeof filteredMembers = [];
+    for (const pid of order) {
+      const m = byPlayerId.get(pid);
+      if (m) {
+        result.push(m);
+        seen.add(pid);
+      }
+    }
+    for (const m of filteredMembers) {
+      if (!seen.has(m.player_id)) result.push(m);
+    }
+    return result;
+  }, [filteredMembers, savedOrderForPosition, selectedPositionCode]);
+
+  const persistPositionOrder = (nextOrder: string[]) => {
+    if (!id || !positionOrderKey) return;
+    const current = (list?.slot_assignments ?? {}) as Record<string, unknown>;
+    const next: Record<string, string[]> = {};
+    // przenieś wszystkie istniejące klucze do spójnego formatu string[]
+    for (const [k, v] of Object.entries(current)) {
+      if (Array.isArray(v)) {
+        const arr = v.filter((x): x is string => typeof x === "string");
+        if (arr.length > 0) next[k] = arr;
+      } else if (typeof v === "string") {
+        next[k] = [v];
+      }
+    }
+    next[positionOrderKey] = nextOrder;
+    updateList.mutate(
+      { id, input: { slot_assignments: next } },
+      {
+        onSuccess: () => toast({ title: "Kolejność zapisana" }),
+        onError: (e) => toast({ variant: "destructive", title: "Błąd", description: e.message }),
+      }
+    );
+  };
+
+  const handleReorderUpDown = (playerId: string, dir: "up" | "down") => {
+    if (!selectedPositionCode || !positionOrderKey) return;
+    const ids = orderedFilteredMembers.map((m) => m.player_id);
+    const idx = ids.indexOf(playerId);
+    const nextIdx = dir === "up" ? idx - 1 : idx + 1;
+    if (idx < 0 || nextIdx < 0 || nextIdx >= ids.length) return;
+    const next = [...ids];
+    const [moved] = next.splice(idx, 1);
+    next.splice(nextIdx, 0, moved);
+    persistPositionOrder(next);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    if (!selectedPositionCode || !positionOrderKey) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const ids = orderedFilteredMembers.map((m) => m.player_id);
+    const oldIndex = ids.indexOf(String(active.id));
+    const newIndex = ids.indexOf(String(over.id));
+    if (oldIndex < 0 || newIndex < 0) return;
+    const next = arrayMove(ids, oldIndex, newIndex);
+    persistPositionOrder(next);
+  };
+
+  function SortablePlayerCard({
+    mem,
+    children,
+  }: {
+    mem: (typeof filteredMembers)[number];
+    children: React.ReactNode;
+  }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+      id: mem.player_id,
+      disabled: !selectedPositionCode || orderedFilteredMembers.length <= 1,
+    });
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+    };
+    return (
+      <div ref={setNodeRef} style={style} className={isDragging ? "opacity-70" : "opacity-100"}>
+        <div className="flex items-start gap-2">
+          {selectedPositionCode && orderedFilteredMembers.length > 1 && (
+            <button
+              type="button"
+              className="mt-1 flex shrink-0 cursor-grab touch-none items-start text-slate-400 active:cursor-grabbing"
+              aria-label="Przeciągnij, aby zmienić kolejność"
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+          )}
+          <div className="min-w-0 flex-1">{children}</div>
+        </div>
+      </div>
+    );
+  }
 
   const handleAssignSlot = (slotKey: string, playerIds: string[]) => {
     if (!id || !list) return;
@@ -170,7 +317,9 @@ export function FavoriteListDetailPage() {
     };
 
     // Usuń wybranych zawodników ze wszystkich slotów (reguła: zawodnik może być w jednym slocie).
+    // Nie dotykamy tu kluczy `pos_<CODE>` (to tylko kolejność listy), bo aktualizujemy je osobno.
     for (const [key, rawIds] of Object.entries(current)) {
+      if (key.startsWith("pos_")) continue;
       const ids = toArray(rawIds);
       if (key === slotKey) continue;
       const filtered = ids.filter((idValue) => !playerIds.includes(idValue));
@@ -182,6 +331,38 @@ export function FavoriteListDetailPage() {
     if (playerIds.length > 0) {
       next[slotKey] = [...playerIds];
     }
+
+    // Zachowaj istniejące kolejności per pozycja (pos_<CODE>) i zaktualizuj je dla pozycji tego slotu,
+    // aby lista zawodników dla pozycji miała identyczną kolejność jak w modalu slota.
+    for (const [key, rawIds] of Object.entries(current)) {
+      if (!key.startsWith("pos_")) continue;
+      const ids = toArray(rawIds);
+      if (ids.length > 0) next[key] = ids;
+    }
+
+    // slotKey -> positionCode (na podstawie indeksu w slotKeys)
+    const slotIndex = slotKeys.findIndex((k) => k === slotKey);
+    const positionCodeForSlot =
+      slotIndex >= 0 ? String((slots as Array<{ positionCode?: string }>)[slotIndex]?.positionCode ?? "") : "";
+    if (positionCodeForSlot) {
+      const relatedSlotKeys = slotKeys.filter((k, i) => {
+        const c = String((slots as Array<{ positionCode?: string }>)[i]?.positionCode ?? "");
+        return c === positionCodeForSlot;
+      });
+      const combined: string[] = [];
+      const seen = new Set<string>();
+      for (const k of relatedSlotKeys) {
+        const ids = next[k] ?? [];
+        for (const pid of ids) {
+          if (!seen.has(pid)) {
+            seen.add(pid);
+            combined.push(pid);
+          }
+        }
+      }
+      next[`pos_${positionCodeForSlot}`] = combined;
+    }
+
     updateList.mutate(
       { id, input: { slot_assignments: next } },
       {
@@ -208,7 +389,7 @@ export function FavoriteListDetailPage() {
   const playersCount = (list as { players_count?: number }).players_count ?? members.length;
   const subtitleText = list.description
     ? list.description
-    : `${playersCount} zawodników${averageRating != null ? ` · Śr. ocena: ${averageRating}/10` : ""}`;
+    : `${playersCount} zawodników`;
 
   return (
     <div className="space-y-4">
@@ -233,7 +414,7 @@ export function FavoriteListDetailPage() {
             onChange={handleFormationChange}
             disabled={updateList.isPending}
           />
-          <ExportButtons list={list} members={members} slots={slots} averageRating={averageRating} />
+          <ExportButtons list={list} members={members} slots={slots} />
           <Button variant="outline" size="sm" onClick={() => setShareOpen(true)} className="gap-1">
             <Share2 className="h-4 w-4" />
             Udostępnij
@@ -266,11 +447,18 @@ export function FavoriteListDetailPage() {
           ) : filteredMembers.length === 0 ? (
             <p className="text-sm text-slate-500">Brak zawodników na liście.</p>
           ) : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {filteredMembers.map((mem) => {
+            <DndContext
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={orderedFilteredMembers.map((m) => m.player_id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="grid w-full gap-3 grid-cols-1">
+                  {orderedFilteredMembers.map((mem) => {
                 const p = mem.player;
                 const posCode = p?.primary_position ? mapLegacyPosition(p.primary_position) : "—";
-                const rating = (p as { overall_rating?: number })?.overall_rating;
                 const birthYear = p?.birth_year;
                 const age = birthYear ? new Date().getFullYear() - birthYear : "—";
                 const clubName = (p?.club as { name?: string })?.name ?? "—";
@@ -283,12 +471,12 @@ export function FavoriteListDetailPage() {
                   (playerAssignedPositions[mem.player_id]?.includes(selectedPositionCode) ?? false);
 
                 return (
-                  <div
-                    key={mem.id}
-                    className={`rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-sm ${
-                      isHighlighted ? "" : "opacity-80"
-                    }`}
-                  >
+                  <SortablePlayerCard key={mem.id} mem={mem}>
+                    <div
+                      className={`rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-sm ${
+                        isHighlighted ? "" : "opacity-80"
+                      }`}
+                    >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <Link
@@ -307,8 +495,12 @@ export function FavoriteListDetailPage() {
                           className="mt-1 text-xs text-left text-slate-700 hover:text-slate-900 underline-offset-2 hover:underline"
                           onClick={() => {
                             if (!assignedPos.length) return;
-                            // wybierz pierwszą przypisaną pozycję jako aktywny filtr, by użytkownik mógł łatwo zmienić slot
-                            setSelectedPositionCode(assignedPos[0]);
+                            // Wejście w tryb: wybierz slot na schemacie i przypisz tego zawodnika.
+                            setPendingAssignPlayerId(mem.player_id);
+                            toast({
+                              title: "Wybierz slot na schemacie",
+                              description: "Kliknij pozycję na boisku, aby przypisać zawodnika do slotu.",
+                            });
                           }}
                         >
                           Pozycja na schemacie:{" "}
@@ -316,9 +508,28 @@ export function FavoriteListDetailPage() {
                         </button>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
-                        <span className="text-sm font-semibold text-slate-900">
-                          {rating != null ? `${rating}/10` : "—"}
-                        </span>
+                        {selectedPositionCode && orderedFilteredMembers.length > 1 && (
+                          <div className="flex flex-col gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handleReorderUpDown(mem.player_id, "up")}
+                              title="Przesuń w górę"
+                            >
+                              <ArrowUp className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handleReorderUpDown(mem.player_id, "down")}
+                              title="Przesuń w dół"
+                            >
+                              <ArrowDown className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -331,10 +542,13 @@ export function FavoriteListDetailPage() {
                         </Button>
                       </div>
                     </div>
-                  </div>
+                    </div>
+                  </SortablePlayerCard>
                 );
-              })}
-            </div>
+                  })}
+                </div>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
 
@@ -350,6 +564,17 @@ export function FavoriteListDetailPage() {
             selectedPositionCode={selectedPositionCode}
             onSelectPosition={setSelectedPositionCode}
             onAssignSlot={handleAssignSlot}
+            pendingAssignPlayerId={pendingAssignPlayerId}
+            positionOrderByCode={positionOrderByCode}
+            onAssignPendingToSlot={(slotKey, playerId) => {
+              handleAssignSlot(slotKey, [playerId]);
+              setPendingAssignPlayerId(null);
+              toast({ title: "Przypisano zawodnika do slotu" });
+            }}
+            onRequestAddPlayerToSlot={(slotKey) => {
+              setAssignDialogTargetSlotKey(slotKey);
+              setAddPlayerOpen(true);
+            }}
           />
         </div>
       </div>
@@ -382,9 +607,17 @@ export function FavoriteListDetailPage() {
       />
       <AddPlayerToListDialog
         open={addPlayerOpen}
-        onClose={() => setAddPlayerOpen(false)}
+        onClose={() => {
+          setAddPlayerOpen(false);
+          setAssignDialogTargetSlotKey(null);
+        }}
         listId={id ?? null}
         existingPlayerIds={members.map((m) => m.player_id)}
+        onAdded={(playerId) => {
+          if (assignDialogTargetSlotKey) {
+            handleAssignSlot(assignDialogTargetSlotKey, [playerId]);
+          }
+        }}
       />
     </div>
   );

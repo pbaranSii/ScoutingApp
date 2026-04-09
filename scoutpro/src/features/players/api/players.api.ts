@@ -501,15 +501,29 @@ export async function fetchClubs(areaAccess: AreaAccess = "ALL") {
 
 /** Resolve club name to id (exact match). Returns null if not found or name empty. */
 export async function getClubIdByName(name: string | null | undefined): Promise<string | null> {
-  const n = (name ?? "").trim();
+  const normalizeClubName = (s: string) =>
+    s
+      .replace(/\u00A0/g, " ")
+      .normalize("NFKC")
+      .replace(/\s+/g, " ")
+      .trim();
+  const n = normalizeClubName(name ?? "");
   if (!n) return null;
+
+  // Nie używamy maybeSingle() – w bazie mogą być duplikaty nazw klubów,
+  // co powoduje PGRST116: "JSON object requested, multiple (or no) rows returned"
   const { data, error } = await supabase
     .from("clubs")
-    .select("id")
-    .eq("name", n)
-    .maybeSingle();
+    .select("id,name")
+    .ilike("name", n)
+    .limit(5);
   if (error) throw error;
-  return (data?.id as string) ?? null;
+  const rows = (data ?? []) as Array<{ id: string; name?: string | null }>;
+  if (rows.length === 0) return null;
+  if (rows.length === 1) return rows[0]!.id;
+
+  const best = rows.find((r) => normalizeClubName(String(r.name ?? "")) === n);
+  return (best?.id ?? rows[0]!.id) as string;
 }
 
 /** Resolve club by exact name and include optional league metadata. */
@@ -520,15 +534,27 @@ export async function fetchClubByName(name: string | null | undefined): Promise<
   league_id?: string | null;
   league?: { id: string; name?: string | null; display_name?: string | null; area?: string | null } | null;
 } | null> {
-  const n = (name ?? "").trim();
+  const normalizeClubName = (s: string) =>
+    s
+      .replace(/\u00A0/g, " ")
+      .normalize("NFKC")
+      .replace(/\s+/g, " ")
+      .trim();
+  const n = normalizeClubName(name ?? "");
   if (!n) return null;
+
   const { data, error } = await supabase
     .from("clubs")
     .select("id,name,area,league_id,league:leagues(id,name,display_name,area)")
-    .eq("name", n)
-    .maybeSingle();
+    .ilike("name", n)
+    .limit(5);
   if (error) throw error;
-  return (data as any) ?? null;
+  const rows = (data ?? []) as any[];
+  if (rows.length === 0) return null;
+  if (rows.length === 1) return rows[0] ?? null;
+
+  const best = rows.find((r) => normalizeClubName(String(r?.name ?? "")) === n);
+  return (best ?? rows[0]) ?? null;
 }
 
 export async function deletePlayer(id: string) {

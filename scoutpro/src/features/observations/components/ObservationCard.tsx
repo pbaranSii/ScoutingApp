@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import type { Observation } from "../types";
 import { format, parseISO } from "date-fns";
 import { Link } from "react-router-dom";
-import { Flag, ImageIcon, Star, TrendingUp } from "lucide-react";
+import { Flag, ImageIcon, TrendingUp } from "lucide-react";
 import { formatPosition } from "@/features/players/positions";
 
 type ObservationCardProps = {
@@ -47,13 +47,6 @@ export function ObservationCard({ observation, matchCount }: ObservationCardProp
   const currentYear = new Date().getFullYear();
   const ageLabel = player?.birth_year ? `${currentYear - player.birth_year} lat` : "-";
   const positionLabel = formatPosition(player?.primary_position ?? "");
-  const rating = observation.overall_rating;
-  const ratingClass =
-    typeof rating === "number" && rating >= 8
-      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
-      : typeof rating === "number" && rating >= 6
-        ? "bg-amber-100 text-amber-700 hover:bg-amber-100"
-        : "bg-slate-100 text-slate-700 hover:bg-slate-100";
   const hasMedia = Boolean(observation.photo_url?.trim());
 
   const category = observation.observation_category;
@@ -110,12 +103,6 @@ export function ObservationCard({ observation, matchCount }: ObservationCardProp
                 >
                   <ImageIcon className="h-4 w-4" />
                 </span>
-              )}
-              {typeof rating === "number" && (
-                <Badge className={`flex items-center gap-1 rounded-full px-2 text-xs ${ratingClass}`}>
-                  <Star className="h-3.5 w-3.5" />
-                  {rating}
-                </Badge>
               )}
               {hasRecommendation && (
                 <Badge

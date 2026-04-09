@@ -43,7 +43,6 @@ export function MatchObservationPlayerCard({
   const [birth_date, setBirth_date] = useState(slot.birth_date ?? "");
   const [club_name, setClub_name] = useState(slot.club_name ?? "");
   const [primary_position, setPrimary_position] = useState(slot.primary_position);
-  const [overall_rating] = useState(slot.overall_rating);
   const [match_performance_rating, setMatch_performance_rating] = useState(slot.match_performance_rating);
   const [recommendation, setRecommendation] = useState<MatchPlayerSlot["recommendation"]>(slot.recommendation);
   const [summary, setSummary] = useState(slot.summary);
@@ -60,7 +59,7 @@ export function MatchObservationPlayerCard({
       birth_date: birth_date.trim() || undefined,
       club_name: club_name.trim() || undefined,
       primary_position,
-      overall_rating,
+      overall_rating: slot.overall_rating,
       match_performance_rating,
       recommendation,
       summary: summary.trim(),
@@ -76,7 +75,7 @@ export function MatchObservationPlayerCard({
   const subLabel = listView
     ? (positionLabel ? `${positionLabel} · ${clubLabel}` : clubLabel) || "Uzupełnij dane"
     : slot.primary_position
-      ? `${slot.primary_position} · ${clubLabel} · Ocena ${slot.overall_rating} · ${slot.recommendation}`
+      ? `${slot.primary_position} · ${clubLabel} · ${slot.recommendation}`
       : "Uzupełnij dane i zapisz";
 
   const handleHeaderClick = () => {
@@ -193,7 +192,7 @@ export function MatchObservationPlayerCard({
           <div>
             <Label>Rekomendacja <span className="text-red-600">*</span></Label>
             <div className="flex gap-2">
-              {(["positive", "to_observe", "negative"] as const).map((r) => (
+              {(["negative", "to_observe", "positive"] as const).map((r) => (
                 <Button
                   key={r}
                   type="button"

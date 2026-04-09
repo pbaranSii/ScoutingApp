@@ -6,12 +6,7 @@ import { ALL_PIPELINE_STATUSES, getStatusBadgeClass } from "@/features/pipeline/
 import { formatPosition } from "@/features/players/positions";
 import { AddToFavoritesButton } from "@/features/favorites/components/AddToFavoritesButton";
 import { AssignToDemandButton } from "@/features/demands/components/AssignToDemandButton";
-import { Calendar, MapPin, Star } from "lucide-react";
-
-/** Map overall_rating 1-10 to 1-5 stars (filled count). */
-function ratingToStars(rating: number): number {
-  return Math.round((rating / 10) * 5);
-}
+import { Calendar, MapPin } from "lucide-react";
 
 type PlayerRowCardProps = {
   player: Player;
@@ -25,7 +20,6 @@ export function PlayerRowCard({ player, latestRating }: PlayerRowCardProps) {
   const statusStyle = getStatusBadgeClass(statusKey);
   const positionLabel = formatPosition(player.primary_position);
   const clubName = player.club?.name ?? "—";
-  const stars = latestRating != null ? ratingToStars(latestRating) : null;
   const fullName = `${player.first_name} ${player.last_name}`.trim();
 
   return (
@@ -55,15 +49,7 @@ export function PlayerRowCard({ player, latestRating }: PlayerRowCardProps) {
 
             <div className="flex items-center justify-between gap-3 sm:justify-end">
               <div className="flex items-center gap-2">
-                {typeof latestRating === "number" && (
-                  <span className="inline-flex items-center gap-1 text-sm text-slate-700" title="Ostatnia ocena ogólna">
-                    <Star className="h-4 w-4 text-amber-500" />
-                    {latestRating}
-                  </span>
-                )}
-                <span className="text-lg text-amber-500" aria-label={stars != null ? `${stars} z 5 gwiazdek` : undefined}>
-                  {stars != null ? "★".repeat(stars) + "☆".repeat(5 - stars) : "☆".repeat(5)}
-                </span>
+                <span className="text-sm text-slate-400">—</span>
               </div>
 
               <div className="flex items-center gap-1" onClick={(e) => e.preventDefault()}>

@@ -9,9 +9,8 @@ type SlotForExport = { positionCode: string; count: number; playerIds?: string[]
 
 export function exportFavoriteListToExcel(
   list: FavoriteList,
-  members: (FavoriteListMember & { player?: { overall_rating?: number | null } })[],
-  slots: SlotForExport[],
-  averageRating: number | null
+  members: FavoriteListMember[],
+  slots: SlotForExport[]
 ) {
   const wb = XLSX.utils.book_new();
 
@@ -21,7 +20,6 @@ export function exportFavoriteListToExcel(
     ["Właściciel", (list as { owner?: { full_name?: string } }).owner?.full_name ?? list.owner_id],
     ["Data utworzenia", list.created_at ? format(parseISO(list.created_at), "yyyy-MM-dd HH:mm") : ""],
     ["Liczba zawodników", (list as { players_count?: number }).players_count ?? members.length],
-    ["Średnia ocena", averageRating != null ? String(averageRating) : ""],
     ["Formacja", list.formations?.name ?? list.formation ?? ""],
   ];
   const wsInfo = XLSX.utils.aoa_to_sheet(infoRows);
@@ -35,7 +33,6 @@ export function exportFavoriteListToExcel(
     "Wiek",
     "Pozycja",
     "Klub",
-    "Ocena",
     "Status pipeline",
   ];
   const currentYear = new Date().getFullYear();
@@ -50,7 +47,6 @@ export function exportFavoriteListToExcel(
       age,
       p?.primary_position ?? "",
       (p?.club as { name?: string })?.name ?? "",
-      (p as { overall_rating?: number })?.overall_rating ?? "",
       p?.pipeline_status ?? "",
     ];
   });
@@ -72,8 +68,7 @@ export function exportFavoriteListToExcel(
 
 export function exportFavoriteListToPdf(
   list: FavoriteList,
-  members: (FavoriteListMember & { player?: { overall_rating?: number | null } })[],
-  averageRating: number | null
+  members: FavoriteListMember[]
 ) {
   const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
   const margin = 40;
@@ -86,8 +81,6 @@ export function exportFavoriteListToPdf(
   pdf.text(`Opis: ${list.description ?? "—"}`, margin, y);
   y += 16;
   pdf.text(`Zawodników: ${members.length}`, margin, y);
-  y += 16;
-  if (averageRating != null) pdf.text(`Średnia ocena: ${averageRating}/10`, margin, y);
   y += 16;
   pdf.text(`Formacja: ${list.formations?.name ?? list.formation ?? "—"}`, margin, y);
   y += 24;

@@ -32,9 +32,10 @@ export function ClubSelect({ value, onChange, placeholder, disabled, priorityNam
     return [...matchingPriority, ...restClubs.map((c) => c.name)];
   }, [clubs, query, priorityNames]);
 
-  const handleChange = (next: string) => {
+  const handleInputChange = (next: string) => {
+    // Wpisywana fraza służy do filtrowania listy, ale nie jest traktowana jako wybrana wartość.
+    // Wybrana wartość ustawiana jest dopiero po kliknięciu pozycji z listy.
     setQuery(next);
-    onChange(next);
     if (!isOpen) setIsOpen(true);
   };
 
@@ -49,9 +50,12 @@ export function ClubSelect({ value, onChange, placeholder, disabled, priorityNam
           setIsOpen(true);
         }}
         onBlur={() => {
+          // Jeśli użytkownik tylko filtrował listę i nie wybrał klubu, przywracamy poprzednią wartość.
+          // (zapobiega zapisywaniu częściowej frazy jako "Aktualny klub")
+          setQuery(value);
           setTimeout(() => setIsOpen(false), 120);
         }}
-        onChange={(event) => handleChange(event.target.value)}
+        onChange={(event) => handleInputChange(event.target.value)}
       />
       {isOpen && !disabled && (
         <div className="absolute z-20 mt-1 w-full rounded-md border border-slate-200 bg-white shadow-lg">

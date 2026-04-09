@@ -18,6 +18,7 @@ import { checkDuplicatePlayers, fetchPlayerById, type DuplicateCandidate } from 
 import type { PlayerSearchItem } from "@/features/players/api/players.api";
 import { mapLegacyPosition } from "@/features/players/positions";
 import type { MatchPlayerSlot, MatchFormType } from "@/features/observations/types";
+import type { RecommendationType } from "@/features/observations/types";
 
 const DEFAULT_BIRTH_YEAR = 2010;
 const CURRENT_YEAR = new Date().getFullYear();
@@ -41,7 +42,16 @@ type MatchObservationPlayerFormProps = {
   competition?: string | null;
 };
 
-const defaultSlotData: Omit<MatchPlayerSlot, "id"> = {
+type SlotFormState = Omit<
+  MatchPlayerSlot,
+  "id" | "overall_rating" | "match_performance_rating" | "recommendation"
+> & {
+  overall_rating?: number;
+  match_performance_rating?: number;
+  recommendation?: RecommendationType;
+};
+
+const defaultSlotData: SlotFormState = {
   player_id: undefined,
   first_name: "",
   last_name: "",
@@ -57,21 +67,21 @@ const defaultSlotData: Omit<MatchPlayerSlot, "id"> = {
   agent_email: "",
   primary_position: "",
   overall_rating: 6,
-  match_performance_rating: 3,
+  match_performance_rating: undefined,
   recommendation: "to_observe",
   summary: "",
   strengths: "",
   weaknesses: "",
-  potential_now: 3,
-  potential_future: 3,
-  technical_rating: 3,
-  speed_rating: 3,
-  motor_rating: 3,
-  tactical_rating: 3,
-  mental_rating: 3,
+  potential_now: undefined,
+  potential_future: undefined,
+  technical_rating: undefined,
+  speed_rating: undefined,
+  motor_rating: undefined,
+  tactical_rating: undefined,
+  mental_rating: undefined,
 };
 
-function toFormState(data: MatchObservationPlayerFormInitial | null | undefined): Omit<MatchPlayerSlot, "id"> {
+function toFormState(data: MatchObservationPlayerFormInitial | null | undefined): SlotFormState {
   if (!data) return { ...defaultSlotData };
   return {
     player_id: data.player_id,
@@ -89,18 +99,18 @@ function toFormState(data: MatchObservationPlayerFormInitial | null | undefined)
     agent_email: (data as { agent_email?: string | null }).agent_email ?? "",
     primary_position: data.primary_position ?? "",
     overall_rating: data.overall_rating ?? 6,
-    match_performance_rating: data.match_performance_rating ?? 3,
+    match_performance_rating: data.match_performance_rating ?? undefined,
     recommendation: data.recommendation ?? "to_observe",
     summary: data.summary ?? "",
     strengths: data.strengths ?? "",
     weaknesses: data.weaknesses ?? "",
-    potential_now: data.potential_now ?? 3,
-    potential_future: data.potential_future ?? 3,
-    technical_rating: data.technical_rating ?? 3,
-    speed_rating: data.speed_rating ?? 3,
-    motor_rating: data.motor_rating ?? 3,
-    tactical_rating: data.tactical_rating ?? 3,
-    mental_rating: data.mental_rating ?? 3,
+    potential_now: data.potential_now ?? undefined,
+    potential_future: data.potential_future ?? undefined,
+    technical_rating: data.technical_rating ?? undefined,
+    speed_rating: data.speed_rating ?? undefined,
+    motor_rating: data.motor_rating ?? undefined,
+    tactical_rating: data.tactical_rating ?? undefined,
+    mental_rating: data.mental_rating ?? undefined,
   };
 }
 
@@ -158,18 +168,22 @@ export function MatchObservationPlayerForm({
   const [agent_email, setAgent_email] = useState(defaultSlotData.agent_email ?? "");
   const [primary_position, setPrimary_position] = useState(defaultSlotData.primary_position);
   const [, setOverall_rating] = useState(defaultSlotData.overall_rating);
-  const [match_performance_rating, setMatch_performance_rating] = useState(defaultSlotData.match_performance_rating);
-  const [recommendation, setRecommendation] = useState<MatchPlayerSlot["recommendation"]>(defaultSlotData.recommendation);
+  const [match_performance_rating, setMatch_performance_rating] = useState<number | undefined>(
+    defaultSlotData.match_performance_rating
+  );
+  const [recommendation, setRecommendation] = useState<RecommendationType | undefined>(
+    defaultSlotData.recommendation
+  );
   const [summary, setSummary] = useState(defaultSlotData.summary);
   const [strengths, setStrengths] = useState(defaultSlotData.strengths ?? "");
   const [weaknesses, setWeaknesses] = useState(defaultSlotData.weaknesses ?? "");
-  const [potential_now, setPotential_now] = useState(defaultSlotData.potential_now ?? 3);
-  const [potential_future, setPotential_future] = useState(defaultSlotData.potential_future ?? 3);
-  const [technical_rating, setTechnical_rating] = useState(defaultSlotData.technical_rating ?? 3);
-  const [speed_rating, setSpeed_rating] = useState(defaultSlotData.speed_rating ?? 3);
-  const [motor_rating, setMotor_rating] = useState(defaultSlotData.motor_rating ?? 3);
-  const [tactical_rating, setTactical_rating] = useState(defaultSlotData.tactical_rating ?? 3);
-  const [mental_rating, setMental_rating] = useState(defaultSlotData.mental_rating ?? 3);
+  const [potential_now, setPotential_now] = useState<number | undefined>(defaultSlotData.potential_now);
+  const [potential_future, setPotential_future] = useState<number | undefined>(defaultSlotData.potential_future);
+  const [technical_rating, setTechnical_rating] = useState<number | undefined>(defaultSlotData.technical_rating);
+  const [speed_rating, setSpeed_rating] = useState<number | undefined>(defaultSlotData.speed_rating);
+  const [motor_rating, setMotor_rating] = useState<number | undefined>(defaultSlotData.motor_rating);
+  const [tactical_rating, setTactical_rating] = useState<number | undefined>(defaultSlotData.tactical_rating);
+  const [mental_rating, setMental_rating] = useState<number | undefined>(defaultSlotData.mental_rating);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -195,13 +209,13 @@ export function MatchObservationPlayerForm({
     setSummary(state.summary);
     setStrengths(state.strengths ?? "");
     setWeaknesses(state.weaknesses ?? "");
-    setPotential_now(state.potential_now ?? 3);
-    setPotential_future(state.potential_future ?? 3);
-    setTechnical_rating((state as MatchPlayerSlot).technical_rating ?? 3);
-    setSpeed_rating((state as MatchPlayerSlot).speed_rating ?? 3);
-    setMotor_rating((state as MatchPlayerSlot).motor_rating ?? 3);
-    setTactical_rating((state as MatchPlayerSlot).tactical_rating ?? 3);
-    setMental_rating((state as MatchPlayerSlot).mental_rating ?? 3);
+    setPotential_now(state.potential_now ?? undefined);
+    setPotential_future(state.potential_future ?? undefined);
+    setTechnical_rating(state.technical_rating ?? undefined);
+    setSpeed_rating(state.speed_rating ?? undefined);
+    setMotor_rating(state.motor_rating ?? undefined);
+    setTactical_rating(state.tactical_rating ?? undefined);
+    setMental_rating(state.mental_rating ?? undefined);
     if (initialData?.form_type) setFormType(initialData.form_type);
   }, [initialData]);
 
@@ -350,18 +364,18 @@ export function MatchObservationPlayerForm({
       agent_email: agent_email.trim() || null,
       primary_position,
       overall_rating: formType === "senior" ? 6 : computedOverall,
-      match_performance_rating,
-      recommendation,
+      match_performance_rating: match_performance_rating as number,
+      recommendation: recommendation as RecommendationType,
       summary: summary.trim(),
       strengths: strengths.trim() || undefined,
       weaknesses: weaknesses.trim() || undefined,
-      potential_now: formType === "senior" ? undefined : potential_now,
-      potential_future: formType === "senior" ? undefined : potential_future,
-      technical_rating: formType === "senior" ? undefined : (technical_rating ?? 3),
-      speed_rating: formType === "senior" ? undefined : (speed_rating ?? 3),
-      motor_rating: formType === "senior" ? undefined : (motor_rating ?? 3),
-      tactical_rating: formType === "senior" ? undefined : (tactical_rating ?? 3),
-      mental_rating: formType === "senior" ? undefined : (mental_rating ?? 3),
+      potential_now,
+      potential_future,
+      technical_rating: formType === "senior" ? undefined : technical_rating,
+      speed_rating: formType === "senior" ? undefined : speed_rating,
+      motor_rating: formType === "senior" ? undefined : motor_rating,
+      tactical_rating: formType === "senior" ? undefined : tactical_rating,
+      mental_rating: formType === "senior" ? undefined : mental_rating,
       form_type: formType,
     };
     onSave(data);
@@ -406,6 +420,16 @@ export function MatchObservationPlayerForm({
       nextErrors.contract_end_date = "Podaj datę końca kontraktu w formacie RRRR-MM-DD.";
     }
     if (!primary_position) nextErrors.primary_position = "Wybierz pozycję główną.";
+    if (!recommendation) nextErrors.recommendation = "Wybierz rekomendację.";
+    if (match_performance_rating == null) nextErrors.match_performance_rating = "Wybierz ocenę za występ (1–5).";
+    // Performance i Potencjał przyszły nie są edytowane w tym formularzu (wymagalność dotyczy innych flow)
+    if (formType === "academy") {
+      if (technical_rating == null) nextErrors.technical_rating = "Wybierz ocenę (1–5).";
+      if (speed_rating == null) nextErrors.speed_rating = "Wybierz ocenę (1–5).";
+      if (motor_rating == null) nextErrors.motor_rating = "Wybierz ocenę (1–5).";
+      if (tactical_rating == null) nextErrors.tactical_rating = "Wybierz ocenę (1–5).";
+      if (mental_rating == null) nextErrors.mental_rating = "Wybierz ocenę (1–5).";
+    }
     if (summary.trim().length < 10) {
       nextErrors.summary = "Podsumowanie musi mieć co najmniej 10 znaków.";
     }
@@ -671,7 +695,7 @@ export function MatchObservationPlayerForm({
         {formType === "academy" && (
           <section className="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
             <h2 className="text-lg font-semibold text-slate-800">3. Oceny ogólne</h2>
-            <p className="text-xs text-slate-500">Skala 1–5. Ogólna ocena (1–10) jest wyliczana automatycznie.</p>
+            <p className="text-xs text-slate-500">Skala 1–5.</p>
             {(
               [
                 { label: "Technika", value: technical_rating, setter: setTechnical_rating },
@@ -690,25 +714,41 @@ export function MatchObservationPlayerForm({
                       type="button"
                       onClick={() => setter(v)}
                       className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition ${
-                        (value ?? 3) === v ? "border-red-600 bg-red-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
+                        value === v ? "border-red-600 bg-red-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
                       }`}
                     >
                       {v}
                     </button>
                   ))}
                 </div>
+                {errors[label === "Technika"
+                  ? "technical_rating"
+                  : label === "Szybkość"
+                  ? "speed_rating"
+                  : label === "Motoryka"
+                  ? "motor_rating"
+                  : label === "Taktyka"
+                  ? "tactical_rating"
+                  : "mental_rating"] && (
+                  <p className="text-sm text-red-600">
+                    {
+                      errors[
+                        label === "Technika"
+                          ? "technical_rating"
+                          : label === "Szybkość"
+                          ? "speed_rating"
+                          : label === "Motoryka"
+                          ? "motor_rating"
+                          : label === "Taktyka"
+                          ? "tactical_rating"
+                          : "mental_rating"
+                      ]
+                    }
+                  </p>
+                )}
               </div>
             ))}
-            <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-sm font-medium text-slate-700">
-                Ogólna ocena:{" "}
-                {Math.round(
-                  ((technical_rating ?? 3) + (speed_rating ?? 3) + (motor_rating ?? 3) + (tactical_rating ?? 3) + (mental_rating ?? 3) + (potential_now ?? 3) + (potential_future ?? 3)) / 7 * 2
-                )}
-                /10
-              </p>
-              <p className="text-xs text-slate-500">(wyliczana z powyższych ocen)</p>
-            </div>
+          {/* Usunięto prezentację „Ocena ogólna”. */}
           </section>
         )}
 
@@ -744,6 +784,24 @@ export function MatchObservationPlayerForm({
             {errors.summary && <p className="text-sm text-red-600">{errors.summary}</p>}
           </div>
           <div>
+            <Label>Rekomendacja <span className="text-red-600">*</span></Label>
+            <div className="flex w-full gap-2">
+              {(["negative", "to_observe", "positive"] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRecommendation(r)}
+                  className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition ${
+                    recommendation === r ? "border-red-600 bg-red-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
+                  }`}
+                >
+                  {r === "positive" ? "Pozytywna" : r === "to_observe" ? "Do obserwacji" : "Negatywna"}
+                </button>
+              ))}
+            </div>
+            {errors.recommendation && <p className="text-sm text-red-600">{errors.recommendation}</p>}
+          </div>
+          <div>
             <Label>Ocena za występ (1–5) <span className="text-red-600">*</span></Label>
             <div className="flex w-full gap-2">
               {[1, 2, 3, 4, 5].map((v) => (
@@ -759,23 +817,9 @@ export function MatchObservationPlayerForm({
                 </button>
               ))}
             </div>
-          </div>
-          <div>
-            <Label>Rekomendacja <span className="text-red-600">*</span></Label>
-            <div className="flex w-full gap-2">
-              {(["positive", "to_observe", "negative"] as const).map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => setRecommendation(r)}
-                  className={`min-h-12 flex-1 rounded-lg border-2 text-base font-medium transition ${
-                    recommendation === r ? "border-red-600 bg-red-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
-                  }`}
-                >
-                  {r === "positive" ? "Pozytywna" : r === "to_observe" ? "Do obserwacji" : "Negatywna"}
-                </button>
-              ))}
-            </div>
+            {errors.match_performance_rating && (
+              <p className="text-sm text-red-600">{errors.match_performance_rating}</p>
+            )}
           </div>
         </section>
 
