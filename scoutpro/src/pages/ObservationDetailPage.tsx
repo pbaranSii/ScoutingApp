@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { format, parseISO } from "date-fns";
 import { formatPosition } from "@/features/players/positions";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Pencil, Star, Trash2, User } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2, User } from "lucide-react";
 import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { toast } from "@/hooks/use-toast";
 import { MediaGallery, useMultimediaByObservation } from "@/features/multimedia";
@@ -26,6 +26,15 @@ import { buildLegacyMediaItemsForObservation } from "@/features/multimedia/lib/l
 import { mapLegacyPosition } from "@/features/players/positions";
 import { AddToFavoritesButton } from "@/features/favorites/components/AddToFavoritesButton";
 import { RatingBar } from "@/features/observations/components/RatingBar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Code, Copy } from "lucide-react";
 
 export function ObservationDetailPage() {
   const { id } = useParams();
@@ -33,6 +42,7 @@ export function ObservationDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isRawPayloadOpen, setIsRawPayloadOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const { data: observation, isLoading } = useObservation(observationId);
   const { data: playerSources = [] } = usePlayerSources();
@@ -124,13 +134,7 @@ export function ObservationDetailPage() {
     (playerSources as { source_code?: string; name_pl?: string }[]).find(
       (s) => s.source_code === observation.source
     )?.name_pl ?? observation.source ?? "—";
-  const rating = observation.overall_rating;
-  const ratingClass =
-    typeof rating === "number" && rating >= 8
-      ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
-      : typeof rating === "number" && rating >= 6
-        ? "bg-amber-100 text-amber-700 hover:bg-amber-100"
-        : "bg-slate-100 text-slate-700 hover:bg-slate-100";
+  // `overall_rating` removed from UI
   const createdAtLabel = observation.created_at
     ? format(parseISO(observation.created_at), "dd.MM.yyyy, HH:mm")
     : "-";
@@ -171,6 +175,13 @@ export function ObservationDetailPage() {
     observation.match_result?.trim() || matchHeader?.match_result?.trim() || "—";
   const matchNotesLabel = matchHeader?.match_notes?.trim() || "";
 
+  const rawPayloadObject =
+    observation.raw_payload && typeof observation.raw_payload === "object"
+      ? (observation.raw_payload as Record<string, unknown>)
+      : null;
+  const hasRawPayload = rawPayloadObject != null && Object.keys(rawPayloadObject).length > 0;
+  const rawPayloadText = hasRawPayload ? JSON.stringify(rawPayloadObject, null, 2) : "";
+
   return (
     <div className="mx-auto w-full max-w-[960px] space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
@@ -191,6 +202,17 @@ export function ObservationDetailPage() {
               size="default"
               className="gap-2"
             />
+          )}
+          {hasRawPayload && (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => setIsRawPayloadOpen(true)}
+            >
+              <Code className="h-4 w-4" />
+              Raw payload
+            </Button>
           )}
           <Button asChild variant="outline" className="gap-2">
             <Link
@@ -228,6 +250,48 @@ export function ObservationDetailPage() {
           </Button>
         </div>
       </div>
+
+      <Dialog open={isRawPayloadOpen} onOpenChange={setIsRawPayloadOpen}>
+        <DialogContent className="max-w-[900px]">
+          <DialogHeader>
+            <DialogTitle>Raw payload</DialogTitle>
+            <DialogDescription>
+              Dane źródłowe, których nie udało się w pełni zmapować do pól strukturalnych.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
+            <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-words text-xs text-slate-800">
+              {rawPayloadText}
+            </pre>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(rawPayloadText);
+                  toast({ title: "Skopiowano", description: "Raw payload skopiowany do schowka." });
+                } catch (e) {
+                  console.error("Copy raw payload failed:", e);
+                  toast({
+                    variant: "destructive",
+                    title: "Nie udało się skopiować",
+                    description: "Twoja przeglądarka zablokowała dostęp do schowka.",
+                  });
+                }
+              }}
+            >
+              <Copy className="h-4 w-4" />
+              Kopiuj
+            </Button>
+            <Button type="button" onClick={() => setIsRawPayloadOpen(false)}>
+              Zamknij
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {canUseDom &&
         isDeleteOpen &&
@@ -316,12 +380,6 @@ export function ObservationDetailPage() {
             )}
           </div>
         </div>
-        {typeof rating === "number" && (
-          <Badge className={`flex items-center gap-1 rounded-full px-2 ${ratingClass}`}>
-            <Star className="h-3.5 w-3.5" />
-            {rating}
-          </Badge>
-        )}
       </div>
 
       <Card>
@@ -475,9 +533,7 @@ export function ObservationDetailPage() {
             {typeof observation.potential_future === "number" && (
               <RatingBar label="Potencjał przyszły (1–5)" value={observation.potential_future} max={5} />
             )}
-            {typeof observation.overall_rating === "number" && (
-              <RatingBar label="Ocena ogólna (1–10)" value={observation.overall_rating} max={10} />
-            )}
+            {/* Usunięto prezentację „Ocena ogólna”. */}
             {observation.observation_category === "match_player" &&
               typeof observation.match_performance_rating === "number" && (
                 <RatingBar
@@ -578,12 +634,6 @@ export function ObservationDetailPage() {
           <CardTitle className="text-lg font-semibold text-slate-800">6. Analiza i notatki</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
-          {effectiveFormType === "academy" && (
-            <div>
-              <span className="font-medium text-slate-700">Ranga: </span>
-              <span className="text-slate-600">{observation.rank ?? "—"}</span>
-            </div>
-          )}
           {(effectiveFormType === "senior" || observation.observation_category === "match_player") &&
             typeof observation.match_performance_rating === "number" && (
               <div>

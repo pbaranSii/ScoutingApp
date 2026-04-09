@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { format, parseISO } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Plus, Star } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import type { Observation } from "@/features/observations/types";
 import { AddToFavoritesButton } from "@/features/favorites/components/AddToFavoritesButton";
 import { AssignToDemandButton } from "@/features/demands/components/AssignToDemandButton";
@@ -182,11 +182,6 @@ export function PlayerDetailPage() {
                   )}
                 </span>
               )}
-              {typeof latestObservation?.overall_rating === "number" && (
-                <span className="text-sm text-slate-600">
-                  Ocena ogólna: <strong>{latestObservation.overall_rating}</strong>
-                </span>
-              )}
               {(typeof latestObservation?.potential_now === "number" ||
                 typeof latestObservation?.potential_future === "number") && (
                 <span className="text-sm text-slate-600">
@@ -308,13 +303,6 @@ export function PlayerDetailPage() {
               const dateLabel = observation.observation_date
                 ? format(parseISO(observation.observation_date), "dd.MM.yyyy")
                 : "-";
-              const rating = observation.overall_rating;
-              const ratingClass =
-                typeof rating === "number" && rating >= 8
-                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
-                  : typeof rating === "number" && rating >= 6
-                    ? "bg-amber-100 text-amber-700 hover:bg-amber-100"
-                    : "bg-slate-100 text-slate-700 hover:bg-slate-100";
               return (
                 <Card
                   key={observation.id}
@@ -359,12 +347,6 @@ export function PlayerDetailPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {typeof rating === "number" && (
-                          <Badge className={`flex items-center gap-1 rounded-full px-2 ${ratingClass}`}>
-                            <Star className="h-3.5 w-3.5" />
-                            {rating}
-                          </Badge>
-                        )}
                         {typeof observation.match_performance_rating === "number" && (
                           <Badge variant="secondary" className="rounded-full px-2">
                             Występ: {observation.match_performance_rating}

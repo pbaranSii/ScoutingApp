@@ -91,7 +91,7 @@ export function MatchObservationAddPlayerPage() {
         match_performance_rating: slot.match_performance_rating,
         recommendation: slot.recommendation,
         summary: slot.summary.trim(),
-        overall_rating: slot.form_type === "senior" ? null : slot.overall_rating,
+        overall_rating: null,
         competition: match.competition?.trim() || null,
         positions: [slot.primary_position],
         strengths: slot.strengths?.trim() || null,

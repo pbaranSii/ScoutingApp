@@ -56,6 +56,7 @@ export type Observation = {
   summary?: string | null;
   mental_description?: string | null;
   motor_description?: string | null;
+  raw_payload?: unknown | null;
   player?: {
     first_name: string;
     last_name: string;

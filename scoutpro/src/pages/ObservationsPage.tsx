@@ -76,7 +76,6 @@ export function ObservationsPage() {
       const weaknesses = observation.weaknesses?.toLowerCase() ?? "";
       const competition = observation.competition?.toLowerCase() ?? "";
       const source = observation.source?.toLowerCase() ?? "";
-      const rank = observation.rank?.toLowerCase() ?? "";
       return (
         playerName.includes(query) ||
         notes.includes(query) ||
@@ -84,8 +83,7 @@ export function ObservationsPage() {
         strengths.includes(query) ||
         weaknesses.includes(query) ||
         competition.includes(query) ||
-        source.includes(query) ||
-        rank.includes(query)
+        source.includes(query)
       );
     });
   }, [byTab, search]);

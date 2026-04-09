@@ -16,11 +16,6 @@ function formatDurationInStatus(iso: string): string {
   return `${Math.floor(days / 365)}y`;
 }
 
-/** Map overall_rating 1-10 to 1-5 stars (filled count). */
-function ratingToStars(rating: number): number {
-  return Math.round((rating / 10) * 5);
-}
-
 type PlayerPipelineCardProps = {
   player: Player;
   statusSince?: string | null;
@@ -43,7 +38,6 @@ export function PlayerPipelineCard({
   const positionLabel = formatPosition(player.primary_position);
   const clubName = player.club?.name ?? "—";
   const ageCat = birthYearToCategory(player.birth_year);
-  const stars = latestRating != null ? ratingToStars(latestRating) : null;
   const duration = statusSince ? formatDurationInStatus(statusSince) : null;
 
   return (
@@ -74,11 +68,7 @@ export function PlayerPipelineCard({
           {clubName} {ageCat}
         </div>
         <div className="mt-1.5 flex items-center justify-between gap-2">
-          <span className="text-xs text-amber-600" aria-label={stars != null ? `${stars} z 5 gwiazdek` : undefined}>
-            {stars != null
-              ? "★".repeat(stars) + "☆".repeat(5 - stars)
-              : "—"}
-          </span>
+          <span className="text-xs text-slate-400">—</span>
           {duration != null && (
             <span className="text-xs text-slate-400">{duration}</span>
           )}

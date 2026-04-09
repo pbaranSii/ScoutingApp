@@ -176,9 +176,6 @@ export function MatchObservationEditPage() {
                       </Link>
                       <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0 text-sm text-slate-500">
                         {positionLabel && <span>{positionLabel}</span>}
-                        {obs.overall_rating != null && (
-                          <span>Ocena: {obs.overall_rating}</span>
-                        )}
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1">

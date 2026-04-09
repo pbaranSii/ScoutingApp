@@ -24,6 +24,7 @@ import { toast } from "@/hooks/use-toast";
 import { MatchObservationPlayerCard } from "@/features/observations/components/MatchObservationPlayerCard";
 import { useMatchObservationNew } from "@/pages/MatchObservationNewLayout";
 import type { ObservationInput } from "@/features/observations/types";
+import { supabase } from "@/lib/supabase";
 
 function nextId() {
   return crypto.randomUUID();
@@ -47,6 +48,72 @@ export function MatchObservationNewPage() {
   const [playerToRemove, setPlayerToRemove] = useState<string | null>(null);
   const createPlayerMut = useCreatePlayer();
   const updatePlayerMut = useUpdatePlayer();
+
+  const resolveAgeCategoryIdForCurrentArea = async (birthYear: number): Promise<string | null> => {
+    const y = Number(birthYear);
+    if (!Number.isFinite(y)) return null;
+
+    const { data: areaAccessRaw, error: areaAccessErr } = await (supabase as any).rpc("current_area_access");
+    if (areaAccessErr) throw areaAccessErr;
+    const areaAccess = areaAccessRaw as "AKADEMIA" | "SENIOR" | "ALL" | null;
+
+    let categoriesQ = (supabase as any)
+      .from("categories")
+      .select("id, age_under, min_birth_year, max_birth_year")
+      .eq("is_active", true);
+
+    if (areaAccess && areaAccess !== "ALL") {
+      categoriesQ = categoriesQ.eq("area", areaAccess);
+    }
+
+    const { data: areaCats, error: catsErr } = await categoriesQ.limit(50);
+    if (catsErr) throw catsErr;
+
+    const cats = (areaCats ?? []) as Array<{
+      id: string;
+      age_under?: number | null;
+      min_birth_year?: number | null;
+      max_birth_year?: number | null;
+    }>;
+
+    const yearNow = new Date().getFullYear();
+    const candidates = cats
+      .map((c) => {
+        const ageUnder = c.age_under ?? null;
+        const minBy = c.min_birth_year ?? null;
+        const maxBy = c.max_birth_year ?? null;
+        const matchesAgeUnder = ageUnder != null && y === yearNow - Number(ageUnder);
+        const matchesRange =
+          minBy != null &&
+          maxBy != null &&
+          Number.isFinite(Number(minBy)) &&
+          Number.isFinite(Number(maxBy)) &&
+          y >= Number(minBy) &&
+          y <= Number(maxBy);
+        return { c, matchesAgeUnder, matchesRange, hasAgeUnder: ageUnder != null };
+      })
+      .filter((x) => x.matchesAgeUnder || x.matchesRange);
+
+    candidates.sort((a, b) => {
+      if (a.hasAgeUnder !== b.hasAgeUnder) return a.hasAgeUnder ? -1 : 1;
+      const aMax = a.c.max_birth_year ?? null;
+      const bMax = b.c.max_birth_year ?? null;
+      if ((aMax == null) !== (bMax == null)) return aMax == null ? 1 : -1;
+      if (aMax != null && bMax != null && aMax !== bMax) return Number(bMax) - Number(aMax);
+      const aMin = a.c.min_birth_year ?? null;
+      const bMin = b.c.min_birth_year ?? null;
+      if ((aMin == null) !== (bMin == null)) return aMin == null ? 1 : -1;
+      if (aMin != null && bMin != null && aMin !== bMin) return Number(bMin) - Number(aMin);
+      return 0;
+    });
+
+    const idFromCandidates = candidates[0]?.c?.id ?? null;
+    const idFromFallback = cats[0]?.id ?? null;
+    const resolved =
+      (typeof idFromCandidates === "string" && idFromCandidates.length > 0 ? idFromCandidates : null) ??
+      (typeof idFromFallback === "string" && idFromFallback.length > 0 ? idFromFallback : null);
+    return resolved;
+  };
 
   const handleAddPlayer = () => {
     navigate("/observations/match/new/player");
@@ -123,7 +190,7 @@ export function MatchObservationNewPage() {
             birth_date: p.birth_date ?? undefined,
             club_name: p.club_name,
             primary_position: p.primary_position,
-            overall_rating: p.overall_rating,
+            overall_rating: undefined,
             match_performance_rating: p.match_performance_rating,
             recommendation: p.recommendation,
             summary: p.summary.trim(),
@@ -165,15 +232,24 @@ export function MatchObservationNewPage() {
 
       for (const slot of players) {
         const clubId = await getClubIdByName(slot.club_name?.trim());
+        const ageCategoryId = await resolveAgeCategoryIdForCurrentArea(slot.birth_year);
         let playerId = slot.player_id;
         if (!playerId) {
           const created = await createPlayerMut.mutateAsync({
             first_name: slot.first_name.trim(),
             last_name: slot.last_name.trim(),
             birth_year: slot.birth_year,
+            age_category_id: ageCategoryId ?? undefined,
+            nationality: slot.nationality?.trim() || null,
             birth_date: slot.birth_date?.trim() || null,
+            contract_end_date: slot.contract_end_date?.trim() || null,
             primary_position: slot.primary_position,
             club_id: clubId ?? undefined,
+            body_build: slot.body_build?.trim() || null,
+            club_formation: slot.club_formation?.trim() || null,
+            agent_name: slot.agent_name?.trim() || null,
+            agent_phone: slot.agent_phone?.trim() || null,
+            agent_email: slot.agent_email?.trim() || null,
             pipeline_status: "unassigned",
           });
           playerId = created.id;
@@ -185,9 +261,17 @@ export function MatchObservationNewPage() {
             first_name: slot.first_name.trim(),
             last_name: slot.last_name.trim(),
             birth_year: slot.birth_year,
+            age_category_id: ageCategoryId ?? undefined,
+            nationality: slot.nationality?.trim() || null,
             birth_date: slot.birth_date?.trim() || null,
+            contract_end_date: slot.contract_end_date?.trim() || null,
             primary_position: slot.primary_position,
             club_id: clubId ?? null,
+            body_build: slot.body_build?.trim() || null,
+            club_formation: slot.club_formation?.trim() || null,
+            agent_name: slot.agent_name?.trim() || null,
+            agent_phone: slot.agent_phone?.trim() || null,
+            agent_email: slot.agent_email?.trim() || null,
           },
         });
 
@@ -203,8 +287,10 @@ export function MatchObservationNewPage() {
           match_performance_rating: slot.match_performance_rating,
           recommendation: slot.recommendation,
           summary: slot.summary.trim(),
-          overall_rating: formType === "senior" ? null : slot.overall_rating,
+          overall_rating: null,
           competition: headerValues.competition?.trim() || null,
+          // `notes` w edycji match-player jest prezentowane jako "Notatki do meczu" (readonly),
+          // więc trzymamy je na poziomie match_observations.match_notes, nie w observations.notes.
           positions: [slot.primary_position],
           strengths: slot.strengths?.trim() || null,
           weaknesses: slot.weaknesses?.trim() || null,
