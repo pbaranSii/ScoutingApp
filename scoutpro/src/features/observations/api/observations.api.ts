@@ -198,7 +198,7 @@ export async function fetchObservationById(id: string) {
   const { data, error } = await supabase
     .from("observations")
     .select(
-      "*, player:players(first_name,last_name,birth_year,primary_position,pipeline_status,club:clubs(name))"
+      "*, player:players(first_name,last_name,birth_year,birth_date,primary_position,pipeline_status,club:clubs(name))"
     )
     .eq("id", id)
     .single();

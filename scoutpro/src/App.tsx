@@ -51,7 +51,18 @@ import { TacticalFormationsListPage } from "@/pages/TacticalFormationsListPage";
 import { TacticalPositionDictionaryPage } from "@/pages/TacticalPositionDictionaryPage";
 import { FormTemplatesPage } from "@/pages/FormTemplatesPage";
 import { FormationEditorPage } from "@/pages/FormationEditorPage";
-import { AdminDataTransferPage } from "@/pages/AdminDataTransferPage";
+import { toast } from "@/hooks/use-toast";
+import { useEffect } from "react";
+
+function AdminDataTransferRedirect() {
+  useEffect(() => {
+    toast({
+      title: "Funkcja wycofana",
+      description: "Import / Export danych został usunięty z aplikacji.",
+    });
+  }, []);
+  return <Navigate to="/settings" replace />;
+}
 
 export default function App() {
   useAuth();
@@ -112,7 +123,7 @@ export default function App() {
               <Route path="users" element={<SettingsUsersPage />} />
               <Route path="admin/usage-statistics" element={<UsageStatisticsPage />} />
               <Route path="admin/user-satisfaction" element={<AdminSurveyResultsPage />} />
-              <Route path="admin/data-transfer" element={<AdminDataTransferPage />} />
+              <Route path="admin/data-transfer" element={<AdminDataTransferRedirect />} />
               <Route path="tactical/formations" element={<TacticalFormationsListPage />} />
               <Route path="tactical/formations/new" element={<FormationEditorPage />} />
               <Route path="tactical/formations/:id" element={<FormationEditorPage />} />

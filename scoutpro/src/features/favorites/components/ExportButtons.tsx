@@ -9,18 +9,17 @@ type SlotForExport = { positionCode: string; label: string; count: number; playe
 
 type ExportButtonsProps = {
   list: FavoriteList;
-  members: (FavoriteListMember & { player?: { overall_rating?: number | null } })[];
+  members: FavoriteListMember[];
   slots: SlotForExport[];
-  averageRating: number | null;
 };
 
-export function ExportButtons({ list, members, slots, averageRating }: ExportButtonsProps) {
+export function ExportButtons({ list, members, slots }: ExportButtonsProps) {
   const handleExcel = () => {
-    exportFavoriteListToExcel(list, members, slots, averageRating);
+    exportFavoriteListToExcel(list, members, slots);
   };
 
   const handlePdf = () => {
-    exportFavoriteListToPdf(list, members, averageRating);
+    exportFavoriteListToPdf(list, members);
   };
 
   return (

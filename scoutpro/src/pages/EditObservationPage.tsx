@@ -152,27 +152,30 @@ export function EditObservationPage() {
             notes: "",
           },
         ],
-      notes: observation.notes ?? "",
+      notes:
+        observation.observation_category === "match_player"
+          ? (matchObservation?.match_notes ?? observation.notes ?? "")
+          : (observation.notes ?? ""),
       primary_position: primary,
       additional_positions: additional,
-      technical_rating: observation.technical_rating ?? 3,
-      speed_rating: observation.speed_rating ?? 3,
-      motor_rating: observation.motor_rating ?? 3,
+      technical_rating: observation.technical_rating ?? undefined,
+      speed_rating: observation.speed_rating ?? undefined,
+      motor_rating: observation.motor_rating ?? undefined,
       motor_speed_rating: observation.motor_speed_rating ?? 3,
       motor_endurance_rating: observation.motor_endurance_rating ?? 3,
       motor_jump_rating: observation.motor_jump_rating ?? 3,
       motor_agility_rating: observation.motor_agility_rating ?? 3,
       motor_acceleration_rating: observation.motor_acceleration_rating ?? 3,
       motor_strength_rating: observation.motor_strength_rating ?? 3,
-      tactical_rating: observation.tactical_rating ?? 3,
-      mental_rating: observation.mental_rating ?? 3,
-      potential_now: observation.potential_now ?? 3,
-      potential_future: observation.potential_future ?? 3,
+      tactical_rating: observation.tactical_rating ?? undefined,
+      mental_rating: observation.mental_rating ?? undefined,
+      potential_now: observation.potential_now ?? undefined,
+      potential_future: observation.potential_future ?? undefined,
       overall_rating: observation.overall_rating ?? undefined,
       strengths: observation.strengths ?? "",
       weaknesses: observation.weaknesses ?? "",
       photo_url: observation.photo_url ?? "",
-      rank: observation.rank ?? "B",
+      rank: observation.rank ?? undefined,
       form_type: observation.form_type === "extended" ? "senior" : observation.form_type === "simplified" ? "academy" : (observation.form_type ?? "academy"),
       summary: observation.summary ?? "",
       recommendation: observation.recommendation ?? undefined,
@@ -227,7 +230,7 @@ export function EditObservationPage() {
         matchObservationId={matchObservationId ?? undefined}
         initialValues={initialValues}
         prefillPlayer={prefillPlayer}
-        lockPlayerFields={true}
+        lockPlayerFields={false}
         cancelHref={`/observations/${observationId}`}
         savedMedia={savedMedia}
         onRemoveSavedMedia={handleRemoveSavedMedia}

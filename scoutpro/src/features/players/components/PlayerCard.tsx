@@ -15,11 +15,6 @@ const formatObservations = (count?: number | null) => {
   return `${value} obserwacji`;
 };
 
-/** Map overall_rating 1-10 to 1-5 stars (filled count). */
-function ratingToStars(rating: number): number {
-  return Math.round((rating / 10) * 5);
-}
-
 type PlayerCardProps = {
   player: Player;
   latestRating?: number | null;
@@ -33,7 +28,6 @@ export function PlayerCard({ player, latestRating }: PlayerCardProps) {
   const statusStyle = getStatusBadgeClass(statusKey);
   const positionLabel = formatPosition(player.primary_position);
   const clubName = player.club?.name ?? "—";
-  const stars = latestRating != null ? ratingToStars(latestRating) : null;
 
   return (
     <Link to={`/players/${player.id}`} className="block relative">
@@ -91,16 +85,9 @@ export function PlayerCard({ player, latestRating }: PlayerCardProps) {
             </div>
           </div>
 
-          {/* Bottom section: stars left, observation count right */}
+          {/* Bottom section: observation count */}
           <div className="relative flex items-center justify-between gap-2 border-t border-slate-100 px-4 py-3">
-            <span
-              className="text-lg text-amber-500"
-              aria-label={stars != null ? `${stars} z 5 gwiazdek` : undefined}
-            >
-              {stars != null
-                ? "★".repeat(stars) + "☆".repeat(5 - stars)
-                : "☆".repeat(5)}
-            </span>
+            <span className="text-sm text-slate-400">—</span>
             <span className="text-xs text-slate-500">
               {formatObservations(player.observation_count)}
             </span>

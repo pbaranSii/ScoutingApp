@@ -18,6 +18,7 @@ import { ALL_PIPELINE_STATUSES } from "@/features/pipeline/types";
 import { mapLegacyPosition } from "@/features/players/positions";
 import { codeForLookup } from "@/features/players/components/PositionDictionarySelect";
 import { useBodyBuild, useCategoriesForCurrentArea } from "@/features/dictionaries/hooks/useDictionaries";
+import { useFormations } from "@/features/tactical/hooks/useFormations";
 import {
   MediaUploadModal,
   useUploadMediaFile,
@@ -64,6 +65,7 @@ const playerSchema = z.object({
     ),
   nationality: optionalText,
   club_name: optionalText,
+  club_formation: optionalText,
   age_category_id: optionalText,
   primary_position: optionalText,
   dominant_foot: optionalText,
@@ -132,12 +134,17 @@ export function PlayerForm({
   const currentAreaAccess =
     (currentUserProfile as { area_access?: "AKADEMIA" | "SENIOR" | "ALL" } | null)?.area_access ??
     "AKADEMIA";
+  const currentBusinessRole =
+    (currentUserProfile as { business_role?: "scout" | "coach" | "director" | "suspended" | "admin" } | null)
+      ?.business_role ?? null;
+  const isScout = currentBusinessRole === "scout";
   const isSeniorArea = currentAreaAccess === "SENIOR";
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [addMediaModalOpen, setAddMediaModalOpen] = useState(false);
   const [profileMediaObservationId, setProfileMediaObservationId] = useState<string | null>(null);
   const { data: bodyBuildOptions = [] } = useBodyBuild();
   const { data: categories = [] } = useCategoriesForCurrentArea();
+  const { data: formations = [] } = useFormations();
   const { data: observations = [] } = useObservationsByPlayer(isEdit && playerId ? playerId : "");
   const { data: mediaItems = [] } = useMultimediaByPlayer(isEdit && playerId ? playerId : "");
   const uploadProfileMedia = useUploadMediaFile(
@@ -159,6 +166,7 @@ export function PlayerForm({
       contract_end_date: (initialValues as { contract_end_date?: string | null } | undefined)?.contract_end_date ?? "",
       nationality: initialValues?.nationality ?? "Polska",
       club_name: initialValues?.club_name ?? "",
+      club_formation: (initialValues as { club_formation?: string | null } | undefined)?.club_formation ?? "",
       age_category_id: (initialValues as { age_category_id?: string | null } | undefined)?.age_category_id ?? "",
       primary_position: mapLegacyPosition(initialValues?.primary_position ?? ""),
       dominant_foot: initialValues?.dominant_foot ?? "",
@@ -187,6 +195,7 @@ export function PlayerForm({
       contract_end_date: "",
       nationality: "Polska",
       club_name: "",
+      club_formation: "",
       age_category_id: "",
       primary_position: "",
       dominant_foot: "",
@@ -272,17 +281,59 @@ export function PlayerForm({
     form.reset(defaultValues);
   }, [defaultValues, form]);
 
-  const resolveClubId = async (clubName?: string) => {
-    if (!clubName) return null;
-    const { data: existing } = await supabase
-      .from("clubs")
-      .select("id")
-      .eq("name", clubName)
-      .maybeSingle();
+  const normalizeClubName = (name: string) =>
+    name
+      .replace(/\u00A0/g, " ") // NBSP → zwykła spacja
+      .normalize("NFKC")
+      .replace(/\s+/g, " ")
+      .trim();
 
-    if (existing?.id) {
-      return existing.id as string;
+  const resolveClubId = async (clubName?: string) => {
+    const raw = typeof clubName === "string" ? clubName : "";
+    const normalized = normalizeClubName(raw);
+    if (!normalized) return null;
+
+    // 1) Najpierw spróbuj dopasowania "case-insensitive exact" (ILIKE bez wildcardów),
+    // ale NIE używamy maybeSingle() – w bazie mogą istnieć duplikaty nazw i PostgREST rzuci:
+    // "JSON object requested, multiple (or no) rows returned"
+    const { data: exactLikeRows, error: exactLikeErr } = await supabase
+      .from("clubs")
+      .select("id,name")
+      .ilike("name", normalized)
+      .limit(5);
+    if (exactLikeErr) throw exactLikeErr;
+    if ((exactLikeRows ?? []).length === 1 && (exactLikeRows as any)[0]?.id) {
+      return (exactLikeRows as any)[0].id as string;
     }
+    if ((exactLikeRows ?? []).length > 1) {
+      const best = (exactLikeRows ?? []).find(
+        (c) => normalizeClubName(String((c as any).name ?? "")) === normalized
+      );
+      if (best?.id) return best.id as string;
+      // deterministyczny fallback
+      return (exactLikeRows as any)[0].id as string;
+    }
+
+    // 2) Fallback dla nietypowych spacji / wariantów zapisu: dopasuj po słowach
+    const words = normalized.split(" ").filter(Boolean);
+    if (words.length > 0) {
+      const pattern = `%${words.join("%")}%`;
+      const { data: candidates, error: candErr } = await supabase
+        .from("clubs")
+        .select("id,name")
+        .ilike("name", pattern)
+        .limit(10);
+      if (candErr) throw candErr;
+
+      const best = (candidates ?? []).find(
+        (c) => normalizeClubName(String((c as any).name ?? "")) === normalized
+      );
+      if (best?.id) return best.id as string;
+      if ((candidates ?? []).length === 1 && (candidates as any)[0]?.id) {
+        return (candidates as any)[0].id as string;
+      }
+    }
+
     throw new Error(
       "Brak uprawnien do dodania klubu. Wybierz istniejacy klub lub zostaw pole puste."
     );
@@ -391,6 +442,7 @@ export function PlayerForm({
         birth_date: toNullable(values.birth_date),
         contract_end_date: toNullable(values.contract_end_date),
         club_id: clubId ?? null,
+        club_formation: toNullable(values.club_formation),
         nationality: toNullable(values.nationality),
         primary_position: toNullable(codeForLookup(values.primary_position) || values.primary_position?.trim()),
         dominant_foot: dominantFoot,
@@ -474,7 +526,7 @@ export function PlayerForm({
             <CardTitle className="text-base">Dane podstawowe</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 px-6">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <FormField
                 control={form.control}
                 name="first_name"
@@ -498,6 +550,18 @@ export function PlayerForm({
                       <Input placeholder="Kowalski" {...field} />
                     </FormControl>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="nationality"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Narodowosc</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Polska" {...field} />
+                    </FormControl>
                   </FormItem>
                 )}
               />
@@ -527,32 +591,143 @@ export function PlayerForm({
                   </FormItem>
                 )}
               />
+              {isSeniorArea ? (
+                <FormField
+                  control={form.control}
+                  name="contract_end_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Koniec kontraktu</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <FormField
+                  control={form.control}
+                  name="age_category_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Kategoria wiekowa</FormLabel>
+                      <Select
+                        value={field.value || "__none__"}
+                        onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Wybierz kategorię" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="__none__">— Brak —</SelectItem>
+                          {(categories as { id: string; name?: string }[]).map((c) => (
+                            <SelectItem key={String(c.id)} value={String(c.id)}>
+                              {String(c.name ?? c.id)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
               <FormField
                 control={form.control}
-                name="contract_end_date"
+                name="club_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Koniec kontraktu</FormLabel>
+                    <FormLabel>Aktualny klub</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} value={field.value ?? ""} />
+                      <ClubSelect
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        placeholder="Wybierz klub"
+                      />
                     </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="club_formation"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Formacja drużyny</FormLabel>
+                    <Select
+                      value={String(field.value ?? "")}
+                      onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Wybierz schemat" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Brak —</SelectItem>
+                        {(formations as { id: string; name: string; code?: string | null }[]).map((f) => {
+                          const code = String(f.code ?? "").trim();
+                          const v = String(code || f.id);
+                          return (
+                            <SelectItem key={f.id} value={v}>
+                              {f.name}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="nationality"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Narodowosc</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Polska" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+              {!isSeniorArea && (
+                <FormField
+                  control={form.control}
+                  name="contract_end_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Koniec kontraktu</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
+            <FormField
+              control={form.control}
+              name="pipeline_status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status zawodnika</FormLabel>
+                  <Select
+                    value={field.value ?? "unassigned"}
+                    onValueChange={field.onChange}
+                    disabled={isScout}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Wybierz status" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {ALL_PIPELINE_STATUSES.map((column) => (
+                        <SelectItem key={column.id} value={column.id}>
+                          {column.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
           </CardContent>
         </Card>
 
@@ -618,10 +793,10 @@ export function PlayerForm({
 
         <Card>
           <CardHeader className="px-6">
-            <CardTitle className="text-base">Pozycja i klub</CardTitle>
+            <CardTitle className="text-base">Pozycja na boisku</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 px-6">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-1">
               <FormField
                 control={form.control}
                 name="primary_position"
@@ -641,76 +816,7 @@ export function PlayerForm({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="club_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Aktualny klub</FormLabel>
-                    <FormControl>
-                      <ClubSelect
-                        value={field.value ?? ""}
-                        onChange={field.onChange}
-                        placeholder="Wybierz klub"
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              {!isSeniorArea && (
-                <FormField
-                  control={form.control}
-                  name="age_category_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Kategoria wiekowa</FormLabel>
-                      <Select
-                        value={field.value || "__none__"}
-                        onValueChange={(v) => field.onChange(v === "__none__" ? "" : v)}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Wybierz kategorię" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="__none__">— Brak —</SelectItem>
-                          {(categories as { id: string; name?: string }[]).map((c) => (
-                            <SelectItem key={String(c.id)} value={String(c.id)}>
-                              {String(c.name ?? c.id)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
             </div>
-            <FormField
-              control={form.control}
-              name="pipeline_status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status zawodnika</FormLabel>
-                  <Select value={field.value ?? "unassigned"} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Wybierz status" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {ALL_PIPELINE_STATUSES.map((column) => (
-                        <SelectItem key={column.id} value={column.id}>
-                          {column.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )}
-            />
           </CardContent>
         </Card>
 
@@ -718,7 +824,7 @@ export function PlayerForm({
           <CardHeader className="px-6">
             <CardTitle className="text-base">Parametry fizyczne</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-3 px-6 sm:grid-cols-3">
+          <CardContent className="grid gap-3 px-6 sm:grid-cols-2 lg:grid-cols-4">
             <FormField
               control={form.control}
               name="body_build"
@@ -804,7 +910,7 @@ export function PlayerForm({
             <CardTitle className="text-base">Dane kontaktowe (opcjonalne)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 px-6">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <FormField
                 control={form.control}
                 name="guardian_name"
@@ -829,20 +935,20 @@ export function PlayerForm({
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="guardian_email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="adam.kowalski@email.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-            <FormField
-              control={form.control}
-              name="guardian_email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="adam.kowalski@email.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
           </CardContent>
         </Card>
 
@@ -851,7 +957,7 @@ export function PlayerForm({
             <CardTitle className="text-base">Dane kontaktowe agenta</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 px-6">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <FormField
                 control={form.control}
                 name="agent_name"
@@ -876,20 +982,20 @@ export function PlayerForm({
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="agent_email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="agent@email.com" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-            <FormField
-              control={form.control}
-              name="agent_email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="agent@email.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
           </CardContent>
         </Card>
 
