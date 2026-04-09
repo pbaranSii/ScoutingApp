@@ -108,7 +108,7 @@ export type OfflineMatchSlot = {
   birth_date?: string | null;
   club_name?: string;
   primary_position: string;
-  overall_rating: number;
+  overall_rating?: number | null;
   match_performance_rating: number;
   recommendation: "positive" | "to_observe" | "negative";
   summary: string;

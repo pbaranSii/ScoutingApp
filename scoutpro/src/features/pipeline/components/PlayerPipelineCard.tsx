@@ -25,7 +25,7 @@ type PlayerPipelineCardProps = {
 export function PlayerPipelineCard({
   player,
   statusSince,
-  latestRating,
+  latestRating: _latestRating,
 }: PlayerPipelineCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: player.id });

@@ -891,14 +891,6 @@ export function ObservationWizard({
             .filter((p) => p !== values.primary_position)
             .map((p) => codeForLookup(p) || p),
         ].filter(Boolean);
-        const sum =
-          (values.technical_rating ?? 3) +
-          (values.speed_rating ?? 3) +
-          (values.motor_rating ?? 3) +
-          (values.tactical_rating ?? 3) +
-          (values.mental_rating ?? 3) +
-          (values.potential_now ?? 3) +
-          (values.potential_future ?? 3);
         await updateObservation({
           id: observationId,
           input: {
@@ -1053,14 +1045,6 @@ export function ObservationWizard({
           values.primary_position,
           ...(values.additional_positions ?? []).filter((p) => p !== values.primary_position),
         ];
-        const offlineSum =
-          (values.technical_rating ?? 3) +
-          (values.speed_rating ?? 3) +
-          (values.motor_rating ?? 3) +
-          (values.tactical_rating ?? 3) +
-          (values.mental_rating ?? 3) +
-          (values.potential_now ?? 3) +
-          (values.potential_future ?? 3);
         await addOfflineObservation({
           localId: uuidv4(),
           data: {
@@ -1173,14 +1157,6 @@ export function ObservationWizard({
             .filter((p) => p !== values.primary_position)
             .map((p) => codeForLookup(p) || p),
         ].filter(Boolean);
-        const sum =
-          (values.technical_rating ?? 3) +
-          (values.speed_rating ?? 3) +
-          (values.motor_rating ?? 3) +
-          (values.tactical_rating ?? 3) +
-          (values.mental_rating ?? 3) +
-          (values.potential_now ?? 3) +
-          (values.potential_future ?? 3);
         const observation = await createObservation({
           player_id: playerId,
           scout_id: user.id,
