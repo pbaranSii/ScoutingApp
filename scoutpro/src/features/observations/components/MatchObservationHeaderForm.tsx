@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useCallback } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,19 +8,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
-import { useCategoriesForCurrentArea, useLeaguesForCurrentArea } from "@/features/dictionaries/hooks/useDictionaries";
+import { useCategoriesForCurrentArea, useLeaguesForCurrentArea, usePlayerSources } from "@/features/dictionaries/hooks/useDictionaries";
 import { useFormations } from "@/features/tactical/hooks/useFormations";
 import { ClubSelect } from "@/features/players/components/ClubSelect";
 import { fetchClubByName } from "@/features/players/api/players.api";
 import { useCurrentUserProfile } from "@/features/users/hooks/useUsers";
 
 /** Źródło obserwacji meczowej (jedno pole zamiast context_type + source). */
-export const MATCH_SOURCE_OPTIONS = [
+export const MATCH_SOURCE_FALLBACK_OPTIONS = [
   { value: "live_match", label: "Mecz na żywo" },
   { value: "video_match", label: "Mecz wideo" },
   { value: "video_clips", label: "Fragmenty wideo" },
   { value: "tournament", label: "Turniej" },
 ] as const;
+
+const MATCH_SOURCE_ALLOWED = new Set<string>(["live_match", "video_match", "video_clips", "tournament"]);
 
 const headerSchema = z
   .object({
@@ -77,6 +79,7 @@ export const MatchObservationHeaderForm = forwardRef<
 >(function MatchObservationHeaderForm({ initialValues, onValuesChange }, ref) {
   const { data: categories = [] } = useCategoriesForCurrentArea();
   const { data: leagues = [] } = useLeaguesForCurrentArea();
+  const { data: playerSources = [] } = usePlayerSources();
   const { data: currentUser } = useCurrentUserProfile();
   const areaAccess = (currentUser as { area_access?: "AKADEMIA" | "SENIOR" | "ALL" } | null)?.area_access ?? "AKADEMIA";
   const showCompetitionField = areaAccess !== "SENIOR";
@@ -130,6 +133,21 @@ export const MatchObservationHeaderForm = forwardRef<
     },
     [form]
   );
+
+  const matchSourceOptions = useMemo(() => {
+    const fromDict = (playerSources as { source_code?: string; name_pl?: string }[])
+      .filter((e) => MATCH_SOURCE_ALLOWED.has(String(e.source_code ?? "")))
+      .map((e) => ({
+        value: String(e.source_code ?? ""),
+        label: String(e.name_pl ?? e.source_code ?? ""),
+      }))
+      .filter((o) => o.value.trim() !== "" && o.label.trim() !== "");
+
+    if (fromDict.length === MATCH_SOURCE_ALLOWED.size) return fromDict;
+
+    const byValue = new Map(fromDict.map((o) => [o.value, o]));
+    return MATCH_SOURCE_FALLBACK_OPTIONS.map((fallback) => byValue.get(fallback.value) ?? fallback);
+  }, [playerSources]);
 
   useEffect(() => {
     onValuesChange?.(form.getValues());
@@ -197,7 +215,7 @@ export const MatchObservationHeaderForm = forwardRef<
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {MATCH_SOURCE_OPTIONS.map((opt) => (
+                    {matchSourceOptions.map((opt) => (
                       <SelectItem key={opt.value} value={opt.value}>
                         {opt.label}
                       </SelectItem>
