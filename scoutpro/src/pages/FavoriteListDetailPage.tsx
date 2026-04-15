@@ -346,6 +346,7 @@ export function FavoriteListDetailPage() {
       slotIndex >= 0 ? String((slots as Array<{ positionCode?: string }>)[slotIndex]?.positionCode ?? "") : "";
     if (positionCodeForSlot) {
       const relatedSlotKeys = slotKeys.filter((k, i) => {
+        void k;
         const c = String((slots as Array<{ positionCode?: string }>)[i]?.positionCode ?? "");
         return c === positionCodeForSlot;
       });
