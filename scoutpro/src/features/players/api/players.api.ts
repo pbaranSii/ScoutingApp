@@ -487,6 +487,7 @@ export async function fetchClubs(areaAccess: AreaAccess = "ALL") {
   let query = supabase
     .from("clubs")
     .select("id, name, city, area, league_id, league:leagues(id,name,display_name,area)")
+    .eq("is_active", true)
     .order("name", { ascending: true });
 
   if (areaAccess !== "ALL") {
