@@ -71,6 +71,7 @@ const OBSERVATION_SOURCE_VALID = new Set([
   "scouting", "referral", "application", "trainer_report", "scout_report",
   "video_analysis", "tournament", "training_camp", "live_match", "video_match", "video_clips",
 ]);
+const MATCH_SOURCE_ALLOWED = new Set(["live_match", "video_match", "video_clips", "tournament"]);
 const HALF_STEP_VALUES = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5] as const;
 
 const wizardSchema = z
@@ -384,6 +385,27 @@ export function ObservationWizard({
         isDefault: Boolean(e.is_default),
       }));
     return fromDict;
+  }, [playerSources]);
+  const matchSourceOptions = useMemo(() => {
+    const fallback = [
+      { value: "live_match", label: "Mecz na żywo" },
+      { value: "video_match", label: "Mecz wideo" },
+      { value: "video_clips", label: "Fragmenty wideo" },
+      { value: "tournament", label: "Turniej" },
+    ] as const;
+
+    const fromDict = (playerSources as { source_code?: string; name_pl?: string }[])
+      .filter((e) => MATCH_SOURCE_ALLOWED.has(String(e.source_code ?? "")))
+      .map((e) => ({
+        value: String(e.source_code ?? ""),
+        label: String(e.name_pl ?? e.source_code ?? ""),
+      }))
+      .filter((o) => o.value.trim() !== "" && o.label.trim() !== "");
+
+    if (fromDict.length === MATCH_SOURCE_ALLOWED.size) return fromDict;
+
+    const byValue = new Map(fromDict.map((o) => [o.value, o]));
+    return fallback.map((f) => byValue.get(f.value) ?? f);
   }, [playerSources]);
   const defaultSourceValue = useMemo(
     () => individualSourceOptions.find((o) => o.isDefault)?.value ?? "live_match",
@@ -1710,7 +1732,7 @@ export function ObservationWizard({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {individualSourceOptions.map((opt) => (
+                                {matchSourceOptions.map((opt) => (
                           <SelectItem key={opt.value} value={opt.value}>
                             {opt.label}
                           </SelectItem>

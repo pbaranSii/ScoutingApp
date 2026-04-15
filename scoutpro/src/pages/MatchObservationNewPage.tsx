@@ -190,7 +190,7 @@ export function MatchObservationNewPage() {
             birth_date: p.birth_date ?? undefined,
             club_name: p.club_name,
             primary_position: p.primary_position,
-            overall_rating: undefined,
+            overall_rating: 0,
             match_performance_rating: p.match_performance_rating,
             recommendation: p.recommendation,
             summary: p.summary.trim(),
