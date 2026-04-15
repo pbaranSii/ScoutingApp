@@ -486,7 +486,7 @@ export async function updatePlayer(id: string, input: Partial<PlayerInput>) {
 export async function fetchClubs(areaAccess: AreaAccess = "ALL") {
   let query = supabase
     .from("clubs")
-    .select("id, name, area, league_id, league:leagues(id,name,display_name,area)")
+    .select("id, name, city, area, league_id, league:leagues(id,name,display_name,area)")
     .order("name", { ascending: true });
 
   if (areaAccess !== "ALL") {

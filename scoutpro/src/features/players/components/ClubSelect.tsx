@@ -11,6 +11,19 @@ type ClubSelectProps = {
   priorityNames?: string[];
 };
 
+type ClubItem = {
+  id: string;
+  name: string;
+  city?: string | null;
+};
+
+type SuggestionItem = {
+  id: string;
+  name: string;
+  label: string;
+  source: "priority" | "club";
+};
+
 export function ClubSelect({ value, onChange, placeholder, disabled, priorityNames = [] }: ClubSelectProps) {
   const { data: clubs = [], isLoading, isError } = useClubs();
   const [isOpen, setIsOpen] = useState(false);
@@ -19,17 +32,39 @@ export function ClubSelect({ value, onChange, placeholder, disabled, priorityNam
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLowerCase();
+    const clubRows = (clubs ?? []) as unknown as ClubItem[];
+
     const matchingClubs = !normalized
-      ? clubs
-      : clubs.filter((club) => club.name.toLowerCase().includes(normalized));
+      ? clubRows
+      : clubRows.filter((club) => (club.name ?? "").toLowerCase().includes(normalized));
+
     const matchingPriority = !normalized
       ? priorityNames.filter((n) => n.trim())
-      : priorityNames.filter(
-          (n) => n.trim() && n.toLowerCase().includes(normalized)
-        );
+      : priorityNames.filter((n) => n.trim() && n.toLowerCase().includes(normalized));
+
     const prioritySet = new Set(matchingPriority);
-    const restClubs = matchingClubs.filter((c) => !prioritySet.has(c.name));
-    return [...matchingPriority, ...restClubs.map((c) => c.name)];
+
+    const priorityItems: SuggestionItem[] = matchingPriority.map((name) => ({
+      id: `priority:${name}`,
+      name,
+      label: name,
+      source: "priority",
+    }));
+
+    const clubItems: SuggestionItem[] = matchingClubs
+      .filter((c) => !prioritySet.has(c.name))
+      .map((c) => {
+        const city = String(c.city ?? "").trim();
+        const label = city ? `${c.name} — ${city}` : c.name;
+        return {
+          id: c.id,
+          name: c.name,
+          label,
+          source: "club",
+        };
+      });
+
+    return [...priorityItems, ...clubItems];
   }, [clubs, query, priorityNames]);
 
   const handleInputChange = (next: string) => {
@@ -71,19 +106,19 @@ export function ClubSelect({ value, onChange, placeholder, disabled, priorityNam
             )}
             {!isLoading &&
               !isError &&
-              filtered.map((name) => (
+              filtered.map((item) => (
                 <button
-                  key={name}
+                  key={item.id}
                   type="button"
                   className="w-full px-3 py-2 text-left text-slate-700 hover:bg-slate-100"
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => {
-                    onChange(name);
-                    setQuery(name);
+                    onChange(item.name);
+                    setQuery(item.name);
                     setIsOpen(false);
                   }}
                 >
-                  {name}
+                  {item.label}
                 </button>
               ))}
           </div>
