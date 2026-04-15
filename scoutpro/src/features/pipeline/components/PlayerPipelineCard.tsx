@@ -27,7 +27,7 @@ export function PlayerPipelineCard({
   statusSince,
   latestRating: _latestRating,
 }: PlayerPipelineCardProps) {
-  void latestRating;
+  void _latestRating;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: player.id });
 
