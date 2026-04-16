@@ -435,6 +435,59 @@ export function ObservationWizard({
     "Użytkownik";
   const auditRole =
     (user?.user_metadata as { role?: string })?.role ?? "user";
+
+  const resolveAgeCategoryId = useCallback(
+    (birthYear: number): string | null => {
+      const y = Number(birthYear);
+      if (!Number.isFinite(y)) return null;
+
+      const cats = (categoriesOptions ?? []) as Array<Record<string, unknown>>;
+      if (cats.length === 0) return null;
+
+      const candidates = cats
+        .map((c) => {
+          const ageUnder = c.age_under ?? null;
+          const minBy = c.min_birth_year ?? null;
+          const maxBy = c.max_birth_year ?? null;
+
+          const matchesAgeUnder = ageUnder != null && y === new Date().getFullYear() - Number(ageUnder);
+          const matchesRange =
+            minBy != null &&
+            maxBy != null &&
+            y >= Number(minBy) &&
+            y <= Number(maxBy);
+
+          return { c, matchesAgeUnder, matchesRange };
+        })
+        .filter((x) => x.matchesAgeUnder || x.matchesRange);
+
+      candidates.sort((a, b) => {
+        const aHasUnder = a.c.age_under != null;
+        const bHasUnder = b.c.age_under != null;
+        if (aHasUnder !== bHasUnder) return aHasUnder ? -1 : 1;
+
+        const aMax = a.c.max_birth_year ?? null;
+        const bMax = b.c.max_birth_year ?? null;
+        if ((aMax == null) !== (bMax == null)) return aMax == null ? 1 : -1;
+        if (aMax != null && bMax != null && aMax !== bMax) return Number(bMax) - Number(aMax);
+
+        const aMin = a.c.min_birth_year ?? null;
+        const bMin = b.c.min_birth_year ?? null;
+        if ((aMin == null) !== (bMin == null)) return aMin == null ? 1 : -1;
+        if (aMin != null && bMin != null && aMin !== bMin) return Number(aMin) - Number(bMin);
+
+        return 0;
+      });
+
+      const best = (candidates[0]?.c ?? null) as { id?: unknown } | null;
+      const bestId = best?.id != null ? String(best.id) : "";
+      if (bestId.trim() !== "") return bestId;
+
+      const fallbackId = cats[0]?.id != null ? String(cats[0]?.id) : "";
+      return fallbackId.trim() !== "" ? fallbackId : null;
+    },
+    [categoriesOptions]
+  );
   const goBack = () => {
     if (window.history.length > 1) {
       navigate(-1);
@@ -1151,10 +1204,12 @@ export function ObservationWizard({
         }
         if (!playerId) {
           const clubId = await resolveClubId(values.club_name?.trim());
+          const ageCategoryId = resolveAgeCategoryId(birthYear);
           const player = await createPlayer({
             first_name: firstName,
             last_name: lastName,
             birth_year: birthYear,
+            age_category_id: ageCategoryId,
             club_id: clubId,
             nationality: values.nationality?.trim() || null,
             body_build: values.body_build?.trim() || null,
