@@ -20,8 +20,8 @@ type PlayerCardProps = {
   latestRating?: number | null;
 };
 
-export function PlayerCard({ player, latestRating }: PlayerCardProps) {
-  void latestRating;
+export function PlayerCard({ player, latestRating: _latestRating }: PlayerCardProps) {
+  void _latestRating;
   const initials = `${player.first_name?.[0] ?? ""}${player.last_name?.[0] ?? ""}`.toUpperCase();
   const statusKey = player.pipeline_status ?? "unassigned";
   const statusLabel =

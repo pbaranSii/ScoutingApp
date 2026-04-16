@@ -13,8 +13,8 @@ type PlayerRowCardProps = {
   latestRating?: number | null;
 };
 
-export function PlayerRowCard({ player, latestRating }: PlayerRowCardProps) {
-  void latestRating;
+export function PlayerRowCard({ player, latestRating: _latestRating }: PlayerRowCardProps) {
+  void _latestRating;
   const statusKey = player.pipeline_status ?? "unassigned";
   const statusLabel =
     ALL_PIPELINE_STATUSES.find((s) => s.id === statusKey)?.label ?? "Nieprzypisany";
