@@ -1996,10 +1996,13 @@ export function ObservationWizard({
             />
             {!isMatchPlayer && (
               <div className="space-y-3">
-                {matchRows.length > 0 && (
-                  <div className="space-y-3 rounded-md border border-slate-200 p-3">
-                    <h3 className="text-sm font-semibold text-slate-700">Powiązane mecze</h3>
-                    {matchRows.map((row, idx) => (
+                <div className="space-y-3 rounded-md border border-slate-200 p-3">
+                  <h3 className="text-sm font-semibold text-slate-700">Powiązane mecze</h3>
+
+                  {matchRows.length === 0 ? (
+                    <div className="text-xs text-slate-500">Brak powiązanych meczów.</div>
+                  ) : (
+                    matchRows.map((row, idx) => (
                       <div key={row.id} className="space-y-2 rounded border border-slate-200 p-3">
                         <div className="flex items-center justify-between gap-2">
                           <div className="text-xs font-medium text-slate-600">
@@ -2219,35 +2222,36 @@ export function ObservationWizard({
                           </div>
                         )}
                       </div>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        setMatchRows((prev) => [
-                          ...prev,
-                          {
-                            id: uuidv4(),
-                            match_date: format(new Date(), "yyyy-MM-dd"),
-                            source: defaultSourceValue,
-                            competition: "",
-                            league: "",
-                            home_team: "",
-                            away_team: "",
-                            match_result: "",
-                            home_team_formation: "",
-                            away_team_formation: "",
-                            notes: "",
-                            isSaved: false,
-                          },
-                        ])
-                      }
-                    >
-                      + Dodaj mecz
-                    </Button>
-                  </div>
-                )}
+                    ))
+                  )}
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setMatchRows((prev) => [
+                        ...prev,
+                        {
+                          id: uuidv4(),
+                          match_date: format(new Date(), "yyyy-MM-dd"),
+                          source: defaultSourceValue,
+                          competition: "",
+                          league: "",
+                          home_team: "",
+                          away_team: "",
+                          match_result: "",
+                          home_team_formation: "",
+                          away_team_formation: "",
+                          notes: "",
+                          isSaved: false,
+                        },
+                      ])
+                    }
+                  >
+                    + Dodaj mecz
+                  </Button>
+                </div>
               </div>
             )}
           </section>
